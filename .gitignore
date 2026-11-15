@@ -1,0 +1,13 @@
+# Godot 4 cache and imported-asset data (regenerated on open)
+.godot/
+
+# Exports
+/build/
+*.pck
+*.zip
+
+# OS / editor noise
+.DS_Store
+*.swp
+.vscode/
+.idea/

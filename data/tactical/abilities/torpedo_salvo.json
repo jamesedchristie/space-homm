@@ -1,0 +1,17 @@
+{
+  "id": "torpedo_salvo",
+  "name": "Torpedo Salvo",
+  "description": "Guided torpedoes that detonate in an area. No line of sight needed. Hits friends too. May cause a hull breach.",
+  "ap_cost": 3,
+  "cooldown": 3,
+  "target": "cell",
+  "range": [2, 6],
+  "radius": 1,
+  "affects": "all",
+  "requires_los": false,
+  "effects": [
+    {"type": "damage", "amount": [18, 26], "damage_type": "explosive"},
+    {"type": "apply_status", "status": "hull_breach", "duration": 2, "chance": 0.5}
+  ],
+  "fx": "torpedo"
+}

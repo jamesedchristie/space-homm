@@ -1,0 +1,19 @@
+{
+  "id": "interceptor",
+  "name": "Interceptor",
+  "description": "Fast strike craft. Strips shields with pulse lasers and scrambles systems with EMP.",
+  "tags": ["ship", "small"],
+  "stats": {
+    "max_hull": 60,
+    "max_shields": 40,
+    "armor": 0,
+    "initiative": 8,
+    "max_ap": 6
+  },
+  "abilities": ["pulse_lasers", "emp_burst", "evasive_maneuvers"],
+  "visual": {
+    "placeholder": "interceptor",
+    "sprite": "",
+    "size": 0.8
+  }
+}

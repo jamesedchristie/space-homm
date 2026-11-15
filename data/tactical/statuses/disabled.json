@@ -1,0 +1,7 @@
+{
+  "id": "disabled",
+  "name": "Disabled",
+  "description": "Systems scrambled: loses its next turn.",
+  "flags": ["skip_turn"],
+  "ai_value": -25
+}

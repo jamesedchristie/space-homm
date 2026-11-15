@@ -1,0 +1,17 @@
+{
+  "asteroid": {
+    "name": "Asteroid",
+    "description": "Impassable rock. Blocks line of sight.",
+    "passable": false,
+    "blocks_sight": true,
+    "color": "#4a4038"
+  },
+  "nebula": {
+    "name": "Nebula",
+    "description": "Ionised gas. Costs 2 AP to enter and blocks line of sight through it.",
+    "passable": true,
+    "blocks_sight": true,
+    "move_cost": 2,
+    "color": "#3b2558"
+  }
+}

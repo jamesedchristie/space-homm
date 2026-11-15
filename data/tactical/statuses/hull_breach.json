@@ -1,0 +1,9 @@
+{
+  "id": "hull_breach",
+  "name": "Hull Breach",
+  "description": "Venting atmosphere: takes 5 kinetic hull damage at the start of each turn, ignoring shields and armor.",
+  "on_turn_start": [
+    {"type": "damage", "amount": 5, "damage_type": "kinetic", "bypass_shields": true, "ignore_armor": true}
+  ],
+  "ai_value": -8
+}

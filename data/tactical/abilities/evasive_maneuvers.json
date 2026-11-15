@@ -1,0 +1,12 @@
+{
+  "id": "evasive_maneuvers",
+  "name": "Evasive Maneuvers",
+  "description": "Jink and roll: take 40% less damage until your next turn.",
+  "ap_cost": 2,
+  "cooldown": 3,
+  "target": "self",
+  "effects": [
+    {"type": "apply_status", "status": "evasive", "duration": 1}
+  ],
+  "fx": "self"
+}

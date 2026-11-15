@@ -1,0 +1,19 @@
+{
+  "id": "frigate",
+  "name": "Frigate",
+  "description": "Workhorse warship. Heavy armor, a spinal railgun and a torpedo rack.",
+  "tags": ["ship", "medium"],
+  "stats": {
+    "max_hull": 120,
+    "max_shields": 60,
+    "armor": 3,
+    "initiative": 4,
+    "max_ap": 4
+  },
+  "abilities": ["railgun", "torpedo_salvo", "brace_shields"],
+  "visual": {
+    "placeholder": "frigate",
+    "sprite": "",
+    "size": 1.0
+  }
+}

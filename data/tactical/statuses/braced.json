@@ -1,0 +1,7 @@
+{
+  "id": "braced",
+  "name": "Braced",
+  "description": "Takes 25% less damage.",
+  "modifiers": {"damage_taken": {"mul": 0.75}},
+  "ai_value": 8
+}

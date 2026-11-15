@@ -1,0 +1,14 @@
+{
+  "id": "railgun",
+  "name": "Railgun",
+  "description": "Long-range kinetic slug. Weak against shields, punishing against hull.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [1, 5],
+  "requires_los": true,
+  "effects": [
+    {"type": "damage", "amount": [18, 24], "damage_type": "kinetic"}
+  ],
+  "fx": "projectile"
+}

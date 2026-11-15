@@ -1,0 +1,20 @@
+{
+  "kinetic": {
+    "name": "Kinetic",
+    "description": "Slugs and flak. Shields deflect most of it, hull takes it hard.",
+    "vs_shields": 0.5,
+    "vs_hull": 1.25
+  },
+  "energy": {
+    "name": "Energy",
+    "description": "Lasers and particle beams. Strips shields fast, scatters off armor plating.",
+    "vs_shields": 1.5,
+    "vs_hull": 0.75
+  },
+  "explosive": {
+    "name": "Explosive",
+    "description": "Torpedo warheads. Moderate against shields, devastating against hull.",
+    "vs_shields": 0.75,
+    "vs_hull": 1.5
+  }
+}

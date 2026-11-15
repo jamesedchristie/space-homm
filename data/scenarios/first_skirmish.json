@@ -1,0 +1,34 @@
+{
+  "id": "first_skirmish",
+  "name": "Skirmish in the Drift",
+  "description": "A patrol group runs into raiders in an asteroid field. Destroy the raiders.",
+  "map": "asteroid_field",
+  "max_rounds": 40,
+  "teams": [
+    {
+      "team": 0,
+      "name": "Patrol Group",
+      "controller": "player",
+      "units": [
+        {"unit": "interceptor", "name": "Kestrel", "at": [1, 1]},
+        {"unit": "frigate", "name": "Vigilant", "at": [1, 3]},
+        {"unit": "frigate", "name": "Resolute", "at": [1, 5]},
+        {"unit": "interceptor", "name": "Swift", "at": [1, 7]}
+      ]
+    },
+    {
+      "team": 1,
+      "name": "Drift Raiders",
+      "controller": "ai",
+      "units": [
+        {"unit": "interceptor", "name": "Jackal", "at": [12, 1]},
+        {"unit": "frigate", "name": "Marauder", "at": [12, 3]},
+        {"unit": "frigate", "name": "Cutthroat", "at": [12, 5]},
+        {"unit": "interceptor", "name": "Hyena", "at": [12, 7]}
+      ]
+    }
+  ],
+  "objectives": [
+    {"type": "eliminate_all", "description": "Destroy all enemy ships"}
+  ]
+}

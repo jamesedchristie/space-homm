@@ -1,0 +1,14 @@
+{
+  "id": "pulse_lasers",
+  "name": "Pulse Lasers",
+  "description": "Short-range energy bursts. Excellent at stripping shields.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [1, 3],
+  "requires_los": true,
+  "effects": [
+    {"type": "damage", "amount": [10, 14], "damage_type": "energy"}
+  ],
+  "fx": "beam"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "brace_shields",
+  "name": "Brace Shields",
+  "description": "Divert power to shields: restore 20 shields and take 25% less damage until your next turn.",
+  "ap_cost": 1,
+  "cooldown": 3,
+  "target": "self",
+  "effects": [
+    {"type": "heal", "stat": "shields", "amount": 20},
+    {"type": "apply_status", "status": "braced", "duration": 1}
+  ],
+  "fx": "self"
+}
