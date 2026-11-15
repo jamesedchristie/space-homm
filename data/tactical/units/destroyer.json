@@ -1,0 +1,36 @@
+{
+  "id": "destroyer",
+  "name": "Destroyer",
+  "description": "Heavy warship. Slow, thickly armored, and carries twin torpedo racks.",
+  "tags": [
+    "ship",
+    "large"
+  ],
+  "stats": {
+    "max_hull": 190,
+    "max_shields": 80,
+    "armor": 5,
+    "initiative": 3,
+    "max_ap": 4
+  },
+  "abilities": [
+    "railgun",
+    "torpedo_salvo",
+    "brace_shields"
+  ],
+  "strategic": {
+    "speed": 2,
+    "sensor": 2,
+    "cost": {
+      "alloys": 80,
+      "credits": 70
+    },
+    "build_turns": 4,
+    "requires_tech": "heavy_hulls"
+  },
+  "visual": {
+    "placeholder": "destroyer",
+    "sprite": "",
+    "size": 1.2
+  }
+}

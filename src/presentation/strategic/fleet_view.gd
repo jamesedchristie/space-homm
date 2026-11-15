@@ -23,11 +23,12 @@ func setup(fleet: Fleet, team: int, data: DataRegistry, owned_by_player: bool) -
 	refresh(fleet, data)
 
 
-func refresh(fleet: Fleet, data: DataRegistry) -> void:
+## max_moves_override: moves per turn including tech bonuses (-1 = base speed).
+func refresh(fleet: Fleet, data: DataRegistry, max_moves_override: int = -1) -> void:
 	display_name = fleet.name
 	ship_count = fleet.ships.size()
 	moves_left = fleet.moves_left
-	max_moves = fleet.speed(data)
+	max_moves = max_moves_override if max_moves_override >= 0 else fleet.speed(data)
 	hull_ratio = fleet.hull_ratio(data)
 	queue_redraw()
 

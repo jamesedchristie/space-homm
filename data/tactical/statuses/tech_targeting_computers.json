@@ -1,0 +1,13 @@
+{
+  "id": "tech_targeting_computers",
+  "name": "Targeting Computers",
+  "description": "+10% damage.",
+  "permanent": true,
+  "hidden": true,
+  "modifiers": {
+    "damage_dealt": {
+      "mul": 1.1
+    }
+  },
+  "ai_value": 3
+}

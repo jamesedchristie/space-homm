@@ -59,6 +59,9 @@ func _ready() -> void:
 		push_error("Content: " + e)
 	hud.end_turn_pressed.connect(_on_end_turn_pressed)
 	hud.heroes_pressed.connect(_toggle_roster)
+	hud.empire_pressed.connect(_toggle_empire)
+	hud.empire.command_requested.connect(_on_empire_command)
+	hud.empire.closed.connect(_refresh)
 	hud.roster.command_requested.connect(_on_roster_command)
 	hud.roster.closed.connect(_refresh)
 	get_viewport().size_changed.connect(_fit_map)
@@ -77,6 +80,7 @@ func start_campaign() -> void:
 	selected_planet = ""
 	selected_anomaly = ""
 	hud.roster.visible = false
+	hud.empire.visible = false
 	ai = GalaxyAI.new()
 
 	engine = GalaxyEngine.from_campaign(data, campaign_id, rng_seed)
@@ -161,8 +165,9 @@ func _submit(cmd: GalaxyCommand) -> void:
 func _resolve_battle(token: int) -> void:
 	var b := engine.state.pending_battle
 	var attacker: Fleet = engine.state.fleets[b["attacker"]]
-	var defender: Fleet = engine.state.fleets[b["defender"]]
-	var involves_player := attacker.owner == player_faction or defender.owner == player_faction
+	var defender: Fleet = engine.state.fleets.get(b.get("defender", ""))
+	var defending_faction: String = defender.owner if defender != null else engine.state.planet_at(b["cell"]).owner
+	var involves_player := attacker.owner == player_faction or defending_faction == player_faction
 	var ask_player := involves_player and not autoplay
 	var fight := autoplay and watch_battles and involves_player
 	if ask_player:
@@ -222,7 +227,49 @@ func _resolve_mission(token: int) -> void:
 		await hud.dialog_choice
 
 
+func _toggle_empire() -> void:
+	if hud.empire.visible:
+		hud.empire.visible = false
+		_refresh()
+	else:
+		hud.roster.visible = false
+		hud.empire.show_panel(engine, player_faction, not _busy and _is_human_turn())
+
+
+func _on_empire_command(cmd: GalaxyCommand) -> void:
+	if _busy or not _is_human_turn():
+		return
+	var result := engine.submit(cmd)
+	if not result.ok:
+		hud.set_hint(result.error)
+	else:
+		await _play(result.events, _token)
+		for e in result.events:
+			if e["type"] == GalaxyEvents.PEACE_REFUSED:
+				hud.set_hint(e["reason"])
+	if engine.state.is_over:
+		hud.empire.visible = false
+		return
+	hud.empire.show_panel(engine, player_faction, not _busy and _is_human_turn())
+	_refresh_resources()
+
+
+func _refresh_resources() -> void:
+	var f := player_faction
+	var stock: Dictionary = engine.state.resources[f]
+	var income := EmpireRules.income(engine, f)
+	var r: Dictionary = engine.state.research[f]
+	var research := "choose research (E)" if r["current"].is_empty() else "%s %d/%d" % [
+			data.techs[r["current"]]["name"], r["progress"], ResearchRules.cost(engine, r["current"])]
+	var dim := Palette.hex(Palette.TEXT_DIM)
+	hud.set_resources("%s %d [color=#%s](%+d)[/color]    %s %d [color=#%s](%+d)[/color]    %s %+d: %s" % [
+			UiKit.color_tag("Credits", Color(data.resources["credits"]["color"])), stock["credits"], dim, income["credits"],
+			UiKit.color_tag("Alloys", Color(data.resources["alloys"]["color"])), stock["alloys"], dim, income["alloys"],
+			UiKit.color_tag("Research", Color(data.resources["research"]["color"])), income["research"], research])
+
+
 func _toggle_roster() -> void:
+	hud.empire.visible = false
 	if hud.roster.visible:
 		hud.roster.visible = false
 		_refresh()
@@ -313,7 +360,12 @@ func _game_over() -> void:
 		title = "Defeat"
 	elif s.winner != "":
 		title = "%s wins" % s.faction(s.winner)["name"]
-	hud.ask(title, "The campaign is over after %d turns." % s.turn_number, [{"id": "new", "label": "New campaign"}])
+	var lines := PackedStringArray(["The campaign is over after %d turns (%s)." % [s.turn_number,
+			"by treaty" if engine.state.eliminated.size() < s.factions.size() - 1 else "by conquest"], ""])
+	for f in s.factions:
+		if not s.is_eliminated(f["id"]):
+			lines.append("%s: score %d" % [UiKit.color_tag(f["name"], Palette.team_color(f["team"])), EmpireRules.score(engine, f["id"])])
+	hud.ask(title, "\n".join(lines), [{"id": "new", "label": "New campaign"}])
 	var token := _token
 	await hud.dialog_choice
 	if token == _token:
@@ -337,7 +389,7 @@ func _sync_views() -> void:
 			fleets_layer.add_child(view)
 			view.setup(fleet, engine.state.faction(fleet.owner)["team"], data, fleet.owner == player_faction)
 			fleet_views[fleet.id] = view
-		view.refresh(fleet, data)
+		view.refresh(fleet, data, engine.fleet_speed(fleet))
 		view.position = map_view.cell_center(fleet.cell) + FLEET_OFFSET
 		view.visible = engine.can_see_fleet(player_faction, fleet, _visible)
 		view.set_selected(fleet.id == selected_fleet)
@@ -361,6 +413,7 @@ func _sync_views() -> void:
 
 ## Recomputes highlights, info panel and hints.
 func _refresh() -> void:
+	_refresh_resources()
 	var s := engine.state
 	var current := s.current_faction()
 	hud.set_turn(s.turn_number, current["name"], Palette.team_color(current["team"]))
@@ -466,7 +519,7 @@ func _fleet_info(fleet: Fleet) -> String:
 	var lines := PackedStringArray()
 	lines.append("[b]%s[/b]  %s" % [_fleet_name(fleet), UiKit.color_tag(faction["name"], Palette.TEXT_DIM)])
 	if fleet.owner == player_faction:
-		lines.append("Moves %d / %d   ·   Sensors %d" % [fleet.moves_left, fleet.speed(data), fleet.sensor(data)])
+		lines.append("Moves %d / %d   ·   Sensors %d" % [fleet.moves_left, engine.fleet_speed(fleet), engine.fleet_sensor(fleet)])
 	lines.append("")
 	for ship in fleet.ships:
 		var def: Dictionary = data.units[ship["unit"]]
@@ -560,9 +613,27 @@ func _planet_info(planet: Planet) -> String:
 		var f := engine.state.faction(planet.owner)
 		owner = f["name"]
 		color = Palette.team_color(f["team"])
-	var text := "[b]%s[/b]  %s\n%s\n\n%s\n\nSensors %d. Friendly fleets here repair. Move a fleet here to capture it." % [
+	var building_names := PackedStringArray()
+	for b in planet.buildings:
+		building_names.append(data.buildings[b]["name"])
+	var text := "[b]%s[/b]  %s\n%s\n\n%s\n\nYields %s per turn\nBuildings %d/%d%s" % [
 			planet.name, UiKit.color_tag(type_def.get("name", planet.type), Palette.TEXT_DIM),
-			UiKit.color_tag(owner, color), planet.description, planet.sensor]
+			UiKit.color_tag(owner, color), planet.description,
+			EmpirePanel._resource_text(engine, EmpireRules.planet_yields(engine, planet), true),
+			planet.buildings.size(), EmpireRules.slots(engine, planet),
+			(": " + ", ".join(building_names)) if not building_names.is_empty() else ""]
+	var defenses := EmpireRules.defense_units(engine, planet).size()
+	if defenses > 0:
+		text += "\n" + UiKit.color_tag("Defended by %d platform(s): attackers must fight them." % defenses, Palette.BAD)
+	if planet.owner == player_faction:
+		if planet.queue.is_empty():
+			text += "\n" + UiKit.color_tag("Idle: queue something in the Empire panel (E).", Palette.TEXT_DIM)
+		else:
+			var q := planet.queue
+			var item: String = data.buildings[q["item"]]["name"] if q["kind"] == "building" else data.units[q["item"]]["name"]
+			text += "\n" + UiKit.color_tag("Building %s (%d/%d turns)" % [item, q["progress"], q["turns"]], Palette.ACTIVE)
+	elif not planet.owner.is_empty() and not engine.state.at_war(player_faction, planet.owner):
+		text += "\n" + UiKit.color_tag("At peace with you: can't be captured.", Palette.TEXT_DIM)
 	var waiting := PackedStringArray()
 	for h in engine.state.heroes_of(player_faction):
 		if h.planet_id == planet.id and h.fleet_id.is_empty() and h.status != Hero.CAPTURED and h.status != Hero.DEAD:
@@ -575,6 +646,14 @@ func _planet_info(planet: Planet) -> String:
 
 func _battle_preview(b: Dictionary, attacker: Fleet, defender: Fleet) -> String:
 	var lines := PackedStringArray()
+	var planet := engine.state.planet_at(b["cell"])
+	if defender == null:
+		lines.append("[b]%s[/b] attacks the defenses of [b]%s[/b] (%d platform(s))." % [_fleet_name(attacker), planet.name,
+				EmpireRules.defense_units(engine, planet).size()])
+		lines.append(UiKit.color_tag("Win and the fleet takes the planet.", Palette.TEXT_DIM))
+		return "\n".join(lines)
+	if planet != null and planet.owner == defender.owner and not EmpireRules.defense_units(engine, planet).is_empty():
+		lines.append(UiKit.color_tag("%s's defense platforms join the fight." % planet.name, Palette.BAD))
 	for fleet in [attacker, defender]:
 		var cmdr := engine.state.active_commander(fleet)
 		if cmdr != null:
@@ -607,6 +686,8 @@ func _battle_report(events: Array[Dictionary]) -> String:
 		for side: Array in [[e["attacker"], e["attacker_name"]], [e["defender"], e["defender_name"]]]:
 			var lost: Array = e["losses"].get(side[0], [])
 			lines.append("%s lost %s" % [side[1], ", ".join(lost) if not lost.is_empty() else "nothing"])
+		if e.get("platforms_lost", 0) > 0:
+			lines.append("%d defense platform(s) destroyed" % e["platforms_lost"])
 		return "\n".join(lines)
 	return ""
 
@@ -622,7 +703,12 @@ func _describe(e: Dictionary) -> String:
 			return "%s captures %s" % [UiKit.color_tag(f["name"], Palette.team_color(f["team"])), s.planets[e["planet"]].name]
 		GalaxyEvents.BATTLE_TRIGGERED:
 			var a: Fleet = s.fleets[e["attacker"]]
-			var d: Fleet = s.fleets[e["defender"]]
+			var d: Fleet = s.fleets.get(e["defender"])
+			if d == null:
+				var target: Planet = s.planets[e["planet"]]
+				if a.owner != player_faction and target.owner != player_faction:
+					return ""
+				return "%s assaults the defenses of %s" % [_fleet_name(a), target.name]
 			if a.owner != player_faction and d.owner != player_faction:
 				return ""
 			if e["ambush"]:
@@ -657,6 +743,28 @@ func _describe(e: Dictionary) -> String:
 			return UiKit.color_tag("   %s %s" % [hero.name, what[e["type"]]], Palette.ACTIVE)
 		GalaxyEvents.ANOMALY_CHANGED:
 			return UiKit.color_tag("New mission available: %s" % e["name"], Palette.BAD)
+		GalaxyEvents.TECH_RESEARCHED:
+			if e["faction"] != player_faction:
+				return ""
+			return UiKit.color_tag("Research complete: %s" % data.techs[e["tech"]]["name"], Color(data.resources["research"]["color"]))
+		GalaxyEvents.BUILDING_COMPLETED:
+			if s.planets[e["planet"]].owner != player_faction:
+				return ""
+			return "   %s completed at %s" % [data.buildings[e["building"]]["name"], s.planets[e["planet"]].name]
+		GalaxyEvents.SHIP_COMPLETED:
+			if s.planets[e["planet"]].owner != player_faction:
+				return ""
+			return "   New %s launched at %s" % [data.units[e["unit"]]["name"], s.planets[e["planet"]].name]
+		GalaxyEvents.WAR_DECLARED:
+			return UiKit.color_tag("[b]%s declares war on %s[/b]" % [s.faction(e["faction"])["name"], s.faction(e["target"])["name"]], Palette.BAD)
+		GalaxyEvents.PEACE_SIGNED:
+			return UiKit.color_tag("[b]Peace: %s and %s[/b]" % [s.faction(e["factions"][0])["name"], s.faction(e["factions"][1])["name"]], Palette.GOOD)
+		GalaxyEvents.PEACE_REFUSED:
+			return UiKit.color_tag(e["reason"], Palette.TEXT_DIM) if e["faction"] == player_faction else ""
+		GalaxyEvents.GIFT_SENT:
+			if e["faction"] != player_faction and e["target"] != player_faction:
+				return ""
+			return "   %s sends %s a gift of %d credits" % [s.faction(e["faction"])["name"], s.faction(e["target"])["name"], e["credits"]]
 	return ""
 
 
@@ -668,7 +776,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_H:
 		_toggle_roster()
 		return
-	if hud.roster.visible:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
+		_toggle_empire()
+		return
+	if hud.roster.visible or hud.empire.visible:
 		return
 	if event is InputEventMouseMotion:
 		var cell: Variant = map_view.cell_at_global(get_global_mouse_position())

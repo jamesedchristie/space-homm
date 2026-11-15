@@ -35,6 +35,11 @@ var traits: Dictionary = {}
 var progression: Dictionary = {}
 var missions: Dictionary = {}
 
+# Empire
+var resources: Dictionary = {}
+var buildings: Dictionary = {}
+var techs: Dictionary = {}
+
 ## Human-readable problems found while loading. Empty means all good.
 var errors: PackedStringArray = []
 
@@ -67,6 +72,9 @@ func load_from(root: String) -> bool:
 	var prog: Variant = JsonUtil.load_file(root.path_join("heroes/progression.json"))
 	progression = prog if prog is Dictionary else {}
 	_load_dir(root.path_join("missions"), missions)
+	_load_keyed_file(root.path_join("empire/resources.json"), resources)
+	_load_keyed_file(root.path_join("empire/buildings.json"), buildings)
+	_load_keyed_file(root.path_join("empire/techs.json"), techs)
 	validate()
 	return errors.is_empty()
 
@@ -139,7 +147,53 @@ func validate() -> PackedStringArray:
 				_err("item '%s': unknown ability '%s'" % [id, ability_id])
 	for id: String in missions:
 		_validate_mission(id, missions[id])
+	_validate_empire()
 	return errors
+
+
+func _validate_empire() -> void:
+	for id: String in buildings:
+		var def: Dictionary = buildings[id]
+		if def.has("requires_tech") and not techs.has(def["requires_tech"]):
+			_err("building '%s': unknown tech '%s'" % [id, def["requires_tech"]])
+		if def.has("defense_unit") and not units.has(def["defense_unit"]):
+			_err("building '%s': unknown defense unit '%s'" % [id, def["defense_unit"]])
+		for k: String in def.get("cost", {}).keys() + def.get("yields", {}).keys():
+			if not resources.has(k):
+				_err("building '%s': unknown resource '%s'" % [id, k])
+	for id: String in techs:
+		var def: Dictionary = techs[id]
+		for req: String in def.get("requires", []):
+			if not techs.has(req):
+				_err("tech '%s': unknown prerequisite '%s'" % [id, req])
+		for e: Dictionary in def.get("effects", []):
+			match e.get("type", ""):
+				"ship_status":
+					if not statuses.has(e.get("status", "")):
+						_err("tech '%s': unknown status '%s'" % [id, e.get("status", "")])
+				"unlock_building":
+					if not buildings.has(e.get("building", "")):
+						_err("tech '%s': unknown building '%s'" % [id, e.get("building", "")])
+				"unlock_unit":
+					if not units.has(e.get("unit", "")):
+						_err("tech '%s': unknown unit '%s'" % [id, e.get("unit", "")])
+				"yield":
+					if not resources.has(e.get("resource", "")):
+						_err("tech '%s': unknown resource '%s'" % [id, e.get("resource", "")])
+				"empire_modifier":
+					pass
+				_:
+					_err("tech '%s': unknown effect type '%s'" % [id, e.get("type", "")])
+	for id: String in units:
+		var req: String = units[id].get("strategic", {}).get("requires_tech", "")
+		if not req.is_empty() and not techs.has(req):
+			_err("unit '%s': unknown tech '%s'" % [id, req])
+	for id: String in campaigns:
+		var def: Dictionary = campaigns[id]
+		for p: Dictionary in def.get("planets", []):
+			for b: String in p.get("buildings", []):
+				if not buildings.has(b):
+					_err("campaign '%s': planet '%s' has unknown building '%s'" % [id, p.get("id", ""), b])
 
 
 func _validate_mission(id: String, def: Dictionary) -> void:

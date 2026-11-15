@@ -69,6 +69,7 @@ static func from_scenario(p_data: DataRegistry, scenario: Variant, p_seed: int =
 				var status_def: Dictionary = p_data.statuses.get(st.get("status", ""), {})
 				if not status_def.is_empty():
 					u.statuses.append(StatusInstance.new(status_def, int(st.get("duration", 1))))
+			u.shields = u.max_shields()  # statuses may raise max shields
 			s.units[unit_id] = u
 			index += 1
 
@@ -171,6 +172,8 @@ func validate(cmd: BattleCommand) -> String:
 ## {cell: {"cost", "from"}} for every cell the unit can reach with its AP.
 func reachable_cells(unit_id: String) -> Dictionary:
 	var unit := state.get_unit(unit_id)
+	if "immobile" in unit.tags:
+		return {unit.cell: {"cost": 0, "from": unit.cell}}
 	return Pathfinding.reachable(state.grid, unit.cell, unit.ap,
 			func(c: Vector2i) -> bool: return c != unit.cell and state.is_occupied(c))
 

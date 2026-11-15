@@ -1,0 +1,57 @@
+{
+  "mine": {
+    "name": "Mining Complex",
+    "description": "+4 alloys per turn.",
+    "cost": {
+      "credits": 40
+    },
+    "turns": 2,
+    "yields": {
+      "alloys": 4
+    }
+  },
+  "trade_hub": {
+    "name": "Trade Hub",
+    "description": "+5 credits per turn.",
+    "cost": {
+      "alloys": 30
+    },
+    "turns": 2,
+    "yields": {
+      "credits": 5
+    }
+  },
+  "research_lab": {
+    "name": "Research Lab",
+    "description": "+4 research per turn.",
+    "cost": {
+      "credits": 40,
+      "alloys": 20
+    },
+    "turns": 3,
+    "yields": {
+      "research": 4
+    }
+  },
+  "shipyard": {
+    "name": "Shipyard",
+    "description": "Lets this planet build ships.",
+    "cost": {
+      "credits": 60,
+      "alloys": 60
+    },
+    "turns": 4,
+    "shipyard": true
+  },
+  "defense_platform": {
+    "name": "Defense Platform",
+    "description": "Orbital gun platform. Fights any enemy that attacks the planet.",
+    "cost": {
+      "credits": 30,
+      "alloys": 60
+    },
+    "turns": 3,
+    "requires_tech": "orbital_defenses",
+    "defense_unit": "defense_platform"
+  }
+}

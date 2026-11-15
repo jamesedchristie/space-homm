@@ -1,0 +1,25 @@
+{
+  "id": "defense_platform",
+  "name": "Defense Platform",
+  "description": "Orbital gun platform. Can't move.",
+  "tags": [
+    "station",
+    "immobile"
+  ],
+  "stats": {
+    "max_hull": 150,
+    "max_shields": 80,
+    "armor": 4,
+    "initiative": 2,
+    "max_ap": 4
+  },
+  "abilities": [
+    "railgun",
+    "brace_shields"
+  ],
+  "visual": {
+    "placeholder": "station",
+    "sprite": "",
+    "size": 1.1
+  }
+}

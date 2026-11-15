@@ -91,7 +91,8 @@ func show_unit(unit: BattleUnit, data: DataRegistry) -> void:
 	var tags := PackedStringArray()
 	for s in unit.statuses:
 		var label: String = s.def.get("name", s.id)
-		tags.append(label if s.is_permanent() else "%s (%d)" % [label, s.remaining])
+		if not s.def.get("hidden", false):  # tech bonuses are listed in the Empire panel instead
+			tags.append(label if s.is_permanent() else "%s (%d)" % [label, s.remaining])
 	_status_label.text = "Status: " + (", ".join(tags) if not tags.is_empty() else "nominal")
 
 

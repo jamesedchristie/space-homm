@@ -15,6 +15,10 @@ and Mass Effect-style hero missions, all built on **one shared tactical engine**
   bonus in fleet battles) and lead away teams. Anomalies on the galaxy map launch missions:
   ground missions on a square grid with fog of war, dormant enemy groups, story choices,
   reinforcements and objectives. A failed mission turns into a rescue mission for captured heroes.
+- **Step 4 (done):** empire systems. Credits, alloys and research from planets and buildings;
+  build queues for buildings and ships; a tech tree (ship upgrades, faster fleets, sensors,
+  yields, defense platforms, the Destroyer); a third faction, the Ceres Free Traders, with
+  war/peace, opinion, peace proposals and gifts; defended planets that fight back.
 
 ## Running it
 
@@ -37,12 +41,20 @@ and press **F6** (run current scene).
 | `Tab` | Next fleet with moves left |
 | Right-click / `Esc` | Deselect |
 | `Space` / `Enter` | End turn |
+| `E` | Empire panel: colonies and build queues, research, diplomacy |
 | `H` | Heroes panel: gear, levels, assign/relieve fleet commanders |
 | `A` | Toggle autoplay (AI plays your faction too) |
 
 Planets: move onto one to capture it. Friendly fleets parked at your planets repair
 25% hull per turn. Nebulae and asteroid belts cost 2 moves, and battles there are
 fought on matching battle maps.
+
+Empire: each planet produces credits, alloys and research (by planet type and buildings).
+Queue buildings or ships per planet in the Empire panel (E); ships need a shipyard. Research
+points flow into the tech you pick. The Free Traders start at peace with you and at war with
+the raiders. At peace you can't attack each other or take each other's planets. Propose peace,
+declare war or send gifts in the Diplomacy tab. The raiders never negotiate. The war ends when
+nobody left is at war (the highest score wins) or when one faction stands alone.
 
 Heroes: a hero commanding a fleet gives its ships a doctrine bonus in battle (Vanguard: -10%
 damage taken, Marksman: +10% damage, Technician: shield regeneration) and earns XP. To pick
@@ -100,6 +112,9 @@ CI runs the tests and both smoke tests on every push (`.github/workflows/tests.y
 - **Galaxy terrain / planet types:** `data/strategic/terrain.json`, `data/strategic/planet_types.json`.
 - **Heroes:** classes, items, traits and XP thresholds in `data/heroes/`; named heroes, starting
   inventory and anomalies in the campaign file.
+- **Economy:** `data/empire/` (resources, buildings, techs); planet `yields`/`slots` in
+  `planet_types.json`; ship `strategic.cost`/`build_turns`/`requires_tech` in unit files;
+  campaign `resources`, `relations`, `techs`, planet `buildings`.
 - **New mission:** `data/missions/<id>.json` (map, enemies, objectives, story triggers with choices,
   rewards, follow-up on failure), plus a square-grid map with `deployment.squad`.
 
@@ -114,6 +129,7 @@ src/core/                data registry, JSON loading
 src/tactical/            shared tactical engine: pure logic, no nodes
 src/strategic/           galaxy engine: pure logic, no nodes
 src/heroes/              hero state, unit building, XP/levels
+src/empire/              economy, research and diplomacy rules
 src/missions/            mission -> tactical scenario factory
 src/presentation/        scenes and visuals (read engines, never change rules)
   game.gd, main.tscn     top-level flow: galaxy ⇄ battle

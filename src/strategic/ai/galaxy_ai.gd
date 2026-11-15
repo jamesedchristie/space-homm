@@ -1,22 +1,37 @@
 class_name GalaxyAI
 extends RefCounted
 ## Rule-based strategic AI. Plays fair: it uses the same fog-of-war queries as
-## the player, so it only reacts to enemy fleets it can see. Per fleet, in order:
-##   1. Attack a visible enemy fleet it is strong enough to beat.
+## the player, so it only reacts to enemy fleets it can see.
+## Each turn it first runs its empire (one command at a time):
+##   research the cheapest available tech; give every idle planet something to
+##   build (ships when outgunned, otherwise economy buildings); then diplomacy
+##   (make peace with AI factions that will accept, declare war on hated weak ones).
+## Then per fleet, in order:
+##   1. Attack a visible fleet it is at war with and strong enough to beat.
 ##   2. If badly damaged, go home to the nearest friendly planet to repair.
 ##   3. With a ready commander, investigate the nearest known anomaly (mission).
-##   4. Otherwise head for the nearest planet it doesn't own.
+##   4. Otherwise head for the nearest planet it can take (unowned or an enemy's),
+##      skipping planets whose defenses are too strong for it.
 ## One move per fleet per turn, then it ends the turn.
 
 ## Attack only if our strength is at least this multiple of theirs.
 const ATTACK_RATIO := 0.9
 const RETREAT_HULL_RATIO := 0.5
+## Only hunt enemy fleets this close; further away, go take planets instead.
+const HUNT_RANGE := 5
+## Fleets smaller than this wait at their shipyard while a ship is being built
+## there, instead of trickling out one ship at a time.
+const MUSTER_SIZE := 3
+## Build order for economy buildings.
+const BUILD_PRIORITY := ["mine", "trade_hub", "research_lab", "defense_platform", "shipyard"]
 
 var _turn_key := ""
 var _done := {}
 ## "fleet:anomaly:mission" keys this AI has already sent a fleet to (so a
 ## declined or failed mission isn't retried forever).
 var _tried := {}
+var _planned := {}  # planet ids given a build order this turn
+var _diplomacy_done := false
 
 
 func decide(engine: GalaxyEngine) -> GalaxyCommand:
@@ -25,6 +40,11 @@ func decide(engine: GalaxyEngine) -> GalaxyCommand:
 	if key != _turn_key:
 		_turn_key = key
 		_done.clear()
+		_planned.clear()
+		_diplomacy_done = false
+	var empire_cmd := _empire_command(engine, faction_id)
+	if empire_cmd != null:
+		return empire_cmd
 	for fleet in engine.state.fleets_of(faction_id):
 		if _done.has(fleet.id) or fleet.moves_left <= 0:
 			continue
@@ -45,14 +65,20 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 	var best := 1 << 30
 	var my_strength := fleet.strength(data)
 	for other: Fleet in s.fleets.values():
-		if other.owner == fleet.owner or not vis.has(other.cell):
+		if not s.at_war(fleet.owner, other.owner) or not vis.has(other.cell):
 			continue
 		if my_strength < other.strength(data) * ATTACK_RATIO:
 			continue
 		var d := s.grid.distance(fleet.cell, other.cell)
-		if d < best:
+		if d < best and d <= HUNT_RANGE:
 			best = d
 			target = other.cell
+
+	# Muster: wait for the ship under construction here.
+	var here := s.planet_at(fleet.cell)
+	if target == null and here != null and here.owner == fleet.owner and fleet.ships.size() < MUSTER_SIZE \
+			and here.queue.get("kind", "") == "unit":
+		return fleet.cell
 
 	# 2. Retreat to repair.
 	if target == null and fleet.hull_ratio(data) < RETREAT_HULL_RATIO:
@@ -83,8 +109,11 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 	if target == null:
 		var candidates: Array[Planet] = []
 		for p: Planet in s.planets.values():
-			if p.owner != fleet.owner:
-				candidates.append(p)
+			if p.owner == fleet.owner or not (p.owner.is_empty() or s.at_war(fleet.owner, p.owner)):
+				continue
+			if defense_strength(engine, p) > my_strength * ATTACK_RATIO:
+				continue
+			candidates.append(p)
 		var planet := _nearest(s, fleet.cell, candidates)
 		if planet != null:
 			target = planet.cell
@@ -123,6 +152,95 @@ func _step_towards(engine: GalaxyEngine, fleet: Fleet, target: Vector2i) -> Vect
 			best_dist = d
 			best_cell = c
 	return best_cell
+
+
+## Effective hit points of a planet's defense platforms.
+func defense_strength(engine: GalaxyEngine, planet: Planet) -> float:
+	var total := 0.0
+	for unit_id in EmpireRules.defense_units(engine, planet):
+		var stats: Dictionary = engine.data.units[unit_id]["stats"]
+		total += float(stats["max_hull"]) + float(stats["max_shields"]) * 0.5
+	return total
+
+
+# --- Empire management --------------------------------------------------------
+
+## Next research/production/diplomacy command for this turn, or null when done.
+func _empire_command(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
+	var s := engine.state
+	if s.research[faction_id]["current"] == "":
+		var options := ResearchRules.available(engine, faction_id)
+		if not options.is_empty():
+			options.sort_custom(func(a: String, b: String) -> bool:
+				return ResearchRules.cost(engine, a) < ResearchRules.cost(engine, b))
+			return SetResearchCommand.new(faction_id, options[0])
+	for planet in s.planets_of(faction_id):
+		if not planet.queue.is_empty() or _planned.has(planet.id):
+			continue
+		_planned[planet.id] = true
+		var choice := choose_build(engine, planet)
+		if not choice.is_empty():
+			return QueueBuildCommand.new(faction_id, planet.id, choice["kind"], choice["id"])
+	if not _diplomacy_done:
+		_diplomacy_done = true
+		return _diplomacy(engine, faction_id)
+	return null
+
+
+## What an idle planet should build: ships when outgunned by the factions we
+## are at war with, otherwise economy buildings, otherwise more ships.
+func choose_build(engine: GalaxyEngine, planet: Planet) -> Dictionary:
+	var ships: Array[Dictionary] = []
+	var buildings := {}
+	for option in EmpireRules.build_options(engine, planet):
+		if not option["ok"]:
+			continue
+		if option["kind"] == "unit":
+			ships.append(option)
+		else:
+			buildings[option["id"]] = option
+	ships.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return engine.data.units[a["id"]]["stats"]["max_hull"] > engine.data.units[b["id"]]["stats"]["max_hull"])
+	var mine := DiplomacyRules.military_strength(engine, planet.owner)
+	var theirs := 0.0
+	for f in engine.state.factions:
+		if engine.state.at_war(planet.owner, f["id"]) and not engine.state.is_eliminated(f["id"]):
+			theirs = maxf(theirs, DiplomacyRules.military_strength(engine, f["id"]))
+	if not ships.is_empty() and mine < theirs * 0.9:
+		return ships[0]
+	# Without any shipyard a faction can never rebuild its fleet: fix that first.
+	if buildings.has("shipyard"):
+		var any_yard := false
+		for p in engine.state.planets_of(planet.owner):
+			any_yard = any_yard or EmpireRules.has_shipyard(engine, p)
+		if not any_yard:
+			return buildings["shipyard"]
+	for b_id in BUILD_PRIORITY:
+		if buildings.has(b_id):
+			return buildings[b_id]
+	if not ships.is_empty() and mine < theirs * 1.5:
+		return ships[0]
+	return {}
+
+
+func _diplomacy(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
+	var s := engine.state
+	if s.faction(faction_id).get("always_hostile", false):
+		return null
+	var mine := DiplomacyRules.military_strength(engine, faction_id)
+	for f in s.factions:
+		var other: String = f["id"]
+		if other == faction_id or s.is_eliminated(other):
+			continue
+		var theirs := DiplomacyRules.military_strength(engine, other)
+		if s.at_war(faction_id, other):
+			# Make peace with AI factions that would accept, unless we're crushing them.
+			if f["controller"] != "player" and mine < theirs * 1.5 \
+					and DiplomacyRules.peace_refusal(engine, other, faction_id).is_empty():
+				return DiplomacyCommand.new(faction_id, other, "propose_peace")
+		elif s.opinion(faction_id, other) <= -40 and mine > theirs * 1.5:
+			return DiplomacyCommand.new(faction_id, other, "declare_war")
+	return null
 
 
 func _nearest(s: GalaxyState, from: Vector2i, planets: Array[Planet]) -> Planet:

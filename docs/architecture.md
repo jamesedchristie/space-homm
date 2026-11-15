@@ -157,6 +157,52 @@ The AI only takes a mission when its commander meets the mission's `recommended_
 never retries an anomaly it has already been offered. The player sees the recommendation in
 the briefing.
 
+## Empire (step 4)
+
+Empire rules live in `src/empire/` as static helpers over `GalaxyEngine`, so the engine, UI and AI
+always agree:
+
+- `EmpireRules`: planet yields (type + buildings, times tech multipliers), income, costs, build
+  options per planet (slots, shipyard, unlocks), defense units, tech effects, and the score.
+- `ResearchRules`: tech status (known / available / locked by `requires`).
+- `DiplomacyRules`: opinions, peace acceptance, military strength.
+
+**Turn start** (`GalaxyEngine._run_economy`): add income to the stockpiles. Research points
+go into the current tech (unspent points are banked). Each planet's build queue advances, and
+finished ships join the fleet in orbit or form a new one. Opinions of factions at peace drift up.
+
+**Commands:** `SetResearchCommand`, `QueueBuildCommand` (paid up front, one item per planet),
+`DiplomacyCommand` (`propose_peace`, `declare_war`, `gift`).
+
+**Tech effects** (`data/empire/techs.json`):
+
+| Effect | Meaning |
+| --- | --- |
+| `ship_status` | a (hidden, permanent) status every ship starts battles with |
+| `empire_modifier` | `fleet_speed`, `sensor`, `field_repair` bonuses |
+| `yield` | multiplies a resource's output |
+| `unlock_building` / `unlock_unit` | makes a building or ship buildable (matching `requires_tech`) |
+
+**Diplomacy:** relations default to war unless the campaign says otherwise. At peace, fleets
+can't attack or pass through each other and planets can't be captured. An AI accepts peace if
+its opinion of you is at least 10 or it's clearly losing, but never within 3 turns of the war
+starting, and never if it's `always_hostile`. Being attacked (−15), losing a planet (−20) or
+having war declared on you (−30) lowers opinion. Gifts (+10) and time at peace (+1/turn) raise it.
+
+**Planet defenses:** buildings with a `defense_unit` put immobile units (`"immobile"` tag) into
+any battle at that planet. A fleet entering a defended enemy planet with no fleet on it fights
+the platforms; if it wins and none survive, it moves in and captures the planet. Destroyed
+platforms are removed.
+
+**End of the war:** the last faction standing wins. If every survivor is at peace with every
+other, the highest `EmpireRules.score` wins (planets, techs, fleet hull, hero levels).
+
+**AI:** each turn it picks the cheapest available tech, gives idle planets a build order
+(ships when outgunned or when it has no shipyard; otherwise economy buildings in priority
+order), makes peace with AI factions that would accept, and declares war on hated, weaker
+neighbours. Small fleets wait at their shipyard for ships under construction. Fleets only hunt
+enemy fleets within 5 jumps; beyond that they go for planets.
+
 ### How later layers plug in
 
 - **More mission types:** exploration missions are the same pieces (fog, triggers, reach
@@ -165,8 +211,9 @@ the briefing.
   would be a new trigger effect type or command.
 - **Hero abilities in fleet battles** (HoMM-style spells) would be a hero "unit" with no grid
   presence, or abilities granted to the flagship via the doctrine status.
-- **Empire systems (step 4):** reward types (`reward` effects) are the hook for resources and
-  tech. Heroes' `planet_id` is where a "governor" role would live.
+- **Mission rewards into the economy:** add `credits`/`alloys`/`tech` to `reward` trigger effects
+  and apply them in `resolve_pending_mission`.
+- **Governors:** heroes waiting at a planet (`planet_id`) could add yields to it.
 
 ## Content schema
 
@@ -272,6 +319,17 @@ shifted right on hex maps). The engine converts them internally.
 **Status additions:** `"permanent": true` (never expires). Unit additions: `"sight"` stat,
 `"stat_names": {"hull": "Health"}` for display. Scenario unit entries also take
 `"unit_def"`, `"statuses": [{status, duration}]`, `"dormant"`, `"group"`.
+
+**Empire data** (`data/empire/`):
+- `resources.json`: `name`, `description`, `color` per resource (`credits`, `alloys`, `research`).
+- `buildings.json`: `name`, `description`, `cost`, `turns`, and optionally `yields`, `shipyard: true`,
+  `defense_unit`, `requires_tech`.
+- `techs.json`: `name`, `description`, `cost`, `requires`, `effects` (see the table above).
+
+Planet types gain `yields` and `slots`. Units gain `strategic.cost`, `build_turns` and `requires_tech`.
+Campaigns gain `resources: {faction: {credits, alloys}}`,
+`relations: [{factions: [a, b], status: "peace"|"war", opinion}]`, `techs: {faction: [ids]}`,
+planet `buildings`, and faction `always_hostile`.
 
 **Galaxy terrain** (`data/strategic/terrain.json`): `passable`, `move_cost`, `color`,
 `decoration` ("rocks"), `battle_map`.

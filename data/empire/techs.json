@@ -1,0 +1,114 @@
+{
+  "reinforced_hulls": {
+    "name": "Reinforced Hulls",
+    "description": "+1 armor on all ships.",
+    "cost": 40,
+    "effects": [
+      {
+        "type": "ship_status",
+        "status": "tech_reinforced_hulls"
+      }
+    ]
+  },
+  "shield_harmonics": {
+    "name": "Shield Harmonics",
+    "description": "+15% shields on all ships.",
+    "cost": 40,
+    "effects": [
+      {
+        "type": "ship_status",
+        "status": "tech_shield_harmonics"
+      }
+    ]
+  },
+  "improved_drives": {
+    "name": "Improved Drives",
+    "description": "+1 fleet movement.",
+    "cost": 50,
+    "effects": [
+      {
+        "type": "empire_modifier",
+        "stat": "fleet_speed",
+        "add": 1
+      }
+    ]
+  },
+  "deep_space_sensors": {
+    "name": "Deep Space Sensors",
+    "description": "+1 sensor range for fleets and planets.",
+    "cost": 40,
+    "effects": [
+      {
+        "type": "empire_modifier",
+        "stat": "sensor",
+        "add": 1
+      }
+    ]
+  },
+  "automated_mining": {
+    "name": "Automated Mining",
+    "description": "+25% alloys.",
+    "cost": 60,
+    "effects": [
+      {
+        "type": "yield",
+        "resource": "alloys",
+        "mul": 1.25
+      }
+    ]
+  },
+  "orbital_defenses": {
+    "name": "Orbital Defenses",
+    "description": "Unlocks Defense Platforms.",
+    "cost": 50,
+    "effects": [
+      {
+        "type": "unlock_building",
+        "building": "defense_platform"
+      }
+    ]
+  },
+  "heavy_hulls": {
+    "name": "Heavy Hulls",
+    "description": "Unlocks the Destroyer.",
+    "cost": 90,
+    "requires": [
+      "reinforced_hulls"
+    ],
+    "effects": [
+      {
+        "type": "unlock_unit",
+        "unit": "destroyer"
+      }
+    ]
+  },
+  "targeting_computers": {
+    "name": "Targeting Computers",
+    "description": "+10% damage for all ships.",
+    "cost": 80,
+    "requires": [
+      "shield_harmonics"
+    ],
+    "effects": [
+      {
+        "type": "ship_status",
+        "status": "tech_targeting_computers"
+      }
+    ]
+  },
+  "field_repairs": {
+    "name": "Field Repairs",
+    "description": "Fleets repair 15% hull per turn anywhere.",
+    "cost": 70,
+    "requires": [
+      "improved_drives"
+    ],
+    "effects": [
+      {
+        "type": "empire_modifier",
+        "stat": "field_repair",
+        "add": 0.15
+      }
+    ]
+  }
+}

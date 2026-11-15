@@ -1,7 +1,7 @@
 {
   "id": "the_drift",
   "name": "The Drift",
-  "description": "Raiders have moved into the Drift. Destroy their fleets and take their planets.",
+  "description": "Raiders have moved into the Drift. Destroy them and take their planets. The Free Traders are neutral for now.",
   "max_turns": 150,
   "battle_max_rounds": 30,
   "default_battle_map": "open_space",
@@ -84,6 +84,12 @@
     {
       "id": "raiders",
       "name": "Drift Raiders",
+      "controller": "ai",
+      "always_hostile": true
+    },
+    {
+      "id": "traders",
+      "name": "Ceres Free Traders",
       "controller": "ai"
     }
   ],
@@ -98,7 +104,10 @@
       ],
       "owner": "patrol",
       "sensor": 3,
-      "description": "Patrol Group headquarters. Fleets here repair."
+      "description": "Patrol Group headquarters. Fleets here repair.",
+      "buildings": [
+        "shipyard"
+      ]
     },
     {
       "id": "rustholm",
@@ -110,7 +119,12 @@
       ],
       "owner": "raiders",
       "sensor": 3,
-      "description": "Raider stronghold carved into a dead moon."
+      "description": "Raider stronghold carved into a dead moon.",
+      "buildings": [
+        "shipyard",
+        "trade_hub",
+        "research_lab"
+      ]
     },
     {
       "id": "keplers_reach",
@@ -146,7 +160,14 @@
       "at": [
         10,
         1
-      ]
+      ],
+      "owner": "traders",
+      "sensor": 3,
+      "buildings": [
+        "shipyard",
+        "trade_hub"
+      ],
+      "description": "Free Trader port. Neutral to the Patrol, hated by the raiders."
     },
     {
       "id": "orison",
@@ -238,6 +259,24 @@
           "name": "Shrike"
         }
       ]
+    },
+    {
+      "name": "Merchant Guard",
+      "owner": "traders",
+      "at": [
+        11,
+        2
+      ],
+      "ships": [
+        {
+          "unit": "frigate",
+          "name": "Ledger"
+        },
+        {
+          "unit": "interceptor",
+          "name": "Courier"
+        }
+      ]
     }
   ],
   "permadeath": false,
@@ -315,5 +354,45 @@
       ],
       "mission": "derelict_station"
     }
-  ]
+  ],
+  "relations": [
+    {
+      "factions": [
+        "patrol",
+        "traders"
+      ],
+      "status": "peace",
+      "opinion": 20
+    },
+    {
+      "factions": [
+        "raiders",
+        "traders"
+      ],
+      "status": "war",
+      "opinion": -40
+    },
+    {
+      "factions": [
+        "patrol",
+        "raiders"
+      ],
+      "status": "war",
+      "opinion": -40
+    }
+  ],
+  "resources": {
+    "patrol": {
+      "credits": 120,
+      "alloys": 100
+    },
+    "raiders": {
+      "credits": 200,
+      "alloys": 160
+    },
+    "traders": {
+      "credits": 160,
+      "alloys": 60
+    }
+  }
 }

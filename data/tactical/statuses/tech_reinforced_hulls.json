@@ -1,0 +1,13 @@
+{
+  "id": "tech_reinforced_hulls",
+  "name": "Reinforced Hulls",
+  "description": "+1 armor.",
+  "permanent": true,
+  "hidden": true,
+  "modifiers": {
+    "armor": {
+      "add": 1
+    }
+  },
+  "ai_value": 3
+}

@@ -40,6 +40,16 @@ var pending_mission: Dictionary = {}
 ## Heroes downed on missions die instead of being injured or captured.
 var permadeath := false
 
+# Empire (step 4)
+## faction id -> {"credits": int, "alloys": int}
+var resources: Dictionary = {}
+## faction id -> {"current": tech id or "", "progress": int, "known": Array[String]}
+var research: Dictionary = {}
+## "a|b" (ids sorted) -> {"status": "war"|"peace", "since": turn}. Missing pairs are at war.
+var relations: Dictionary = {}
+## faction id -> {other faction id: opinion -100..100}: how the first feels about the second.
+var opinions: Dictionary = {}
+
 
 func current_faction() -> Dictionary:
 	return factions[current_faction_index]
@@ -119,6 +129,37 @@ func anomaly_at(cell: Vector2i) -> Dictionary:
 func home_planet(faction_id: String) -> Planet:
 	var owned := planets_of(faction_id)
 	return owned[0] if not owned.is_empty() else null
+
+
+static func relation_key(a: String, b: String) -> String:
+	return "%s|%s" % [a, b] if a < b else "%s|%s" % [b, a]
+
+
+func relation(a: String, b: String) -> Dictionary:
+	return relations.get(relation_key(a, b), {"status": "war", "since": 0})
+
+
+## Unowned planets and the faction itself are never "at war".
+func at_war(a: String, b: String) -> bool:
+	if a.is_empty() or b.is_empty() or a == b:
+		return false
+	return relation(a, b)["status"] == "war"
+
+
+func set_relation(a: String, b: String, status: String) -> void:
+	relations[relation_key(a, b)] = {"status": status, "since": turn_number}
+
+
+func opinion(of_faction: String, about: String) -> int:
+	return int(opinions.get(of_faction, {}).get(about, 0))
+
+
+func known_techs(faction_id: String) -> Array:
+	return research.get(faction_id, {}).get("known", [])
+
+
+func is_eliminated(faction_id: String) -> bool:
+	return faction_id in eliminated
 
 
 func make_uid(prefix: String) -> String:

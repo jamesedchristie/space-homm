@@ -20,7 +20,12 @@
   ],
   "strategic": {
     "speed": 5,
-    "sensor": 3
+    "sensor": 3,
+    "cost": {
+      "alloys": 20,
+      "credits": 25
+    },
+    "build_turns": 2
   },
   "visual": {
     "placeholder": "interceptor",

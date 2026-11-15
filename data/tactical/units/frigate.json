@@ -20,7 +20,12 @@
   ],
   "strategic": {
     "speed": 3,
-    "sensor": 2
+    "sensor": 2,
+    "cost": {
+      "alloys": 45,
+      "credits": 40
+    },
+    "build_turns": 3
   },
   "visual": {
     "placeholder": "frigate",

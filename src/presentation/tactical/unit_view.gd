@@ -9,6 +9,10 @@ const PLACEHOLDER_SHAPES := {
 			Vector2(-1.0, -0.2), Vector2(-0.75, -0.42), Vector2(0.45, -0.42)],
 	"interceptor": [Vector2(1.0, 0), Vector2(-0.7, 0.75), Vector2(-0.35, 0), Vector2(-0.7, -0.75)],
 	"drone": [Vector2(0.8, 0), Vector2(0, 0.6), Vector2(-0.8, 0), Vector2(0, -0.6)],
+	"destroyer": [Vector2(1.0, 0), Vector2(0.6, 0.35), Vector2(0.2, 0.5), Vector2(-0.9, 0.5), Vector2(-1.0, 0.25),
+			Vector2(-1.0, -0.25), Vector2(-0.9, -0.5), Vector2(0.2, -0.5), Vector2(0.6, -0.35)],
+	"station": [Vector2(0.75, 0.3), Vector2(0.3, 0.75), Vector2(-0.3, 0.75), Vector2(-0.75, 0.3),
+			Vector2(-0.75, -0.3), Vector2(-0.3, -0.75), Vector2(0.3, -0.75), Vector2(0.75, -0.3)],
 	"boarder": [Vector2(0.9, 0), Vector2(0.2, 0.55), Vector2(-0.6, 0.6), Vector2(-0.35, 0), Vector2(-0.6, -0.6),
 			Vector2(0.2, -0.55)],
 }
@@ -59,6 +63,8 @@ func refresh(unit: BattleUnit) -> void:
 	_max_shields = maxi(1, unit.max_shields())
 	var tags := PackedStringArray()
 	for s in unit.statuses:
+		if s.def.get("hidden", false):
+			continue
 		var label: String = s.def.get("name", s.id)
 		tags.append(label if s.is_permanent() else "%s %d" % [label, s.remaining])
 	_status_text = ", ".join(tags)

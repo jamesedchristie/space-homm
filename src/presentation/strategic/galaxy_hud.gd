@@ -5,6 +5,7 @@ extends Control
 
 signal end_turn_pressed
 signal heroes_pressed
+signal empire_pressed
 ## Emitted when the player clicks one of the dialog's buttons.
 signal dialog_choice(choice_id: String)
 
@@ -15,7 +16,7 @@ const INFO_H := 250.0
 
 var _turn_label: Label
 var _faction_label: Label
-var _objective_label: Label
+var _resources_label: RichTextLabel
 var _end_turn_button: Button
 var _info: RichTextLabel
 var _log: RichTextLabel
@@ -23,6 +24,8 @@ var _hint: Label
 var _dialog: DialogPanel
 ## Hero management overlay (shown by the galaxy screen).
 var roster: HeroRoster
+## Colonies / research / diplomacy overlay.
+var empire: EmpirePanel
 
 
 func _ready() -> void:
@@ -41,8 +44,15 @@ func set_turn(turn: int, faction_name: String, color: Color) -> void:
 	_faction_label.add_theme_color_override("font_color", color)
 
 
+## The campaign objective, shown as the resource bar's tooltip.
 func set_objective(text: String) -> void:
-	_objective_label.text = text
+	_resources_label.tooltip_text = text
+
+
+## Stockpiles and research status for the top bar (BBCode).
+func set_resources(bbcode: String) -> void:
+	_resources_label.clear()
+	_resources_label.append_text(bbcode)
 
 
 func set_end_turn_enabled(enabled: bool) -> void:
@@ -87,10 +97,14 @@ func _build() -> void:
 	row.add_child(_turn_label)
 	_faction_label = UiKit.label("", 16, Palette.TEXT)
 	row.add_child(_faction_label)
-	_objective_label = UiKit.label("", 13, Palette.TEXT_DIM)
-	_objective_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_objective_label.clip_text = true
-	row.add_child(_objective_label)
+	_resources_label = UiKit.rich_text(13)
+	_resources_label.scroll_following = false
+	_resources_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_resources_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_resources_label.custom_minimum_size = Vector2(0, 22)
+	_resources_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_resources_label)
+	row.add_child(UiKit.button("Empire  [E]", func() -> void: empire_pressed.emit()))
 	row.add_child(UiKit.button("Heroes  [H]", func() -> void: heroes_pressed.emit()))
 	_end_turn_button = UiKit.button("End Turn  [Space]", func() -> void: end_turn_pressed.emit())
 	row.add_child(_end_turn_button)
@@ -118,6 +132,9 @@ func _build() -> void:
 	roster = HeroRoster.new()
 	UiKit.anchor(roster, 0, 0, 1, 1, 40, TOP_H + 16, -RIGHT_W - 40, -BOTTOM_H - 16)
 	add_child(roster)
+	empire = EmpirePanel.new()
+	UiKit.anchor(empire, 0, 0, 1, 1, 40, TOP_H + 16, -RIGHT_W - 40, -BOTTOM_H - 16)
+	add_child(empire)
 
 	_dialog = DialogPanel.new()
 	_dialog.place(520, 330)

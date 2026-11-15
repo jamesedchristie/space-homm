@@ -1,0 +1,13 @@
+{
+  "id": "tech_shield_harmonics",
+  "name": "Shield Harmonics",
+  "description": "+15% shields.",
+  "permanent": true,
+  "hidden": true,
+  "modifiers": {
+    "max_shields": {
+      "mul": 1.15
+    }
+  },
+  "ai_value": 3
+}

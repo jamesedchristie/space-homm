@@ -29,3 +29,16 @@ const MISSION_DECLINED := "mission_declined"    # {anomaly, fleet}
 const MISSION_RESOLVED := "mission_resolved"    # {anomaly, mission, fleet, success, heroes: {id: outcome}, xp, items, loyalty, traits}
 const ANOMALY_CHANGED := "anomaly_changed"      # {anomaly, mission, name}
 const ANOMALY_REMOVED := "anomaly_removed"      # {anomaly}
+
+# Empire
+const INCOME := "income"                        # {faction, income: {credits, alloys, research}}
+const RESEARCH_SET := "research_set"            # {faction, tech}
+const TECH_RESEARCHED := "tech_researched"      # {faction, tech}
+const BUILD_QUEUED := "build_queued"            # {planet, kind, item, turns}
+const BUILDING_COMPLETED := "building_completed"  # {planet, building}
+const SHIP_COMPLETED := "ship_completed"        # {planet, unit, fleet, ship}
+const FLEET_CREATED := "fleet_created"          # {fleet, planet}
+const WAR_DECLARED := "war_declared"            # {faction, target}
+const PEACE_SIGNED := "peace_signed"            # {factions: [a, b]}
+const PEACE_REFUSED := "peace_refused"          # {faction, target, reason}
+const GIFT_SENT := "gift_sent"                  # {faction, target, credits}

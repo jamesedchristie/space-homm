@@ -1,0 +1,17 @@
+{
+  "credits": {
+    "name": "Credits",
+    "description": "Money: pays for buildings, crews and gifts.",
+    "color": "#f0c060"
+  },
+  "alloys": {
+    "name": "Alloys",
+    "description": "Refined metals: the main cost of ships and stations.",
+    "color": "#9fb4c8"
+  },
+  "research": {
+    "name": "Research",
+    "description": "Flows into the current technology each turn (not stockpiled).",
+    "color": "#6fd6ff"
+  }
+}
