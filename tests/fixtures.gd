@@ -27,11 +27,13 @@ static func registry() -> DataRegistry:
 		"id": "test_dummy", "name": "Dummy",
 		"stats": {"max_hull": 50, "max_shields": 20, "armor": 0, "initiative": 5, "max_ap": 4},
 		"abilities": ["test_zap", "test_stun", "test_bomb", "brace_shields"],
+		"strategic": {"speed": 3, "sensor": 1},
 	}
 	data.units["test_fast_dummy"] = {
 		"id": "test_fast_dummy", "name": "Fast Dummy",
 		"stats": {"max_hull": 50, "max_shields": 20, "armor": 0, "initiative": 9, "max_ap": 4},
 		"abilities": ["test_zap"],
+		"strategic": {"speed": 5, "sensor": 3},
 	}
 	data.maps["test_open"] = {"id": "test_open", "grid": "hex", "width": 10, "height": 6}
 	data.maps["test_wall"] = {
@@ -58,3 +60,32 @@ static func scenario(map_id: String, units: Array, objectives: Array = []) -> Di
 
 static func engine(map_id: String, units: Array, rng_seed: int = 12345, objectives: Array = []) -> BattleEngine:
 	return BattleEngine.from_scenario(registry(), scenario(map_id, units, objectives), rng_seed)
+
+
+## Small 10x6 galaxy: faction "a" (player) vs "b" (ai), one planet each plus a
+## neutral one in the middle. fleets: [[owner, unit_def_id, col, row], ...]
+static func campaign(fleets: Array, extra: Dictionary = {}) -> Dictionary:
+	var fleet_defs: Array = []
+	for f: Array in fleets:
+		fleet_defs.append({"name": "%s fleet %d" % [f[0], fleet_defs.size()], "owner": f[0],
+				"at": [f[2], f[3]], "ships": [{"unit": f[1], "name": "%s ship %d" % [f[0], fleet_defs.size()]}]})
+	var def := {
+		"id": "test_campaign",
+		"default_battle_map": "open_space",
+		"map": {"grid": "hex", "width": 10, "height": 6, "terrain": {"nebula": [[5, 0]]}},
+		"factions": [{"id": "a", "controller": "player"}, {"id": "b", "controller": "ai"}],
+		"planets": [
+			{"id": "home_a", "type": "terran", "at": [0, 5], "owner": "a"},
+			{"id": "home_b", "type": "barren", "at": [9, 5], "owner": "b"},
+			{"id": "middle", "type": "ice", "at": [5, 3]},
+		],
+		"fleets": fleet_defs,
+	}
+	def.merge(extra, true)
+	return def
+
+
+static func galaxy(fleets: Array, extra: Dictionary = {}, rng_seed: int = 99) -> GalaxyEngine:
+	var e := GalaxyEngine.from_campaign(registry(), campaign(fleets, extra), rng_seed)
+	e.start()
+	return e

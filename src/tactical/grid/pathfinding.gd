@@ -5,8 +5,11 @@ extends RefCounted
 
 ## All cells reachable from `start` within `budget` movement cost.
 ## `is_blocked(cell) -> bool` adds dynamic blockers such as other units.
+## `is_terminal(cell) -> bool` (optional) marks cells that can be entered but
+## not passed through, e.g. an enemy fleet you can attack but not fly past.
 ## Returns { cell: {"cost": int, "from": Vector2i} }, including start (cost 0).
-static func reachable(grid: TacticalGrid, start: Vector2i, budget: int, is_blocked: Callable) -> Dictionary:
+static func reachable(grid: TacticalGrid, start: Vector2i, budget: int, is_blocked: Callable,
+		is_terminal: Callable = Callable()) -> Dictionary:
 	var result := {start: {"cost": 0, "from": start}}
 	var frontier: Array[Vector2i] = [start]
 	while not frontier.is_empty():
@@ -16,6 +19,8 @@ static func reachable(grid: TacticalGrid, start: Vector2i, budget: int, is_block
 				best_i = i
 		var current: Vector2i = frontier[best_i]
 		frontier.remove_at(best_i)
+		if current != start and is_terminal.is_valid() and is_terminal.call(current):
+			continue
 		var base_cost: int = result[current]["cost"]
 		for n in grid.neighbors(current):
 			if not grid.is_passable(n) or is_blocked.call(n):

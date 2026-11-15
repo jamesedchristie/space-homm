@@ -1,0 +1,23 @@
+{
+  "nebula": {
+    "name": "Nebula",
+    "description": "Ionised gas clouds. Costs 2 movement. Battles here are fought in the nebula.",
+    "move_cost": 2,
+    "color": "#2f1f4a",
+    "battle_map": "nebula_cloud"
+  },
+  "asteroid_belt": {
+    "name": "Asteroid Belt",
+    "description": "Dense rock field. Costs 2 movement. Battles here are fought among the asteroids.",
+    "move_cost": 2,
+    "color": "#3a332c",
+    "decoration": "rocks",
+    "battle_map": "asteroid_field"
+  },
+  "rift": {
+    "name": "Gravitational Rift",
+    "description": "Impassable.",
+    "passable": false,
+    "color": "#05060a"
+  }
+}

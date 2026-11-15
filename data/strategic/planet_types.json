@@ -1,0 +1,32 @@
+{
+  "terran": {
+    "name": "Terran",
+    "description": "Temperate world with oceans and a breathable atmosphere.",
+    "color": "#4f9a6a",
+    "size": 1.0
+  },
+  "desert": {
+    "name": "Desert",
+    "description": "Arid world. Mining outposts dot its surface.",
+    "color": "#c9a35a",
+    "size": 0.9
+  },
+  "ice": {
+    "name": "Ice",
+    "description": "Frozen world with subsurface water.",
+    "color": "#a9d6e8",
+    "size": 0.85
+  },
+  "gas_giant": {
+    "name": "Gas Giant",
+    "description": "Banded giant ringed by fuel-skimming stations.",
+    "color": "#c98a5a",
+    "size": 1.35
+  },
+  "barren": {
+    "name": "Barren",
+    "description": "Airless rock riddled with tunnels.",
+    "color": "#8a8580",
+    "size": 0.8
+  }
+}

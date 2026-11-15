@@ -6,6 +6,7 @@ extends Control
 
 signal ability_pressed(ability_id: String)
 signal end_turn_pressed
+## The result overlay's button ("Play again", or "Continue" inside a campaign).
 signal restart_pressed
 
 const TOP_H := 44.0
@@ -29,6 +30,7 @@ var _hint_label: Label
 var _log: RichTextLabel
 var _result_panel: PanelContainer
 var _result_label: Label
+var _result_button: Button
 
 
 func _ready() -> void:
@@ -116,7 +118,8 @@ func clear_log() -> void:
 	_log.clear()
 
 
-func show_result(title: String, color: Color) -> void:
+func show_result(title: String, color: Color, button_text: String = "Play again") -> void:
+	_result_button.text = button_text
 	_result_label.text = title
 	_result_label.add_theme_color_override("font_color", color)
 	_result_panel.visible = true
@@ -219,12 +222,9 @@ func _build() -> void:
 	_result_label = _label("", 28, Palette.TEXT)
 	_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	result_box.add_child(_result_label)
-	var restart := Button.new()
-	restart.text = "Play again"
-	restart.focus_mode = Control.FOCUS_NONE
-	restart.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	restart.pressed.connect(func() -> void: restart_pressed.emit())
-	result_box.add_child(restart)
+	_result_button = UiKit.button("Play again", func() -> void: restart_pressed.emit())
+	_result_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	result_box.add_child(_result_button)
 
 
 func _bar_row(title: String, color: Color) -> Array:
@@ -249,32 +249,13 @@ func _bar_row(title: String, color: Color) -> Array:
 
 
 func _panel(bg: Color = Palette.PANEL_BG, border: Color = Palette.PANEL_BORDER, border_width: int = 1) -> PanelContainer:
-	var p := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.border_color = border
-	sb.set_border_width_all(border_width)
-	sb.set_corner_radius_all(4)
-	sb.set_content_margin_all(8)
-	p.add_theme_stylebox_override("panel", sb)
-	return p
+	return UiKit.panel(bg, border, border_width)
 
 
 func _label(text: String, font_size: int, color: Color) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_size_override("font_size", font_size)
-	l.add_theme_color_override("font_color", color)
-	return l
+	return UiKit.label(text, font_size, color)
 
 
 func _anchor(c: Control, left: float, top: float, right: float, bottom: float,
 		off_left: float, off_top: float, off_right: float, off_bottom: float) -> void:
-	c.anchor_left = left
-	c.anchor_top = top
-	c.anchor_right = right
-	c.anchor_bottom = bottom
-	c.offset_left = off_left
-	c.offset_top = off_top
-	c.offset_right = off_right
-	c.offset_bottom = off_bottom
+	UiKit.anchor(c, left, top, right, bottom, off_left, off_top, off_right, off_bottom)

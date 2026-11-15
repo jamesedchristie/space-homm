@@ -1,8 +1,9 @@
 class_name HexMapView
 extends Node2D
-## Draws the battlefield grid, terrain and highlights. Grid-agnostic: it only
-## uses TacticalGrid geometry, so it will draw a square grid just as well.
-## Child nodes "Units" and "Fx" are positioned in the same local space.
+## Draws a grid (battlefield or galaxy), its terrain, highlights and optional
+## fog of war. Grid-agnostic: it only uses TacticalGrid geometry, so it will
+## draw a square grid just as well. Child nodes (units, fleets, planets, fx)
+## are positioned in the same local space via cell_center().
 
 const CELL_SIZE := 40.0
 
@@ -13,6 +14,9 @@ var _area: Dictionary = {}
 var _path: Array[Vector2i] = []
 var _hover: Variant = null
 var _active: Variant = null
+var _fog_enabled := false
+var _explored: Dictionary = {}
+var _visible: Dictionary = {}
 
 
 func setup(p_grid: TacticalGrid) -> void:
@@ -70,15 +74,33 @@ func set_active(cell: Variant) -> void:
 	queue_redraw()
 
 
+## Fog of war: unexplored cells are black, explored-but-not-visible are dimmed.
+func set_fog(explored: Dictionary, visible_now: Dictionary) -> void:
+	_fog_enabled = true
+	_explored = explored
+	_visible = visible_now
+	queue_redraw()
+
+
+func clear_fog() -> void:
+	_fog_enabled = false
+	queue_redraw()
+
+
 func _draw() -> void:
 	if grid == null:
 		return
 	for c in grid.cells():
 		var poly := grid.cell_polygon(c, CELL_SIZE * 0.94)
-		var terrain := grid.terrain_def(c)
-		draw_colored_polygon(poly, Color(terrain["color"]) if terrain.has("color") else Palette.CELL_FILL)
-		if grid.terrain_at(c) == "asteroid":
-			_draw_rocks(c)
+		if _fog_enabled and not _explored.has(c):
+			draw_colored_polygon(poly, Palette.FOG_UNEXPLORED)
+		else:
+			var terrain := grid.terrain_def(c)
+			draw_colored_polygon(poly, Color(terrain["color"]) if terrain.has("color") else Palette.CELL_FILL)
+			if terrain.get("decoration", "") == "rocks":
+				_draw_rocks(c)
+			if _fog_enabled and not _visible.has(c):
+				draw_colored_polygon(poly, Palette.FOG_DIM)
 		if _reachable.has(c):
 			draw_colored_polygon(poly, Palette.REACHABLE)
 		if _targets.has(c):

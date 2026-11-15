@@ -32,6 +32,10 @@ var statuses: Array[StatusInstance] = []
 ## Heroes will add abilities and stat modifiers on top of the unit definition.
 var hero_id: String = ""
 
+## Identifier of whatever this unit represents outside the battle (e.g. a ship
+## in a galaxy fleet), so results can be written back after the fight.
+var ref: String = ""
+
 
 static func from_def(p_id: String, def: Dictionary, p_team: int, p_cell: Vector2i, display_name: String = "") -> BattleUnit:
 	var u := BattleUnit.new()

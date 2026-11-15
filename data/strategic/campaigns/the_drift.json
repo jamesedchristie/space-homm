@@ -1,0 +1,243 @@
+{
+  "id": "the_drift",
+  "name": "The Drift",
+  "description": "Raiders have moved into the Drift. Destroy their fleets and take their planets.",
+  "max_turns": 150,
+  "battle_max_rounds": 30,
+  "default_battle_map": "open_space",
+  "map": {
+    "grid": "hex",
+    "width": 16,
+    "height": 11,
+    "_coordinates": "Cells are [column, row] from the top-left, odd rows shifted right.",
+    "terrain": {
+      "rift": [
+        [
+          6,
+          3
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          9,
+          6
+        ],
+        [
+          9,
+          7
+        ]
+      ],
+      "nebula": [
+        [
+          7,
+          1
+        ],
+        [
+          8,
+          1
+        ],
+        [
+          8,
+          2
+        ],
+        [
+          3,
+          8
+        ],
+        [
+          4,
+          8
+        ]
+      ],
+      "asteroid_belt": [
+        [
+          10,
+          4
+        ],
+        [
+          11,
+          4
+        ],
+        [
+          11,
+          5
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          5,
+          6
+        ]
+      ]
+    }
+  },
+  "factions": [
+    {
+      "id": "patrol",
+      "name": "Patrol Group",
+      "controller": "player"
+    },
+    {
+      "id": "raiders",
+      "name": "Drift Raiders",
+      "controller": "ai"
+    }
+  ],
+  "planets": [
+    {
+      "id": "haven",
+      "name": "Haven",
+      "type": "terran",
+      "at": [
+        1,
+        5
+      ],
+      "owner": "patrol",
+      "sensor": 3,
+      "description": "Patrol Group headquarters. Fleets here repair."
+    },
+    {
+      "id": "rustholm",
+      "name": "Rustholm",
+      "type": "barren",
+      "at": [
+        14,
+        5
+      ],
+      "owner": "raiders",
+      "sensor": 3,
+      "description": "Raider stronghold carved into a dead moon."
+    },
+    {
+      "id": "keplers_reach",
+      "name": "Kepler's Reach",
+      "type": "ice",
+      "at": [
+        5,
+        1
+      ]
+    },
+    {
+      "id": "tethys",
+      "name": "Tethys",
+      "type": "gas_giant",
+      "at": [
+        6,
+        9
+      ]
+    },
+    {
+      "id": "vesper",
+      "name": "Vesper",
+      "type": "desert",
+      "at": [
+        8,
+        5
+      ]
+    },
+    {
+      "id": "ardent",
+      "name": "Ardent",
+      "type": "terran",
+      "at": [
+        10,
+        1
+      ]
+    },
+    {
+      "id": "orison",
+      "name": "Orison",
+      "type": "ice",
+      "at": [
+        11,
+        9
+      ]
+    }
+  ],
+  "fleets": [
+    {
+      "name": "1st Patrol",
+      "owner": "patrol",
+      "at": [
+        2,
+        4
+      ],
+      "ships": [
+        {
+          "unit": "frigate",
+          "name": "Vigilant"
+        },
+        {
+          "unit": "frigate",
+          "name": "Resolute"
+        },
+        {
+          "unit": "interceptor",
+          "name": "Kestrel"
+        }
+      ]
+    },
+    {
+      "name": "Scout Wing",
+      "owner": "patrol",
+      "at": [
+        2,
+        6
+      ],
+      "ships": [
+        {
+          "unit": "interceptor",
+          "name": "Swift"
+        },
+        {
+          "unit": "interceptor",
+          "name": "Wren"
+        }
+      ]
+    },
+    {
+      "name": "Raider Pack",
+      "owner": "raiders",
+      "at": [
+        13,
+        4
+      ],
+      "ships": [
+        {
+          "unit": "frigate",
+          "name": "Marauder"
+        },
+        {
+          "unit": "frigate",
+          "name": "Cutthroat"
+        },
+        {
+          "unit": "interceptor",
+          "name": "Jackal"
+        }
+      ]
+    },
+    {
+      "name": "Lurkers",
+      "owner": "raiders",
+      "at": [
+        8,
+        2
+      ],
+      "ships": [
+        {
+          "unit": "interceptor",
+          "name": "Hyena"
+        },
+        {
+          "unit": "interceptor",
+          "name": "Shrike"
+        }
+      ]
+    }
+  ]
+}

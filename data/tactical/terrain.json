@@ -4,7 +4,8 @@
     "description": "Impassable rock. Blocks line of sight.",
     "passable": false,
     "blocks_sight": true,
-    "color": "#4a4038"
+    "color": "#4a4038",
+    "decoration": "rocks"
   },
   "nebula": {
     "name": "Nebula",

@@ -57,6 +57,10 @@ static func from_scenario(p_data: DataRegistry, scenario: Variant, p_seed: int =
 			var unit_id := "t%d_%d_%s" % [team, index, unit_def["id"]]
 			var u := BattleUnit.from_def(unit_id, unit_def, team, cell, entry.get("name", ""))
 			u.hero_id = entry.get("hero", "")
+			u.ref = entry.get("ref", "")
+			# Damage carried over from earlier fights (shields always start full).
+			if entry.has("hull"):
+				u.hull = clampi(int(entry["hull"]), 1, u.max_hull())
 			s.units[unit_id] = u
 			index += 1
 

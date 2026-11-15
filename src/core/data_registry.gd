@@ -21,6 +21,11 @@ var terrain: Dictionary = {}
 var maps: Dictionary = {}
 var scenarios: Dictionary = {}
 
+# Strategic layer
+var galaxy_terrain: Dictionary = {}
+var planet_types: Dictionary = {}
+var campaigns: Dictionary = {}
+
 ## Human-readable problems found while loading. Empty means all good.
 var errors: PackedStringArray = []
 
@@ -44,6 +49,9 @@ func load_from(root: String) -> bool:
 	_load_dir(root.path_join("scenarios"), scenarios)
 	_load_keyed_file(root.path_join("tactical/damage_types.json"), damage_types)
 	_load_keyed_file(root.path_join("tactical/terrain.json"), terrain)
+	_load_keyed_file(root.path_join("strategic/terrain.json"), galaxy_terrain)
+	_load_keyed_file(root.path_join("strategic/planet_types.json"), planet_types)
+	_load_dir(root.path_join("strategic/campaigns"), campaigns)
 	validate()
 	return errors.is_empty()
 
@@ -89,7 +97,52 @@ func validate() -> PackedStringArray:
 			for unit_entry: Dictionary in team_def.get("units", []):
 				if not units.has(unit_entry.get("unit", "")):
 					_err("scenario '%s': unknown unit '%s'" % [id, unit_entry.get("unit", "")])
+
+	for id: String in galaxy_terrain:
+		_validate_battle_map("galaxy terrain '%s'" % id, galaxy_terrain[id])
+	for id: String in planet_types:
+		_validate_battle_map("planet type '%s'" % id, planet_types[id])
+	for id: String in campaigns:
+		_validate_campaign(id, campaigns[id])
 	return errors
+
+
+func _validate_campaign(id: String, def: Dictionary) -> void:
+	var owner := "campaign '%s'" % id
+	var map_def: Dictionary = def.get("map", {})
+	if not map_def.has("width") or not map_def.has("height"):
+		_err("%s: map needs width and height" % owner)
+	for terrain_id: String in map_def.get("terrain", {}):
+		if not galaxy_terrain.has(terrain_id):
+			_err("%s: unknown galaxy terrain '%s'" % [owner, terrain_id])
+	_validate_battle_map(owner, def)
+	var faction_ids: Array = []
+	for f: Dictionary in def.get("factions", []):
+		faction_ids.append(f.get("id", ""))
+	for p: Dictionary in def.get("planets", []):
+		if not planet_types.has(p.get("type", "")):
+			_err("%s: planet '%s' has unknown type '%s'" % [owner, p.get("name", ""), p.get("type", "")])
+		if p.get("owner", "") != "" and p["owner"] not in faction_ids:
+			_err("%s: planet '%s' has unknown owner '%s'" % [owner, p.get("name", ""), p["owner"]])
+	for fl: Dictionary in def.get("fleets", []):
+		if fl.get("owner", "") not in faction_ids:
+			_err("%s: fleet '%s' has unknown owner '%s'" % [owner, fl.get("name", ""), fl.get("owner", "")])
+		for ship: Dictionary in fl.get("ships", []):
+			if not units.has(ship.get("unit", "")):
+				_err("%s: fleet '%s' has unknown unit '%s'" % [owner, fl.get("name", ""), ship.get("unit", "")])
+
+
+## Galaxy locations name the tactical map their battles are fought on; that
+## map must exist and have deployment slots for both sides.
+func _validate_battle_map(owner: String, def: Dictionary) -> void:
+	var key := "default_battle_map" if def.has("default_battle_map") else "battle_map"
+	if not def.has(key):
+		return
+	var map_def: Dictionary = maps.get(def[key], {})
+	if map_def.is_empty():
+		_err("%s: unknown battle map '%s'" % [owner, def[key]])
+	elif not map_def.get("deployment", {}).has("west") or not map_def.get("deployment", {}).has("east"):
+		_err("%s: battle map '%s' needs deployment.west and deployment.east" % [owner, def[key]])
 
 
 func _validate_effects(owner: String, effects: Array) -> void:

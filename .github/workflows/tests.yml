@@ -27,3 +27,6 @@ jobs:
 
       - name: Smoke-test battle screen
         run: ./godot --headless --path . -s res://tools/smoke_battle_screen.gd
+
+      - name: Smoke-test campaign (galaxy and battle screens)
+        run: ./godot --headless --path . -s res://tools/smoke_campaign.gd

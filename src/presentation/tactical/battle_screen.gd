@@ -2,6 +2,13 @@ extends Node2D
 ## Tactical battle screen. Wires a BattleEngine to input, AI and visuals.
 ## No game rules live here: clicks become commands, engine events become
 ## animations. The same screen will host ground and exploration missions.
+##
+## Standalone (F6 on this scene): plays `scenario_id`, "Play again" restarts.
+## Embedded (from the galaxy): call configure() before adding it to the tree;
+## "Continue" emits battle_finished with the finished engine.
+
+## Emitted when an embedded battle is over and the player clicks Continue.
+signal battle_finished(engine: BattleEngine)
 
 enum Mode { MOVE, TARGET }
 
@@ -25,6 +32,7 @@ var selected_ability := ""
 var autoplay := false
 
 var _busy := false
+var _embedded_scenario: Dictionary = {}
 var _hover: Variant = null
 var _reach: Dictionary = {}
 var _targets: Array[Vector2i] = []
@@ -40,9 +48,26 @@ func _ready() -> void:
 		push_error("Content: " + e)
 	hud.ability_pressed.connect(_on_ability_pressed)
 	hud.end_turn_pressed.connect(_on_end_turn_pressed)
-	hud.restart_pressed.connect(start_battle)
+	hud.restart_pressed.connect(_on_result_button)
 	get_viewport().size_changed.connect(_fit_map)
 	start_battle()
+
+
+## Use a generated scenario (e.g. from GalaxyEngine.pending_battle_scenario()).
+func configure(scenario: Dictionary, battle_seed: int) -> void:
+	_embedded_scenario = scenario
+	rng_seed = battle_seed
+
+
+func is_embedded() -> bool:
+	return not _embedded_scenario.is_empty()
+
+
+func _on_result_button() -> void:
+	if is_embedded():
+		battle_finished.emit(engine)
+	else:
+		start_battle()
 
 
 func start_battle() -> void:
@@ -56,7 +81,8 @@ func start_battle() -> void:
 	mode = Mode.MOVE
 	selected_ability = ""
 
-	engine = BattleEngine.from_scenario(data, scenario_id, rng_seed)
+	var scenario: Dictionary = _embedded_scenario if is_embedded() else data.scenarios[scenario_id]
+	engine = BattleEngine.from_scenario(data, scenario, rng_seed)
 	map_view.setup(engine.state.grid)
 	for u: BattleUnit in engine.state.units.values():
 		var view := UnitView.new()
@@ -67,7 +93,7 @@ func start_battle() -> void:
 	_fit_map()
 	hud.set_objective(engine.objective_text())
 	hud.log_line("[color=#%s]%s  (seed %d)[/color]" % [Palette.hex(Palette.TEXT_DIM),
-			data.scenarios[scenario_id].get("name", scenario_id), engine.state.seed_value])
+			scenario.get("name", "Battle"), engine.state.seed_value])
 
 	_busy = true
 	await _play(engine.start(), token)
@@ -207,7 +233,13 @@ func _show_result() -> void:
 		var player_won: bool = s.team_info(s.winner).get("controller", "") == "player"
 		title = "Victory" if player_won else "Defeat"
 		color = Palette.GOOD if player_won else Palette.BAD
-	hud.show_result(title, color)
+	hud.show_result(title, color, "Continue" if is_embedded() else "Play again")
+	# Watching an autoplayed campaign: return to the galaxy by itself.
+	if autoplay and is_embedded():
+		var token := _battle_token
+		await _wait(1.5)
+		if token == _battle_token:
+			battle_finished.emit(engine)
 
 
 # --- View refresh -------------------------------------------------------------
@@ -358,7 +390,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_A:
 				_toggle_autoplay()
 			KEY_R:
-				start_battle()
+				if not is_embedded():
+					start_battle()
 			_:
 				var index: int = event.keycode - KEY_1
 				var active := engine.state.active_unit()
