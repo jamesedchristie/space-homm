@@ -8,7 +8,12 @@
       "credits": 6,
       "research": 2
     },
-    "slots": 4
+    "slots": 4,
+    "surface": {
+      "base": "#2c66a0",
+      "accent": "#4f9a5a",
+      "atmosphere": "#7fc4ff"
+    }
   },
   "desert": {
     "name": "Desert",
@@ -19,7 +24,12 @@
       "alloys": 4,
       "credits": 2
     },
-    "slots": 3
+    "slots": 3,
+    "surface": {
+      "base": "#a8703a",
+      "accent": "#e2b86e",
+      "atmosphere": "#f0c890"
+    }
   },
   "ice": {
     "name": "Ice",
@@ -30,7 +40,13 @@
       "research": 3,
       "alloys": 1
     },
-    "slots": 2
+    "slots": 2,
+    "surface": {
+      "base": "#7fa8c0",
+      "accent": "#e6f2f8",
+      "atmosphere": "#bfe6ff",
+      "ice_caps": 1.0
+    }
   },
   "gas_giant": {
     "name": "Gas Giant",
@@ -41,7 +57,13 @@
       "credits": 4,
       "alloys": 2
     },
-    "slots": 3
+    "slots": 3,
+    "surface": {
+      "base": "#a8643a",
+      "accent": "#ecc89c",
+      "atmosphere": "#ffcf9a",
+      "bands": 1.0
+    }
   },
   "barren": {
     "name": "Barren",
@@ -51,6 +73,11 @@
     "yields": {
       "alloys": 5
     },
-    "slots": 2
+    "slots": 2,
+    "surface": {
+      "base": "#4c4844",
+      "accent": "#8a8580",
+      "atmosphere": "#9aa0aa66"
+    }
   }
 }

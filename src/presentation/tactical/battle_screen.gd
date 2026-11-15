@@ -90,7 +90,8 @@ func start_battle() -> void:
 		if t["controller"] == "player":
 			_viewer_team = t["team"]
 			break
-	map_view.setup(engine.state.grid)
+	map_view.setup(engine.state.grid, data.maps[scenario["map"]].get("floor", ""))
+	$Background/Backdrop.configure(data.maps[scenario["map"]].get("backdrop", {}), float(engine.state.seed_value % 97))
 	if not engine.state.fog_enabled:
 		map_view.clear_fog()
 	for u: BattleUnit in engine.state.units.values():
@@ -234,6 +235,8 @@ func _play(events: Array[Dictionary], token: int) -> void:
 				var view: UnitView = unit_views[e["target"]]
 				view.set_values(e["hull"], e["shields"])
 				view.play_hit()
+				if e["shield_damage"] > 0 and unit_views.has(e["source"]):
+					view.play_shield_hit((unit_views[e["source"]].position - view.position).angle())
 				var text := "-%d" % (e["shield_damage"] + e["hull_damage"])
 				fx.float_text(view.position, text, Palette.HULL if e["hull_damage"] > 0 else Palette.SHIELDS)
 				await _wait(0.15)
@@ -251,8 +254,13 @@ func _play(events: Array[Dictionary], token: int) -> void:
 				fx.float_text(unit_views[e["unit"]].position, "Disabled", Palette.BAD)
 				await _wait(0.4)
 			BattleEvents.UNIT_DESTROYED:
-				fx.play("pulse", unit_views[e["unit"]].position, unit_views[e["unit"]].position, Palette.BAD)
-				await unit_views[e["unit"]].play_destroyed()
+				var wreck: UnitView = unit_views[e["unit"]]
+				var big := "ship" in engine.state.get_unit(e["unit"]).tags or "station" in engine.state.get_unit(e["unit"]).tags
+				fx.explode(wreck.position, 1.4 if big else 0.8)
+				fx.play_sound("explosion")
+				if big:
+					_shake(7.0)
+				await wreck.play_destroyed()
 			BattleEvents.BATTLE_ENDED:
 				_show_result()
 	_refresh_views()
@@ -298,12 +306,24 @@ func _play_ability(e: Dictionary) -> void:
 	if ability.get("target", "") != "self":
 		source.face_towards(to)
 	var color := Palette.ACTIVE
+	var laser := "Blue"
 	for effect: Dictionary in ability.get("effects", []):
 		if effect.get("type", "") == "damage":
 			color = Palette.damage_color(effect.get("damage_type", ""))
+			laser = Palette.DAMAGE_LASERS.get(effect.get("damage_type", ""), "Blue")
 			break
 	var blast := float(ability.get("radius", 0)) * GridMapView.CELL_SIZE * 1.8
-	await fx.play(ability.get("fx", "projectile"), source.position, to, color, blast)
+	await fx.play(ability.get("fx", "projectile"), source.position, to, color, blast, laser)
+
+
+## Brief camera-style shake of the battlefield.
+func _shake(strength: float) -> void:
+	var base := map_view.position
+	var tw := create_tween()
+	for i in 6:
+		var offset := Vector2(randf_range(-1, 1), randf_range(-1, 1)) * strength * (1.0 - i / 6.0)
+		tw.tween_property(map_view, "position", base + offset, 0.035)
+	tw.tween_property(map_view, "position", base, 0.04)
 
 
 func _wait(seconds: float) -> void:

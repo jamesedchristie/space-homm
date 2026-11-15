@@ -20,14 +20,16 @@
     "description": "Impassable. Blocks line of sight.",
     "passable": false,
     "blocks_sight": true,
-    "color": "#2a2f3a"
+    "color": "#323a47",
+    "decoration": "bulkhead"
   },
   "door": {
     "name": "Door",
     "description": "Passable, but blocks line of sight.",
     "passable": true,
     "blocks_sight": true,
-    "color": "#4a3a2a"
+    "color": "#2a2a22",
+    "decoration": "hazard"
   },
   "crates": {
     "name": "Cargo Crates",

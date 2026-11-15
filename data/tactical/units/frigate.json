@@ -29,7 +29,7 @@
   },
   "visual": {
     "placeholder": "frigate",
-    "sprite": "",
+    "sprite": "res://assets/kenney_space_shooter/ships/playerShip2_{team}.png",
     "size": 1.0
   }
 }

@@ -19,7 +19,7 @@
   "visual": {
     "placeholder": "boarder",
     "sprite": "",
-    "size": 0.75
+    "size": 0.95
   },
   "stat_names": {
     "hull": "Health",

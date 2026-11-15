@@ -29,7 +29,7 @@ var _hull_bar: ProgressBar
 var _hull_value: Label
 var _stats_label: Label
 var _status_label: Label
-var _ability_box: HBoxContainer
+var _ability_box: HFlowContainer
 var _end_turn_button: Button
 var _hint_label: Label
 var _log: RichTextLabel
@@ -40,6 +40,7 @@ var _result_button: Button
 
 func _ready() -> void:
 	mouse_filter = MOUSE_FILTER_IGNORE
+	theme = GameTheme.get_theme()
 	_build()
 
 
@@ -149,7 +150,7 @@ func _build() -> void:
 	var top_row := HBoxContainer.new()
 	top_row.add_theme_constant_override("separation", 12)
 	top.add_child(top_row)
-	_round_label = _label("Round 1", 16, Palette.ACTIVE)
+	_round_label = UiKit.header("Round 1", 16, Palette.ACTIVE)
 	top_row.add_child(_round_label)
 	_order_box = HBoxContainer.new()
 	_order_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -169,7 +170,7 @@ func _build() -> void:
 	info.custom_minimum_size = Vector2(330, 0)
 	row.add_child(info)
 	_info_box = info
-	_name_label = _label("", 18, Palette.TEXT)
+	_name_label = UiKit.label("", 18, Palette.TEXT)
 	info.add_child(_name_label)
 	var shield_row := _bar_row("Shields", Palette.SHIELDS)
 	_shield_bar = shield_row[0]
@@ -193,8 +194,9 @@ func _build() -> void:
 	actions.add_theme_constant_override("separation", 8)
 	row.add_child(actions)
 	actions.add_child(_label("Abilities", 13, Palette.TEXT_DIM))
-	_ability_box = HBoxContainer.new()
-	_ability_box.add_theme_constant_override("separation", 6)
+	_ability_box = HFlowContainer.new()
+	_ability_box.add_theme_constant_override("h_separation", 6)
+	_ability_box.add_theme_constant_override("v_separation", 4)
 	actions.add_child(_ability_box)
 	_end_turn_button = Button.new()
 	_end_turn_button.text = "End Turn  [Space]"
@@ -231,7 +233,7 @@ func _build() -> void:
 	result_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	result_box.add_theme_constant_override("separation", 14)
 	_result_panel.add_child(result_box)
-	_result_label = _label("", 28, Palette.TEXT)
+	_result_label = UiKit.header("", 30, Palette.TEXT)
 	_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	result_box.add_child(_result_label)
 	_result_button = UiKit.button("Play again", func() -> void: restart_pressed.emit())

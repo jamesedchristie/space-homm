@@ -30,6 +30,7 @@ var empire: EmpirePanel
 
 func _ready() -> void:
 	mouse_filter = MOUSE_FILTER_IGNORE
+	theme = GameTheme.get_theme()
 	_build()
 
 
@@ -93,9 +94,9 @@ func _build() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	top.add_child(row)
-	_turn_label = UiKit.label("Turn 1", 16, Palette.ACTIVE)
+	_turn_label = UiKit.header("Turn 1", 16, Palette.ACTIVE)
 	row.add_child(_turn_label)
-	_faction_label = UiKit.label("", 16, Palette.TEXT)
+	_faction_label = UiKit.header("", 15, Palette.TEXT)
 	row.add_child(_faction_label)
 	_resources_label = UiKit.rich_text(13)
 	_resources_label.scroll_following = false

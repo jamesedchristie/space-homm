@@ -1,7 +1,8 @@
 class_name FleetView
 extends Node2D
-## Galaxy-map marker for a fleet: one chevron per ship (up to 3), ship count,
-## name, and pips for remaining moves. Placeholder art; swap for sprites later.
+## Galaxy-map marker for a fleet: the sprite of its biggest ship (team-colored
+## variant), escort pips for the rest, ship count, hull bar, name and pips for
+## remaining moves.
 
 var fleet_id := ""
 var display_name := ""
@@ -13,10 +14,13 @@ var hull_ratio := 1.0
 var selected := false
 var show_moves := false
 var facing := 0.0
+var team := 0
+var _lead_texture: Texture2D
 
 
 func setup(fleet: Fleet, team: int, data: DataRegistry, owned_by_player: bool) -> void:
 	fleet_id = fleet.id
+	self.team = team
 	color = Palette.team_color(team)
 	show_moves = owned_by_player
 	facing = 0.0 if team == 0 else PI
@@ -27,6 +31,7 @@ func setup(fleet: Fleet, team: int, data: DataRegistry, owned_by_player: bool) -
 func refresh(fleet: Fleet, data: DataRegistry, max_moves_override: int = -1) -> void:
 	display_name = fleet.name
 	ship_count = fleet.ships.size()
+	_lead_texture = _lead_sprite(fleet, data)
 	moves_left = fleet.moves_left
 	max_moves = max_moves_override if max_moves_override >= 0 else fleet.speed(data)
 	hull_ratio = fleet.hull_ratio(data)
@@ -64,12 +69,34 @@ func _set_facing(angle: float) -> void:
 	queue_redraw()
 
 
+## Sprite of the fleet's largest ship, or null to fall back to chevrons.
+func _lead_sprite(fleet: Fleet, data: DataRegistry) -> Texture2D:
+	var best: Dictionary = {}
+	for ship in fleet.ships:
+		var def: Dictionary = data.units[ship["unit"]]
+		if best.is_empty() or def["stats"]["max_hull"] > best["stats"]["max_hull"]:
+			best = def
+	var visual: Dictionary = best.get("visual", {})
+	var variants: Array = visual.get("sprite_variants", Palette.TEAM_SPRITE_COLORS)
+	var path: String = visual.get("sprite", "").replace("{team}", variants[team % variants.size()])
+	return load(path) if not path.is_empty() and ResourceLoader.exists(path) else null
+
+
 func _draw() -> void:
 	if selected:
 		draw_arc(Vector2.ZERO, 19.0, 0, TAU, 32, Palette.ACTIVE, 2.0, true)
 	draw_circle(Vector2.ZERO, 15.0, Color(0, 0, 0, 0.55))
+	if _lead_texture != null:
+		draw_circle(Vector2.ZERO, 15.0, Color(color, 0.18))
+		var s := 26.0 / maxf(_lead_texture.get_width(), _lead_texture.get_height())
+		draw_set_transform(Vector2.ZERO, facing + PI / 2.0, Vector2(s, s))
+		draw_texture(_lead_texture, -_lead_texture.get_size() / 2.0)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		# One escort pip per additional ship.
+		for i in mini(ship_count - 1, 5):
+			draw_circle(Vector2(-12 + i * 5.0, 13).rotated(0), 1.8, color.lightened(0.3))
 	var offsets := [Vector2(4, 0), Vector2(-5, -7), Vector2(-5, 7)]
-	for i in mini(ship_count, 3):
+	for i in (mini(ship_count, 3) if _lead_texture == null else 0):
 		var o: Vector2 = offsets[i]
 		var pts := PackedVector2Array()
 		for p: Vector2 in [Vector2(7, 0), Vector2(-5, 5), Vector2(-2, 0), Vector2(-5, -5)]:

@@ -17,14 +17,16 @@ func _init() -> void:
 	sb.bg_color = Palette.PANEL_BG
 	sb.border_color = Palette.ACTIVE
 	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(4)
-	sb.set_content_margin_all(12)
+	sb.set_corner_radius_all(6)
+	sb.set_content_margin_all(14)
+	sb.shadow_color = Color(Palette.ACTIVE, 0.25)
+	sb.shadow_size = 14
 	add_theme_stylebox_override("panel", sb)
 	visible = false
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
 	add_child(box)
-	_title = UiKit.label("", 22, Palette.ACTIVE)
+	_title = UiKit.header("", 21, Palette.ACTIVE)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(_title)

@@ -78,6 +78,16 @@ Hover over targets to see the expected damage before you commit. In missions, th
 marks the objective, yellow **?** marks something to investigate, and enemies stay hidden
 (and mostly asleep) until your squad can see them. Crates are cover (30% less damage).
 
+## Art and credits
+
+- Ships, lasers, meteors, effect sprites, the Kenvector fonts and sound effects:
+  **Kenney** "Space Shooter Redux" (CC0, `assets/kenney_space_shooter/`, see its README/LICENSE).
+- Planets and the space backdrop are procedural shaders (`src/presentation/shaders/`).
+- The UI theme is built in code (`src/presentation/shared/game_theme.gd`); colors live in `palette.gd`.
+- Ship sprites are set per unit in JSON (`visual.sprite`, with `{team}` replaced by the team's
+  color variant). Battle maps can set `backdrop` colors and `floor: "deck"` for interiors.
+  Planet types set `surface` colors for the planet shader.
+
 ## Tests and tools (headless, no editor needed)
 
 ```bash
@@ -136,7 +146,7 @@ src/presentation/        scenes and visuals (read engines, never change rules)
   shared/                hex map view (with fog), fx, starfield, palette, UI kit
   tactical/              battle screen
   strategic/             galaxy screen
-assets/                  sprites, fonts, audio (one LICENSE per asset pack)
+assets/                  sprites, fonts, audio (one folder + LICENSE per asset pack)
 tests/                   headless tests
 tools/                   balance simulators, smoke tests
 ```

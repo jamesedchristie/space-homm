@@ -25,7 +25,7 @@ func _init() -> void:
 	add_child(box)
 	var header := HBoxContainer.new()
 	box.add_child(header)
-	_title = UiKit.label("Heroes", 20, Palette.ACTIVE)
+	_title = UiKit.header("Heroes", 20, Palette.ACTIVE)
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(_title)
 	header.add_child(UiKit.button("Close  [H]", func() -> void:

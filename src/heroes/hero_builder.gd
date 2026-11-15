@@ -35,7 +35,7 @@ static func unit_def(hero: Hero, data: DataRegistry) -> Dictionary:
 		"tags": ["infantry", "hero"],
 		"stats": stats,
 		"abilities": abilities,
-		"visual": {"placeholder": "hero", "sprite": "", "size": 0.8},
+		"visual": {"placeholder": "hero", "sprite": "", "size": 1.0},
 		"stat_names": {"hull": "Health", "shields": "Shields"},
 	}
 

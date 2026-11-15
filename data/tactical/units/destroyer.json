@@ -30,7 +30,7 @@
   },
   "visual": {
     "placeholder": "destroyer",
-    "sprite": "",
+    "sprite": "res://assets/kenney_space_shooter/ships/playerShip3_{team}.png",
     "size": 1.2
   }
 }

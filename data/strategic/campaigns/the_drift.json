@@ -394,5 +394,10 @@
       "credits": 160,
       "alloys": 60
     }
+  },
+  "backdrop": {
+    "a": "#183c6e",
+    "b": "#5a1f6b",
+    "density": 0.6
   }
 }

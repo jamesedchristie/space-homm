@@ -1,7 +1,7 @@
 class_name UiKit
 extends RefCounted
-## Shared helpers for code-built UI so every screen looks the same. When a
-## proper Godot Theme arrives (asset packs), these become thin wrappers.
+## Shared helpers for code-built UI so every screen looks the same. Colors and
+## fonts come from Palette and GameTheme.
 
 
 static func panel(bg: Color = Palette.PANEL_BG, border: Color = Palette.PANEL_BORDER, border_width: int = 1) -> PanelContainer:
@@ -10,10 +10,19 @@ static func panel(bg: Color = Palette.PANEL_BG, border: Color = Palette.PANEL_BO
 	sb.bg_color = bg
 	sb.border_color = border
 	sb.set_border_width_all(border_width)
-	sb.set_corner_radius_all(4)
+	sb.set_corner_radius_all(6)
 	sb.set_content_margin_all(8)
+	sb.shadow_color = Color(border, 0.18)
+	sb.shadow_size = 8
 	p.add_theme_stylebox_override("panel", sb)
 	return p
+
+
+## A label in the display font, for titles.
+static func header(text: String, font_size: int, color: Color) -> Label:
+	var l := label(text, font_size, color)
+	l.add_theme_font_override("font", GameTheme.header_font())
+	return l
 
 
 static func label(text: String, font_size: int, color: Color) -> Label:

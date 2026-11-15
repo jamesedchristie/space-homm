@@ -19,10 +19,19 @@ var _explored: Dictionary = {}
 var _visible: Dictionary = {}
 ## cell -> {"color": Color, "label": String} (objectives, triggers, ...)
 var _markers: Dictionary = {}
+var _floor := ""
+
+## Big meteors first (indices 0-3), then medium ones.
+const METEORS := ["meteorBrown_big1", "meteorGrey_big2", "meteorBrown_big3", "meteorGrey_big4",
+		"meteorBrown_med1", "meteorGrey_med2", "meteorBrown_med3", "meteorGrey_med1"]
+static var _meteors: Array[Texture2D] = []
 
 
-func setup(p_grid: TacticalGrid) -> void:
+## floor: "" (open space: translucent cells) or "deck" (metal plating, for
+## station and ship interiors).
+func setup(p_grid: TacticalGrid, floor_style: String = "") -> void:
 	grid = p_grid
+	_floor = floor_style
 	_reachable.clear()
 	_targets.clear()
 	_area.clear()
@@ -103,12 +112,21 @@ func _draw() -> void:
 			draw_colored_polygon(poly, Palette.FOG_UNEXPLORED)
 		else:
 			var terrain := grid.terrain_def(c)
-			draw_colored_polygon(poly, Color(terrain["color"]) if terrain.has("color") else Palette.CELL_FILL)
+			if _floor == "deck" and terrain.get("decoration", "") != "bulkhead":
+				_draw_deck_plate(c)
+			if terrain.has("color") and not (_floor == "deck" and terrain.get("decoration", "") == "crates"):
+				draw_colored_polygon(poly, Color(terrain["color"]))
+			elif not terrain.has("color") and _floor != "deck":
+				draw_colored_polygon(poly, Palette.CELL_FILL)
 			match terrain.get("decoration", ""):
 				"rocks":
 					_draw_rocks(c)
 				"crates":
 					_draw_crates(c)
+				"bulkhead":
+					_draw_bulkhead(c)
+				"hazard":
+					_draw_hazard(c)
 			if _fog_enabled and not _visible.has(c):
 				draw_colored_polygon(poly, Palette.FOG_DIM)
 		if _reachable.has(c):
@@ -150,15 +168,67 @@ func _inset_polygon(c: Vector2i, inset: float = 0.94) -> PackedVector2Array:
 	return out
 
 
+## Two meteor sprites per asteroid cell, picked and rotated deterministically.
 func _draw_rocks(c: Vector2i) -> void:
+	if _meteors.is_empty():
+		for meteor in METEORS:
+			_meteors.append(load("res://assets/kenney_space_shooter/meteors/%s.png" % meteor))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(c)
 	var center := cell_center(c)
-	for i in 3:
-		var offset := Vector2(rng.randf_range(-12, 12), rng.randf_range(-10, 10))
-		var r := rng.randf_range(7, 14)
-		draw_circle(center + offset, r, Color(0.42, 0.36, 0.30))
-		draw_circle(center + offset + Vector2(-r * 0.25, -r * 0.25), r * 0.45, Color(0.55, 0.48, 0.40))
+	for i in 2:
+		var tex: Texture2D = _meteors[rng.randi_range(0 if i == 0 else 4, 3 if i == 0 else _meteors.size() - 1)]
+		var target := CELL_SIZE * (1.1 if i == 0 else 0.55)
+		var s := target / maxf(tex.get_width(), tex.get_height())
+		var offset := Vector2(rng.randf_range(-8, 8), rng.randf_range(-6, 6)) if i == 0 else Vector2(rng.randf_range(-16, 16), rng.randf_range(-12, 12))
+		draw_set_transform(center + offset, rng.randf() * TAU, Vector2(s, s))
+		draw_texture(tex, -tex.get_size() / 2.0, Color(0.85, 0.85, 0.85))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Metal floor plate with seams and rivets.
+func _draw_deck_plate(c: Vector2i) -> void:
+	var r := _cell_rect(c)
+	draw_rect(r, Color(0.11, 0.14, 0.18))
+	var inner := r.grow(-3.0)
+	draw_rect(inner, Color(0.15, 0.19, 0.24))
+	draw_rect(inner, Color(0.07, 0.09, 0.12), false, 1.0)
+	draw_line(inner.position + Vector2(inner.size.x * 0.5, 0), inner.position + Vector2(inner.size.x * 0.5, inner.size.y),
+			Color(0.08, 0.1, 0.13), 1.0)
+	for corner in [Vector2(5, 5), Vector2(inner.size.x - 5, 5), Vector2(5, inner.size.y - 5), Vector2(inner.size.x - 5, inner.size.y - 5)]:
+		draw_circle(inner.position + corner, 1.6, Color(0.3, 0.36, 0.44))
+
+
+## Raised wall block with a bevelled top.
+func _draw_bulkhead(c: Vector2i) -> void:
+	var r := _cell_rect(c)
+	draw_rect(r, Color(0.2, 0.24, 0.3))
+	var top := r.grow(-5.0)
+	draw_rect(top, Color(0.3, 0.35, 0.43))
+	draw_line(top.position, top.position + Vector2(top.size.x, 0), Color(0.5, 0.56, 0.65), 2.0)
+	draw_line(top.position, top.position + Vector2(0, top.size.y), Color(0.42, 0.48, 0.56), 2.0)
+	draw_line(top.end, top.end - Vector2(top.size.x, 0), Color(0.14, 0.17, 0.21), 2.0)
+	draw_line(top.end, top.end - Vector2(0, top.size.y), Color(0.14, 0.17, 0.21), 2.0)
+
+
+## Door: hazard stripes around a dark slot.
+func _draw_hazard(c: Vector2i) -> void:
+	var r := _cell_rect(c).grow(-4.0)
+	draw_rect(r, Color(0.12, 0.12, 0.1))
+	var stripe := r.size.x / 6.0
+	for i in 6:
+		if i % 2 == 0:
+			draw_rect(Rect2(r.position + Vector2(i * stripe, 0), Vector2(stripe, 6)), Color(0.85, 0.7, 0.15))
+			draw_rect(Rect2(r.position + Vector2(i * stripe, r.size.y - 6), Vector2(stripe, 6)), Color(0.85, 0.7, 0.15))
+	draw_rect(Rect2(r.position + Vector2(r.size.x * 0.44, 8), Vector2(r.size.x * 0.12, r.size.y - 16)), Color(0.35, 0.8, 1.0, 0.6))
+
+
+func _cell_rect(c: Vector2i) -> Rect2:
+	var poly := grid.cell_polygon(c, CELL_SIZE)
+	var rect := Rect2(poly[0], Vector2.ZERO)
+	for p in poly:
+		rect = rect.expand(p)
+	return rect
 
 
 func _draw_crates(c: Vector2i) -> void:

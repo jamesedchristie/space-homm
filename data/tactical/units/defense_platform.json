@@ -19,7 +19,13 @@
   ],
   "visual": {
     "placeholder": "station",
-    "sprite": "",
-    "size": 1.1
+    "sprite": "res://assets/kenney_space_shooter/ships/ufo{team}.png",
+    "size": 1.0,
+    "sprite_variants": [
+      "Blue",
+      "Red",
+      "Green",
+      "Yellow"
+    ]
   }
 }

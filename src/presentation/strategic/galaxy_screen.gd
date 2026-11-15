@@ -92,6 +92,7 @@ func start_campaign() -> void:
 			player_faction = f["id"]
 			break
 	map_view.setup(engine.state.grid)
+	$Background/Backdrop.configure(engine.campaign.get("backdrop", {}), 5.0)
 	for p: Planet in engine.state.planets.values():
 		var pv := PlanetView.new()
 		planets_layer.add_child(pv)
@@ -311,10 +312,12 @@ func _play(events: Array[Dictionary], token: int) -> void:
 					fx.float_text(pv.position, "Captured", Palette.team_color(engine.state.faction(e["faction"])["team"]))
 			GalaxyEvents.BATTLE_TRIGGERED:
 				var pos := map_view.cell_center(e["cell"])
-				fx.play("pulse", pos, pos, Palette.BAD)
+				fx.play("pulse", pos, pos, Palette.BAD, 0.0, "Red")
 			GalaxyEvents.FLEET_DESTROYED:
 				var view: FleetView = fleet_views.get(e["fleet"])
 				if view != null and view.visible:
+					fx.explode(view.position, 1.0)
+					fx.play_sound("explosion")
 					await view.play_destroyed()
 			GalaxyEvents.FLEET_REPAIRED:
 				if engine.state.fleets[e["fleet"]].owner == player_faction:
