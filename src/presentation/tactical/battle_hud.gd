@@ -8,6 +8,8 @@ signal ability_pressed(ability_id: String)
 signal end_turn_pressed
 ## The result overlay's button ("Play again", or "Continue" inside a campaign).
 signal restart_pressed
+## Answer from the story/choice dialog.
+signal dialog_choice(choice_id: String)
 
 const TOP_H := 44.0
 const BOTTOM_H := 172.0
@@ -18,6 +20,9 @@ var _objective_label: Label
 var _order_box: HBoxContainer
 var _info_box: VBoxContainer
 var _name_label: Label
+var _shield_title: Label
+var _hull_title: Label
+var _dialog: DialogPanel
 var _shield_bar: ProgressBar
 var _shield_value: Label
 var _hull_bar: ProgressBar
@@ -69,8 +74,11 @@ func show_unit(unit: BattleUnit, data: DataRegistry) -> void:
 	_info_box.visible = unit != null
 	if unit == null:
 		return
-	var def: Dictionary = data.units.get(unit.def_id, {})
-	_name_label.text = "%s  ·  %s" % [unit.name, def.get("name", unit.def_id)]
+	var def: Dictionary = unit.def if not unit.def.is_empty() else data.units.get(unit.def_id, {})
+	var stat_names: Dictionary = def.get("stat_names", {})
+	_hull_title.text = stat_names.get("hull", "Hull")
+	_shield_title.text = stat_names.get("shields", "Shields")
+	_name_label.text = "%s  ·  %s" % [unit.name, def.get("description", def.get("name", unit.def_id)) if "hero" in unit.tags else def.get("name", unit.def_id)]
 	_name_label.add_theme_color_override("font_color", Palette.team_color(unit.team))
 	_shield_bar.max_value = unit.max_shields()
 	_shield_bar.value = unit.shields
@@ -82,7 +90,8 @@ func show_unit(unit: BattleUnit, data: DataRegistry) -> void:
 			unit.ap, unit.stat_i("max_ap"), unit.stat_i("armor"), unit.stat_i("initiative")]
 	var tags := PackedStringArray()
 	for s in unit.statuses:
-		tags.append("%s (%d)" % [s.def.get("name", s.id), s.remaining])
+		var label: String = s.def.get("name", s.id)
+		tags.append(label if s.is_permanent() else "%s (%d)" % [label, s.remaining])
 	_status_label.text = "Status: " + (", ".join(tags) if not tags.is_empty() else "nominal")
 
 
@@ -164,10 +173,12 @@ func _build() -> void:
 	var shield_row := _bar_row("Shields", Palette.SHIELDS)
 	_shield_bar = shield_row[0]
 	_shield_value = shield_row[1]
+	_shield_title = shield_row[3]
 	info.add_child(shield_row[2])
 	var hull_row := _bar_row("Hull", Palette.HULL)
 	_hull_bar = hull_row[0]
 	_hull_value = hull_row[1]
+	_hull_title = hull_row[3]
 	info.add_child(hull_row[2])
 	_stats_label = _label("", 13, Palette.TEXT)
 	info.add_child(_stats_label)
@@ -226,6 +237,20 @@ func _build() -> void:
 	_result_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	result_box.add_child(_result_button)
 
+	_dialog = DialogPanel.new()
+	_dialog.place(480, 280)
+	_dialog.choice_made.connect(func(id: String) -> void: dialog_choice.emit(id))
+	add_child(_dialog)
+
+
+## Story beats and choices from mission triggers. Await `dialog_choice`.
+func ask(title: String, body_bbcode: String, choices: Array[Dictionary]) -> void:
+	_dialog.ask(title, body_bbcode, choices)
+
+
+func is_dialog_open() -> bool:
+	return _dialog.is_open()
+
 
 func _bar_row(title: String, color: Color) -> Array:
 	var row := HBoxContainer.new()
@@ -245,7 +270,7 @@ func _bar_row(title: String, color: Color) -> Array:
 	row.add_child(bar)
 	var value := _label("", 13, Palette.TEXT)
 	row.add_child(value)
-	return [bar, value, row]
+	return [bar, value, row, label]
 
 
 func _panel(bg: Color = Palette.PANEL_BG, border: Color = Palette.PANEL_BORDER, border_width: int = 1) -> PanelContainer:

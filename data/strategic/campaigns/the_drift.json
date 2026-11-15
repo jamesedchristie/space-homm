@@ -239,5 +239,81 @@
         }
       ]
     }
+  ],
+  "permadeath": false,
+  "heroes": [
+    {
+      "id": "reyes",
+      "name": "Cmdr. Ana Reyes",
+      "class": "vanguard",
+      "owner": "patrol",
+      "fleet": "1st Patrol",
+      "traits": [
+        "veteran"
+      ],
+      "gear": {
+        "weapon": "shotgun",
+        "armor": "light_plating"
+      },
+      "loyalty": 70
+    },
+    {
+      "id": "okafor",
+      "name": "Lt. Tomas Okafor",
+      "class": "marksman",
+      "owner": "patrol",
+      "planet": "haven",
+      "traits": [
+        "sharpshooter"
+      ],
+      "gear": {
+        "weapon": "assault_rifle"
+      },
+      "loyalty": 55
+    },
+    {
+      "id": "varga",
+      "name": "Kael Varga",
+      "class": "technician",
+      "owner": "patrol",
+      "planet": "haven",
+      "traits": [
+        "reckless"
+      ],
+      "gear": {
+        "weapon": "assault_rifle",
+        "gadget": "medkit"
+      },
+      "loyalty": 45
+    },
+    {
+      "id": "vorn",
+      "name": "Vorn the Flayer",
+      "class": "marksman",
+      "owner": "raiders",
+      "fleet": "Raider Pack",
+      "level": 3,
+      "gear": {
+        "weapon": "assault_rifle"
+      },
+      "loyalty": 80
+    }
+  ],
+  "inventory": {
+    "patrol": [
+      "frag_grenade",
+      "heavy_plating"
+    ]
+  },
+  "anomalies": [
+    {
+      "id": "derelict",
+      "name": "Derelict Station",
+      "at": [
+        4,
+        2
+      ],
+      "mission": "derelict_station"
+    }
   ]
 }

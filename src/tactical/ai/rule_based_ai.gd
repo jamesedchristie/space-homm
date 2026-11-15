@@ -25,6 +25,8 @@ func decide(engine: BattleEngine) -> BattleCommand:
 	var unit := engine.state.active_unit()
 	if unit == null:
 		return null
+	if not engine.state.pending_choice.is_empty():
+		return ChooseOptionCommand.new(unit.id, 0)
 	var best := best_action(engine, unit, unit.cell, unit.ap)
 	if best["score"] >= MIN_SCORE:
 		return UseAbilityCommand.new(unit.id, best["ability"], best["target"])

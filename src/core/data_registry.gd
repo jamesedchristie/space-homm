@@ -9,7 +9,9 @@ extends RefCounted
 
 const DEFAULT_ROOT := "res://data"
 
-const VALID_TARGETS := ["self", "enemy", "ally", "any_unit", "cell"]
+const VALID_TARGETS := ["self", "enemy", "ally", "friendly", "any_unit", "cell"]
+const ITEM_SLOTS := ["weapon", "armor", "gadget"]
+const TRIGGER_EFFECTS := ["effect", "spawn", "alert", "reward"]
 const VALID_AFFECTS := ["enemies", "allies", "all"]
 const REQUIRED_UNIT_STATS := ["max_hull", "max_shields", "armor", "initiative", "max_ap"]
 
@@ -25,6 +27,13 @@ var scenarios: Dictionary = {}
 var galaxy_terrain: Dictionary = {}
 var planet_types: Dictionary = {}
 var campaigns: Dictionary = {}
+
+# Heroes and missions
+var hero_classes: Dictionary = {}
+var items: Dictionary = {}
+var traits: Dictionary = {}
+var progression: Dictionary = {}
+var missions: Dictionary = {}
 
 ## Human-readable problems found while loading. Empty means all good.
 var errors: PackedStringArray = []
@@ -52,6 +61,12 @@ func load_from(root: String) -> bool:
 	_load_keyed_file(root.path_join("strategic/terrain.json"), galaxy_terrain)
 	_load_keyed_file(root.path_join("strategic/planet_types.json"), planet_types)
 	_load_dir(root.path_join("strategic/campaigns"), campaigns)
+	_load_keyed_file(root.path_join("heroes/classes.json"), hero_classes)
+	_load_keyed_file(root.path_join("heroes/items.json"), items)
+	_load_keyed_file(root.path_join("heroes/traits.json"), traits)
+	var prog: Variant = JsonUtil.load_file(root.path_join("heroes/progression.json"))
+	progression = prog if prog is Dictionary else {}
+	_load_dir(root.path_join("missions"), missions)
 	validate()
 	return errors.is_empty()
 
@@ -104,7 +119,67 @@ func validate() -> PackedStringArray:
 		_validate_battle_map("planet type '%s'" % id, planet_types[id])
 	for id: String in campaigns:
 		_validate_campaign(id, campaigns[id])
+
+	for id: String in hero_classes:
+		var def: Dictionary = hero_classes[id]
+		for stat: String in REQUIRED_UNIT_STATS:
+			if not def.get("stats", {}).has(stat):
+				_err("hero class '%s': missing stat '%s'" % [id, stat])
+		for level: String in def.get("skills", {}):
+			for ability_id in def["skills"][level]:
+				if not abilities.has(ability_id):
+					_err("hero class '%s': unknown skill '%s'" % [id, ability_id])
+		if def.has("command_status") and not statuses.has(def["command_status"]):
+			_err("hero class '%s': unknown command_status '%s'" % [id, def["command_status"]])
+	for id: String in items:
+		if items[id].get("slot", "") not in ITEM_SLOTS:
+			_err("item '%s': slot must be one of %s" % [id, ITEM_SLOTS])
+		for ability_id in items[id].get("abilities", []):
+			if not abilities.has(ability_id):
+				_err("item '%s': unknown ability '%s'" % [id, ability_id])
+	for id: String in missions:
+		_validate_mission(id, missions[id])
 	return errors
+
+
+func _validate_mission(id: String, def: Dictionary) -> void:
+	var owner := "mission '%s'" % id
+	var map_def: Dictionary = maps.get(def.get("map", ""), {})
+	if map_def.is_empty():
+		_err("%s: unknown map '%s'" % [owner, def.get("map", "")])
+	elif map_def.get("deployment", {}).get("squad", []).size() < int(def.get("squad_size", 3)):
+		_err("%s: map '%s' needs at least %d deployment.squad slots" % [owner, def["map"], int(def.get("squad_size", 3))])
+	if not units.has(def.get("marine_unit", "marine")):
+		_err("%s: unknown marine_unit '%s'" % [owner, def.get("marine_unit", "marine")])
+	for e: Dictionary in def.get("enemies", []):
+		if not units.has(e.get("unit", "")):
+			_err("%s: unknown enemy unit '%s'" % [owner, e.get("unit", "")])
+	for item_id in def.get("rewards", {}).get("items", []):
+		if not items.has(item_id):
+			_err("%s: unknown reward item '%s'" % [owner, item_id])
+	var follow_up: String = def.get("on_failure", {}).get("mission", "")
+	if not follow_up.is_empty() and not missions.has(follow_up):
+		_err("%s: unknown follow-up mission '%s'" % [owner, follow_up])
+	for trigger: Dictionary in def.get("triggers", []):
+		var all_effects: Array = trigger.get("effects", []).duplicate()
+		for choice: Dictionary in trigger.get("choices", []):
+			all_effects.append_array(choice.get("effects", []))
+		for fx: Dictionary in all_effects:
+			var kind: String = fx.get("type", "")
+			if kind not in TRIGGER_EFFECTS:
+				_err("%s: trigger '%s' has unknown effect '%s'" % [owner, trigger.get("id", ""), kind])
+			elif kind == "spawn":
+				for entry: Dictionary in fx.get("units", []):
+					if not units.has(entry.get("unit", "")):
+						_err("%s: trigger spawns unknown unit '%s'" % [owner, entry.get("unit", "")])
+			elif kind == "reward":
+				for item_id in fx.get("items", []):
+					if not items.has(item_id):
+						_err("%s: trigger rewards unknown item '%s'" % [owner, item_id])
+				if fx.has("trait") and not traits.has(fx["trait"]):
+					_err("%s: trigger grants unknown trait '%s'" % [owner, fx["trait"]])
+			elif kind == "effect":
+				_validate_effects(owner, [fx.get("effect", {})])
 
 
 func _validate_campaign(id: String, def: Dictionary) -> void:
@@ -124,6 +199,36 @@ func _validate_campaign(id: String, def: Dictionary) -> void:
 			_err("%s: planet '%s' has unknown type '%s'" % [owner, p.get("name", ""), p.get("type", "")])
 		if p.get("owner", "") != "" and p["owner"] not in faction_ids:
 			_err("%s: planet '%s' has unknown owner '%s'" % [owner, p.get("name", ""), p["owner"]])
+	var fleet_names: Array = []
+	for fl: Dictionary in def.get("fleets", []):
+		fleet_names.append(fl.get("name", ""))
+	var planet_ids: Array = []
+	for p: Dictionary in def.get("planets", []):
+		planet_ids.append(p.get("id", ""))
+	for h: Dictionary in def.get("heroes", []):
+		var hero := "%s: hero '%s'" % [owner, h.get("id", "")]
+		if not hero_classes.has(h.get("class", "")):
+			_err("%s has unknown class '%s'" % [hero, h.get("class", "")])
+		if h.get("owner", "") not in faction_ids:
+			_err("%s has unknown owner '%s'" % [hero, h.get("owner", "")])
+		if h.has("fleet") and h["fleet"] not in fleet_names:
+			_err("%s commands unknown fleet '%s'" % [hero, h["fleet"]])
+		if h.has("planet") and h["planet"] not in planet_ids:
+			_err("%s is at unknown planet '%s'" % [hero, h["planet"]])
+		for slot: String in h.get("gear", {}):
+			var item: Dictionary = items.get(h["gear"][slot], {})
+			if item.is_empty() or item.get("slot", "") != slot:
+				_err("%s: '%s' is not a %s item" % [hero, h["gear"][slot], slot])
+		for trait_id in h.get("traits", []):
+			if not traits.has(trait_id):
+				_err("%s has unknown trait '%s'" % [hero, trait_id])
+	for faction_id: String in def.get("inventory", {}):
+		for item_id in def["inventory"][faction_id]:
+			if not items.has(item_id):
+				_err("%s: inventory has unknown item '%s'" % [owner, item_id])
+	for a: Dictionary in def.get("anomalies", []):
+		if not missions.has(a.get("mission", "")):
+			_err("%s: anomaly '%s' has unknown mission '%s'" % [owner, a.get("id", ""), a.get("mission", "")])
 	for fl: Dictionary in def.get("fleets", []):
 		if fl.get("owner", "") not in faction_ids:
 			_err("%s: fleet '%s' has unknown owner '%s'" % [owner, fl.get("name", ""), fl.get("owner", "")])

@@ -18,5 +18,10 @@ func _init(p_def: Dictionary = {}, p_remaining: int = 1, p_source_id: String = "
 	source_id = p_source_id
 
 
+## Permanent statuses (e.g. a fleet commander's doctrine) never expire.
+func is_permanent() -> bool:
+	return def.get("permanent", false)
+
+
 func has_flag(flag: String) -> bool:
 	return flag in def.get("flags", [])

@@ -48,7 +48,8 @@ static func from_scenario(p_data: DataRegistry, scenario: Variant, p_seed: int =
 		})
 		var index := 0
 		for entry: Dictionary in team_def.get("units", []):
-			var unit_def: Dictionary = p_data.units.get(entry.get("unit", ""), {})
+			# Heroes bring a generated definition ("unit_def"); everything else references content.
+			var unit_def: Dictionary = entry.get("unit_def", p_data.units.get(entry.get("unit", ""), {}))
 			if unit_def.is_empty():
 				push_error("BattleEngine: unknown unit '%s'" % entry.get("unit", ""))
 				continue
@@ -61,10 +62,32 @@ static func from_scenario(p_data: DataRegistry, scenario: Variant, p_seed: int =
 			# Damage carried over from earlier fights (shields always start full).
 			if entry.has("hull"):
 				u.hull = clampi(int(entry["hull"]), 1, u.max_hull())
+			u.alert = not entry.get("dormant", false)
+			u.group = entry.get("group", "")
+			# Statuses present from the start, e.g. a fleet commander's doctrine.
+			for st: Dictionary in entry.get("statuses", []):
+				var status_def: Dictionary = p_data.statuses.get(st.get("status", ""), {})
+				if not status_def.is_empty():
+					u.statuses.append(StatusInstance.new(status_def, int(st.get("duration", 1))))
 			s.units[unit_id] = u
 			index += 1
 
+	s.fog_enabled = def.get("fog", false)
+	s.mission_id = def.get("mission", "")
+	for t: Dictionary in def.get("triggers", []):
+		var trigger := t.duplicate(true)
+		var cells: Array[Vector2i] = []
+		for pos: Array in trigger.get("cells", []):
+			cells.append(s.grid.cell_from_layout(Vector2i(int(pos[0]), int(pos[1]))))
+		trigger["_cells"] = cells
+		trigger["fired"] = false
+		s.triggers.append(trigger)
 	s.objectives = ObjectiveFactory.build(def.get("objectives", [{"type": "eliminate_all"}]))
+	for o in s.objectives:
+		o.setup(s)
+	for t in s.teams:
+		s.explored[t["team"]] = {}
+	engine._update_explored()
 	return engine
 
 
@@ -89,6 +112,8 @@ func submit(cmd: BattleCommand) -> CommandResult:
 		_do_ability(cmd)
 	elif cmd is EndTurnCommand:
 		_end_turn()
+	elif cmd is ChooseOptionCommand:
+		_do_choice(cmd)
 
 	_check_objectives()
 	# The active unit may have died during its own action (friendly fire).
@@ -107,6 +132,16 @@ func validate(cmd: BattleCommand) -> String:
 	var unit := state.active_unit()
 	if unit == null or cmd.unit_id != unit.id:
 		return "It is not that unit's turn"
+
+	if not state.pending_choice.is_empty():
+		if not cmd is ChooseOptionCommand:
+			return "Make a choice first"
+		var trigger: Dictionary = state.triggers[state.pending_choice["trigger"]]
+		if cmd.option < 0 or cmd.option >= trigger.get("choices", []).size():
+			return "Invalid option"
+		return ""
+	if cmd is ChooseOptionCommand:
+		return "Nothing to choose"
 
 	if cmd is MoveCommand:
 		var to: Vector2i = cmd.to
@@ -213,6 +248,8 @@ func emit(event: Dictionary) -> void:
 func deal_damage(source: BattleUnit, target: BattleUnit, raw: float, params: Dictionary) -> void:
 	if not target.alive:
 		return
+	if not target.alert:
+		_alert(target)
 	var dtype_id: String = params.get("damage_type", "")
 	var result := CombatMath.resolve(raw, target.shields, target.stat_i("armor"),
 			data.damage_types.get(dtype_id, {}),
@@ -277,7 +314,11 @@ func _do_move(cmd: MoveCommand) -> void:
 	var cost: int = reach[cmd.to]["cost"]
 	unit.ap -= cost
 	unit.cell = cmd.to
+	state.version += 1
+	_update_explored()
 	emit({"type": BattleEvents.UNIT_MOVED, "unit": unit.id, "path": path, "cost": cost, "ap": unit.ap})
+	_check_alerts()
+	_check_triggers(unit, path)
 
 
 func _do_ability(cmd: UseAbilityCommand) -> void:
@@ -315,6 +356,7 @@ func _apply_effect(effect_def: Dictionary, source: BattleUnit, target: BattleUni
 func _destroy(unit: BattleUnit, by: BattleUnit) -> void:
 	unit.alive = false
 	unit.hull = 0
+	state.version += 1
 	state.turn_queue.erase(unit.id)
 	emit({"type": BattleEvents.UNIT_DESTROYED, "unit": unit.id, "by": by.id if by != null else ""})
 
@@ -363,6 +405,10 @@ func _begin_round() -> void:
 ## durations. A status with duration 1 therefore lasts until the owner's next
 ## turn starts, and "skip_turn" with duration 1 skips exactly one turn.
 func _begin_turn(unit: BattleUnit) -> bool:
+	if not unit.alert:
+		_check_alerts()
+		if not unit.alert:
+			return false  # dormant: waits silently
 	unit.ap = unit.stat_i("max_ap")
 	for ability_id: String in unit.cooldowns.keys():
 		unit.cooldowns[ability_id] = int(unit.cooldowns[ability_id]) - 1
@@ -380,6 +426,8 @@ func _begin_turn(unit: BattleUnit) -> bool:
 
 	var skip := unit.has_flag("skip_turn")
 	for s in unit.statuses.duplicate():
+		if s.is_permanent():
+			continue
 		s.remaining -= 1
 		if s.remaining <= 0:
 			unit.statuses.erase(s)
@@ -388,6 +436,142 @@ func _begin_turn(unit: BattleUnit) -> bool:
 		emit({"type": BattleEvents.TURN_SKIPPED, "unit": unit.id, "reason": "disabled"})
 		return false
 	return true
+
+
+# --- Missions: fog, dormant units, triggers ----------------------------------
+
+func _update_explored() -> void:
+	if not state.fog_enabled:
+		return
+	for t in state.teams:
+		var explored: Dictionary = state.explored.get_or_add(t["team"], {})
+		for c: Vector2i in state.visible_cells(t["team"]):
+			explored[c] = true
+
+
+## Wakes dormant units that can see an enemy.
+func _check_alerts() -> void:
+	for u in state.living_units():
+		if u.alert:
+			continue
+		var sight := u.stat_i("sight")
+		for e in state.living_enemies_of(u):
+			if state.grid.distance(u.cell, e.cell) <= sight and state.grid.has_line_of_sight(u.cell, e.cell):
+				_alert(u)
+				break
+
+
+## Wakes a unit and every dormant unit in its group.
+func _alert(unit: BattleUnit) -> void:
+	for u in state.living_units():
+		if u.alert:
+			continue
+		if u == unit or (not unit.group.is_empty() and u.group == unit.group and u.team == unit.team):
+			u.alert = true
+			emit({"type": BattleEvents.UNIT_ALERTED, "unit": u.id})
+
+
+## Fires unfired triggers on cells the unit just entered. A trigger may apply
+## effects immediately and/or wait for a choice (state.pending_choice).
+func _check_triggers(unit: BattleUnit, path: Array[Vector2i]) -> void:
+	for i in state.triggers.size():
+		var t: Dictionary = state.triggers[i]
+		if t["fired"] or int(t.get("team", 0)) != unit.team:
+			continue
+		var entered := false
+		for c in path.slice(1):
+			if c in t["_cells"]:
+				entered = true
+				break
+		if not entered:
+			continue
+		t["fired"] = true
+		var labels: Array[String] = []
+		for choice: Dictionary in t.get("choices", []):
+			labels.append(choice.get("label", "?"))
+		emit({"type": BattleEvents.TRIGGER_FIRED, "trigger": t.get("id", str(i)), "unit": unit.id,
+				"title": t.get("title", ""), "text": t.get("text", ""), "choices": labels})
+		_apply_trigger_effects(t.get("effects", []), unit)
+		if not labels.is_empty():
+			state.pending_choice = {"trigger": i, "unit": unit.id}
+			return
+
+
+func _do_choice(cmd: ChooseOptionCommand) -> void:
+	var trigger: Dictionary = state.triggers[state.pending_choice["trigger"]]
+	var unit := state.get_unit(state.pending_choice["unit"])
+	state.pending_choice = {}
+	var choice: Dictionary = trigger["choices"][cmd.option]
+	emit({"type": BattleEvents.CHOICE_MADE, "trigger": trigger.get("id", ""), "option": cmd.option,
+			"label": choice.get("label", ""), "text": choice.get("text", "")})
+	_apply_trigger_effects(choice.get("effects", []), unit)
+
+
+## Trigger effect types:
+##   {"type": "effect", "to": "unit"|"squad", "effect": {any BattleEffect}}
+##   {"type": "spawn", "units": [{"unit", "at": [c, r], "team", "name"?, "dormant"?, "group"?}]}
+##   {"type": "alert", "group": "a"} or {"type": "alert", "team": 1}
+##   {"type": "reward", "xp"?, "items"?, "trait"?, "loyalty"?}  (applied by the campaign)
+func _apply_trigger_effects(effects: Array, unit: BattleUnit) -> void:
+	for fx: Dictionary in effects:
+		match fx.get("type", ""):
+			"effect":
+				var recipients: Array[BattleUnit] = [unit]
+				if fx.get("to", "unit") == "squad":
+					recipients = state.living_units(unit.team)
+				for r in recipients:
+					if r.alive:
+						_apply_effect(fx.get("effect", {}), null, r)
+			"spawn":
+				for entry: Dictionary in fx.get("units", []):
+					_spawn(entry)
+			"alert":
+				for u in state.living_units():
+					if u.alert:
+						continue
+					if (fx.has("group") and u.group == fx["group"]) or (fx.has("team") and u.team == int(fx["team"])):
+						_alert(u)
+			"reward":
+				var reward := fx.duplicate(true)
+				reward.erase("type")
+				state.rewards.append(reward)
+				emit({"type": BattleEvents.REWARD_GAINED, "reward": reward})
+			_:
+				push_error("BattleEngine: unknown trigger effect '%s'" % fx.get("type", ""))
+
+
+## Adds a unit mid-battle (reinforcements, ambushes). It acts from next round.
+func _spawn(entry: Dictionary) -> void:
+	var def: Dictionary = entry.get("unit_def", data.units.get(entry.get("unit", ""), {}))
+	if def.is_empty():
+		push_error("BattleEngine: cannot spawn unknown unit '%s'" % entry.get("unit", ""))
+		return
+	var at: Array = entry.get("at", [0, 0])
+	var cell: Variant = _free_cell_near(state.grid.cell_from_layout(Vector2i(int(at[0]), int(at[1]))))
+	if cell == null:
+		return
+	var unit_id := "spawn%d_%s" % [state.units.size(), def.get("id", "unit")]
+	var u := BattleUnit.from_def(unit_id, def, int(entry.get("team", 1)), cell, entry.get("name", ""))
+	u.alert = not entry.get("dormant", false)
+	u.group = entry.get("group", "")
+	state.units[unit_id] = u
+	state.version += 1
+	_update_explored()
+	emit({"type": BattleEvents.UNIT_SPAWNED, "unit": unit_id})
+
+
+func _free_cell_near(start: Vector2i) -> Variant:
+	var queue: Array[Vector2i] = [start]
+	var seen := {start: true}
+	while not queue.is_empty():
+		var c: Vector2i = queue.pop_front()
+		if state.grid.has_cell(c) and state.grid.is_passable(c) and not state.is_occupied(c):
+			return c
+		for n in state.grid.cells_within(c, 1):
+			if not seen.has(n):
+				seen[n] = true
+				queue.append(n)
+	return null
 
 
 func _check_objectives() -> void:

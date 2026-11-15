@@ -1,0 +1,28 @@
+{
+  "id": "sentry_drone",
+  "name": "Sentry Drone",
+  "description": "Automated security drone.",
+  "tags": [
+    "drone"
+  ],
+  "stats": {
+    "max_hull": 30,
+    "max_shields": 30,
+    "armor": 0,
+    "initiative": 8,
+    "max_ap": 4,
+    "sight": 7
+  },
+  "abilities": [
+    "drone_laser"
+  ],
+  "visual": {
+    "placeholder": "drone",
+    "sprite": "",
+    "size": 0.65
+  },
+  "stat_names": {
+    "hull": "Chassis",
+    "shields": "Shields"
+  }
+}

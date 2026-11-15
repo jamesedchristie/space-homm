@@ -1,0 +1,20 @@
+{
+  "id": "field_medic",
+  "name": "Field Medic",
+  "description": "Patch up yourself or an adjacent ally: restore 25 health.",
+  "ap_cost": 2,
+  "cooldown": 3,
+  "target": "friendly",
+  "range": [
+    0,
+    1
+  ],
+  "effects": [
+    {
+      "type": "heal",
+      "stat": "hull",
+      "amount": 25
+    }
+  ],
+  "fx": "self"
+}

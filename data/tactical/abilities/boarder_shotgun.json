@@ -1,0 +1,24 @@
+{
+  "id": "boarder_shotgun",
+  "name": "Scattergun",
+  "description": "Cheap raider shotgun. Nasty up close.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    2
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        13,
+        18
+      ],
+      "damage_type": "kinetic"
+    }
+  ],
+  "fx": "projectile"
+}

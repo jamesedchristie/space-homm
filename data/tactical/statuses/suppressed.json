@@ -1,0 +1,11 @@
+{
+  "id": "suppressed",
+  "name": "Suppressed",
+  "description": "Deals 40% less damage.",
+  "modifiers": {
+    "damage_dealt": {
+      "mul": 0.6
+    }
+  },
+  "ai_value": -12
+}

@@ -18,3 +18,10 @@ const STATUS_RESISTED := "status_resisted"    # {target, status}
 const STATUS_EXPIRED := "status_expired"      # {target, status}
 const UNIT_DESTROYED := "unit_destroyed"      # {unit, by}
 const BATTLE_ENDED := "battle_ended"          # {winner, reason}
+
+# Missions
+const UNIT_ALERTED := "unit_alerted"          # {unit}
+const UNIT_SPAWNED := "unit_spawned"          # {unit}
+const TRIGGER_FIRED := "trigger_fired"        # {trigger, unit, title, text, choices: [labels]}
+const CHOICE_MADE := "choice_made"            # {trigger, option, label, text}
+const REWARD_GAINED := "reward_gained"        # {reward}

@@ -18,7 +18,7 @@ enum Mode { MOVE, TARGET }
 ## Pause between AI actions, in seconds.
 @export var ai_step_delay := 0.3
 
-@onready var map_view: HexMapView = $MapView
+@onready var map_view: GridMapView = $MapView
 @onready var units_layer: Node2D = $MapView/Units
 @onready var fx: FxLayer = $MapView/Fx
 @onready var hud: BattleHud = $HUD/Hud
@@ -33,6 +33,8 @@ var autoplay := false
 
 var _busy := false
 var _embedded_scenario: Dictionary = {}
+## Team whose point of view (fog of war) the screen shows: the human's team.
+var _viewer_team := 0
 var _hover: Variant = null
 var _reach: Dictionary = {}
 var _targets: Array[Vector2i] = []
@@ -83,14 +85,18 @@ func start_battle() -> void:
 
 	var scenario: Dictionary = _embedded_scenario if is_embedded() else data.scenarios[scenario_id]
 	engine = BattleEngine.from_scenario(data, scenario, rng_seed)
+	_viewer_team = engine.state.teams[0]["team"]
+	for t in engine.state.teams:
+		if t["controller"] == "player":
+			_viewer_team = t["team"]
+			break
 	map_view.setup(engine.state.grid)
+	if not engine.state.fog_enabled:
+		map_view.clear_fog()
 	for u: BattleUnit in engine.state.units.values():
-		var view := UnitView.new()
-		units_layer.add_child(view)
-		view.setup(u, data.units[u.def_id], HexMapView.CELL_SIZE)
-		view.position = map_view.cell_center(u.cell)
-		unit_views[u.id] = view
+		_add_unit_view(u)
 	_fit_map()
+	_refresh_views()
 	hud.set_objective(engine.objective_text())
 	hud.log_line("[color=#%s]%s  (seed %d)[/color]" % [Palette.hex(Palette.TEXT_DIM),
 			scenario.get("name", "Battle"), engine.state.seed_value])
@@ -99,6 +105,25 @@ func start_battle() -> void:
 	await _play(engine.start(), token)
 	if token == _battle_token:
 		await _run_ai_turns(token)
+
+
+func _add_unit_view(u: BattleUnit) -> void:
+	var view := UnitView.new()
+	units_layer.add_child(view)
+	view.setup(u, u.def, GridMapView.CELL_SIZE)
+	view.position = map_view.cell_center(u.cell)
+	unit_views[u.id] = view
+
+
+## True if the human's side can see this unit (always, without fog).
+func _can_see(u: BattleUnit) -> bool:
+	return u.team == _viewer_team or engine.state.is_visible(_viewer_team, u.cell)
+
+
+## The human answers choices for their own units (unless autoplay is on).
+func _human_controls(unit_id: String) -> bool:
+	var u := engine.state.get_unit(unit_id)
+	return u != null and not autoplay and engine.state.team_info(u.team).get("controller", "") == "player"
 
 
 # --- Turn driving -------------------------------------------------------------
@@ -173,9 +198,36 @@ func _play(events: Array[Dictionary], token: int) -> void:
 			BattleEvents.UNIT_MOVED:
 				var points: Array[Vector2] = []
 				var path: Array = e["path"]
+				var seen := engine.state.get_unit(e["unit"]).team == _viewer_team
 				for i in range(1, path.size()):
 					points.append(map_view.cell_center(path[i]))
-				await unit_views[e["unit"]].move_along(points)
+					seen = seen or engine.state.is_visible(_viewer_team, path[i])
+				var mover: UnitView = unit_views[e["unit"]]
+				if seen:
+					mover.visible = true
+					await mover.move_along(points)
+				else:
+					mover.position = points[points.size() - 1]
+				_refresh_views()
+			BattleEvents.UNIT_SPAWNED:
+				var spawned := engine.state.get_unit(e["unit"])
+				_add_unit_view(spawned)
+				_refresh_views()
+				fx.float_text(unit_views[e["unit"]].position, "Contact!", Palette.BAD)
+			BattleEvents.UNIT_ALERTED:
+				var alerted := engine.state.get_unit(e["unit"])
+				if _can_see(alerted):
+					fx.float_text(unit_views[e["unit"]].position, "!", Palette.BAD)
+			BattleEvents.TRIGGER_FIRED:
+				await _play_trigger(e, token)
+			BattleEvents.CHOICE_MADE:
+				if not e["text"].is_empty() and not autoplay:
+					hud.ask(e["label"], e["text"], [{"id": "ok", "label": "Continue"}])
+					await hud.dialog_choice
+			BattleEvents.REWARD_GAINED:
+				var actor := engine.state.active_unit()
+				if actor != null:
+					fx.float_text(unit_views[actor.id].position + Vector2(0, -30), _reward_text(e["reward"]), Palette.ACTIVE)
 			BattleEvents.ABILITY_USED:
 				await _play_ability(e)
 			BattleEvents.DAMAGE_DEALT:
@@ -206,6 +258,39 @@ func _play(events: Array[Dictionary], token: int) -> void:
 	_refresh_views()
 
 
+## Story beat: show the text, and if it offers choices, let the human pick
+## (the AI picks for its own units through RuleBasedAI).
+func _play_trigger(e: Dictionary, token: int) -> void:
+	var choices: Array = e["choices"]
+	if not _human_controls(e["unit"]):
+		return
+	var buttons: Array[Dictionary] = []
+	for i in choices.size():
+		buttons.append({"id": str(i), "label": choices[i]})
+	if buttons.is_empty():
+		buttons.append({"id": "ok", "label": "Continue"})
+	hud.ask(e["title"] if not e["title"].is_empty() else "Event", e["text"], buttons)
+	var answer: String = await hud.dialog_choice
+	if token != _battle_token or choices.is_empty():
+		return
+	var result := engine.submit(ChooseOptionCommand.new(e["unit"], int(answer)))
+	if result.ok:
+		await _play(result.events, token)
+
+
+func _reward_text(reward: Dictionary) -> String:
+	var parts := PackedStringArray()
+	if reward.has("xp"):
+		parts.append("+%d XP" % reward["xp"])
+	if reward.has("loyalty"):
+		parts.append("%+d loyalty" % reward["loyalty"])
+	for item_id: String in reward.get("items", []):
+		parts.append(data.items.get(item_id, {}).get("name", item_id))
+	if reward.has("trait"):
+		parts.append(data.traits.get(reward["trait"], {}).get("name", reward["trait"]))
+	return ", ".join(parts)
+
+
 func _play_ability(e: Dictionary) -> void:
 	var ability: Dictionary = data.abilities[e["ability"]]
 	var source: UnitView = unit_views[e["unit"]]
@@ -217,7 +302,7 @@ func _play_ability(e: Dictionary) -> void:
 		if effect.get("type", "") == "damage":
 			color = Palette.damage_color(effect.get("damage_type", ""))
 			break
-	var blast := float(ability.get("radius", 0)) * HexMapView.CELL_SIZE * 1.8
+	var blast := float(ability.get("radius", 0)) * GridMapView.CELL_SIZE * 1.8
 	await fx.play(ability.get("fx", "projectile"), source.position, to, color, blast)
 
 
@@ -232,7 +317,11 @@ func _show_result() -> void:
 	if s.winner >= 0 and not autoplay:
 		var player_won: bool = s.team_info(s.winner).get("controller", "") == "player"
 		title = "Victory" if player_won else "Defeat"
+		if not s.mission_id.is_empty():
+			title = "Mission complete" if player_won else "Mission failed"
 		color = Palette.GOOD if player_won else Palette.BAD
+	elif not s.mission_id.is_empty() and s.winner == BattleState.DRAW:
+		title = "Out of time: the squad withdraws"
 	hud.show_result(title, color, "Continue" if is_embedded() else "Play again")
 	# Watching an autoplayed campaign: return to the galaxy by itself.
 	if autoplay and is_embedded():
@@ -245,10 +334,24 @@ func _show_result() -> void:
 # --- View refresh -------------------------------------------------------------
 
 func _refresh_views() -> void:
+	var s := engine.state
+	if s.fog_enabled:
+		map_view.set_fog(s.explored.get(_viewer_team, {}), s.visible_cells(_viewer_team))
 	for id: String in unit_views:
-		var u := engine.state.get_unit(id)
+		var u := s.get_unit(id)
 		if u.alive:
 			unit_views[id].refresh(u)
+			unit_views[id].visible = _can_see(u)
+	# Objective cells (green) and unfired story triggers (yellow).
+	var markers := {}
+	for t in s.triggers:
+		if not t["fired"] and int(t.get("team", 0)) == _viewer_team:
+			for c: Vector2i in t["_cells"]:
+				markers[c] = {"color": Palette.ACTIVE, "label": "?"}
+	for o in s.objectives:
+		for c in o.marked_cells():
+			markers[c] = {"color": Palette.GOOD, "label": "★", "always": true}
+	map_view.set_markers(markers)
 
 
 ## Recomputes highlights and HUD from engine state + current input mode.
@@ -260,6 +363,8 @@ func _refresh() -> void:
 	hud.set_round(s.round_number)
 	hud.set_turn_order(_turn_order_units(), s.active_unit_id)
 	var hovered: BattleUnit = s.unit_at(_hover) if _hover != null else null
+	if hovered != null and not _can_see(hovered):
+		hovered = null
 	hud.show_unit(hovered if hovered != null else active, data)
 
 	var human := not _busy and _is_human_turn()
@@ -311,7 +416,7 @@ func _turn_order_units() -> Array[BattleUnit]:
 		out.append(active)
 	for id in engine.state.turn_queue:
 		var u := engine.state.get_unit(id)
-		if u.alive:
+		if u.alive and u.alert and _can_see(u):
 			out.append(u)
 	return out
 
@@ -369,7 +474,7 @@ func _fit_map() -> void:
 # --- Input --------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	if engine == null:
+	if engine == null or hud.is_dialog_open():
 		return
 	if event is InputEventMouseMotion:
 		var cell: Variant = map_view.cell_at_global(get_global_mouse_position())

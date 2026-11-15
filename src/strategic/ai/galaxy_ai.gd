@@ -4,7 +4,8 @@ extends RefCounted
 ## the player, so it only reacts to enemy fleets it can see. Per fleet, in order:
 ##   1. Attack a visible enemy fleet it is strong enough to beat.
 ##   2. If badly damaged, go home to the nearest friendly planet to repair.
-##   3. Otherwise head for the nearest planet it doesn't own.
+##   3. With a ready commander, investigate the nearest known anomaly (mission).
+##   4. Otherwise head for the nearest planet it doesn't own.
 ## One move per fleet per turn, then it ends the turn.
 
 ## Attack only if our strength is at least this multiple of theirs.
@@ -13,6 +14,9 @@ const RETREAT_HULL_RATIO := 0.5
 
 var _turn_key := ""
 var _done := {}
+## "fleet:anomaly:mission" keys this AI has already sent a fleet to (so a
+## declined or failed mission isn't retried forever).
+var _tried := {}
 
 
 func decide(engine: GalaxyEngine) -> GalaxyCommand:
@@ -58,7 +62,24 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 				return fleet.cell
 			target = home.cell
 
-	# 3. Expand.
+	# 3. Investigate anomalies the fleet is ready for.
+	var anomaly_key := ""
+	if target == null:
+		var best_a := 1 << 30
+		var explored := engine.explored_cells(fleet.owner)
+		for a: Dictionary in s.anomalies.values():
+			var key := "%s:%s:%s" % [fleet.id, a["id"], a["mission"]]
+			if _tried.has(key) or a.get("faction", "") not in ["", fleet.owner] or not explored.has(a["cell"]):
+				continue
+			if not _ready_for(engine, fleet, data.missions[a["mission"]]):
+				continue
+			var d := s.grid.distance(fleet.cell, a["cell"])
+			if d < best_a and s.fleet_at(a["cell"]) == null:
+				best_a = d
+				target = a["cell"]
+				anomaly_key = key
+
+	# 4. Expand.
 	if target == null:
 		var candidates: Array[Planet] = []
 		for p: Planet in s.planets.values():
@@ -70,7 +91,19 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 
 	if target == null:
 		return fleet.cell
-	return _step_towards(engine, fleet, target)
+	var dest := _step_towards(engine, fleet, target)
+	if not anomaly_key.is_empty() and dest == target:
+		_tried[anomaly_key] = true
+	return dest
+
+
+## The AI only takes missions its away team is ready for: a ready commander
+## of at least the recommended level (or none needed, e.g. rescues).
+func _ready_for(engine: GalaxyEngine, fleet: Fleet, mission: Dictionary) -> bool:
+	if not mission.get("requires_hero", true):
+		return true
+	var commander := engine.state.active_commander(fleet)
+	return commander != null and commander.level >= int(mission.get("recommended_level", 1))
 
 
 ## Furthest useful cell this turn on the way to target.

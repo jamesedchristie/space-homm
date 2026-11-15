@@ -1,0 +1,12 @@
+{
+  "id": "cmd_marksman",
+  "name": "Fire Control",
+  "description": "Ships deal 10% more damage.",
+  "permanent": true,
+  "modifiers": {
+    "damage_dealt": {
+      "mul": 1.1
+    }
+  },
+  "ai_value": 5
+}

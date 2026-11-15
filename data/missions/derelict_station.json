@@ -1,0 +1,207 @@
+{
+  "id": "derelict_station",
+  "name": "Derelict Station",
+  "type": "ground",
+  "description": "A dead research station drifts in the asteroid shadows. Raiders have been seen boarding it. Its data core could hold research worth having.",
+  "map": "derelict_deck",
+  "squad_size": 3,
+  "marine_unit": "marine",
+  "duration": 2,
+  "max_rounds": 25,
+  "requires_hero": true,
+  "recommended_level": 2,
+  "enemy_name": "Station Boarders",
+  "enemies": [
+    {
+      "unit": "boarder",
+      "name": "Boarder",
+      "at": [
+        6,
+        2
+      ],
+      "group": "mid"
+    },
+    {
+      "unit": "sentry_drone",
+      "name": "Sentry Drone",
+      "at": [
+        7,
+        7
+      ],
+      "group": "mid_south"
+    },
+    {
+      "unit": "boarder",
+      "name": "Boarder",
+      "at": [
+        11,
+        1
+      ],
+      "group": "aft"
+    },
+    {
+      "unit": "boarder",
+      "name": "Boarder",
+      "at": [
+        12,
+        8
+      ],
+      "group": "aft"
+    },
+    {
+      "unit": "sentry_drone",
+      "name": "Core Sentry",
+      "at": [
+        12,
+        5
+      ],
+      "group": "aft"
+    }
+  ],
+  "objectives": [
+    {
+      "type": "reach_cells",
+      "cells": [
+        [
+          13,
+          4
+        ],
+        [
+          13,
+          5
+        ]
+      ],
+      "description": "Reach the data core"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "terminal",
+      "cells": [
+        [
+          2,
+          8
+        ]
+      ],
+      "title": "Maintenance Terminal",
+      "text": "A terminal still has power. The logs might tell you what happened here, but a download this size will be noticed.",
+      "choices": [
+        {
+          "label": "Download the logs",
+          "text": "The logs show the raiders came looking for the core. Somewhere aft, an alarm starts to wail.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 30
+            },
+            {
+              "type": "alert",
+              "group": "aft"
+            }
+          ]
+        },
+        {
+          "label": "Leave it",
+          "text": "You leave the terminal alone.",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "survivor",
+      "cells": [
+        [
+          5,
+          7
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          6,
+          9
+        ]
+      ],
+      "title": "Survivor",
+      "text": "A wounded station engineer is hiding behind the crates. “Please… don’t leave me here.”",
+      "choices": [
+        {
+          "label": "Treat his wounds",
+          "text": "You stabilise him and call a shuttle. It costs you time, but the squad respects it.",
+          "effects": [
+            {
+              "type": "effect",
+              "to": "unit",
+              "effect": {
+                "type": "apply_status",
+                "status": "disabled",
+                "duration": 1
+              }
+            },
+            {
+              "type": "reward",
+              "loyalty": 10,
+              "xp": 20
+            }
+          ]
+        },
+        {
+          "label": "Leave him",
+          "text": "There’s no time. The squad says nothing, but they saw it.",
+          "effects": [
+            {
+              "type": "reward",
+              "loyalty": -10,
+              "trait": "haunted"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bulkhead",
+      "cells": [
+        [
+          9,
+          5
+        ]
+      ],
+      "title": "Bulkhead",
+      "text": "The aft bulkhead grinds open. Behind you, boots on the deck: you’ve been followed.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "boarder",
+              "name": "Boarder",
+              "at": [
+                2,
+                4
+              ]
+            }
+          ]
+        },
+        {
+          "type": "alert",
+          "group": "aft"
+        }
+      ]
+    }
+  ],
+  "rewards": {
+    "xp": 120,
+    "items": [
+      "plasma_rifle"
+    ]
+  },
+  "on_failure": {
+    "mission": "derelict_rescue",
+    "name": "Distress Beacon"
+  }
+}

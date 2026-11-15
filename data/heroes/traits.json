@@ -1,0 +1,50 @@
+{
+  "veteran": {
+    "name": "Veteran",
+    "description": "+15 health.",
+    "modifiers": {
+      "max_hull": {
+        "add": 15
+      }
+    }
+  },
+  "sharpshooter": {
+    "name": "Sharpshooter",
+    "description": "+10% damage.",
+    "modifiers": {
+      "damage_dealt": {
+        "mul": 1.1
+      }
+    }
+  },
+  "survivor": {
+    "name": "Survivor",
+    "description": "Takes 10% less damage.",
+    "modifiers": {
+      "damage_taken": {
+        "mul": 0.9
+      }
+    }
+  },
+  "reckless": {
+    "name": "Reckless",
+    "description": "+2 initiative, takes 10% more damage.",
+    "modifiers": {
+      "initiative": {
+        "add": 2
+      },
+      "damage_taken": {
+        "mul": 1.1
+      }
+    }
+  },
+  "haunted": {
+    "name": "Haunted",
+    "description": "Left someone behind on the derelict. -1 initiative.",
+    "modifiers": {
+      "initiative": {
+        "add": -1
+      }
+    }
+  }
+}

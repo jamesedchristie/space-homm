@@ -1,0 +1,24 @@
+{
+  "id": "drone_laser",
+  "name": "Drone Laser",
+  "description": "Sentry drone beam.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    6
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        10,
+        14
+      ],
+      "damage_type": "energy"
+    }
+  ],
+  "fx": "beam"
+}

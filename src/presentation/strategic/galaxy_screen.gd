@@ -24,9 +24,10 @@ const PLANET_OFFSET := Vector2(-8, -6)
 ## (with autoplay there too) instead of auto-resolving them.
 @export var watch_battles := false
 
-@onready var map_view: HexMapView = $MapView
+@onready var map_view: GridMapView = $MapView
 @onready var planets_layer: Node2D = $MapView/Planets
 @onready var fleets_layer: Node2D = $MapView/Fleets
+@onready var anomalies_layer: Node2D = $MapView/Anomalies
 @onready var fx: FxLayer = $MapView/Fx
 @onready var hud: GalaxyHud = $HUD/Hud
 
@@ -36,8 +37,12 @@ var ai := GalaxyAI.new()
 var player_faction := ""
 var fleet_views: Dictionary = {}   # fleet id -> FleetView
 var planet_views: Dictionary = {}  # planet id -> PlanetView
+var anomaly_views: Dictionary = {}  # anomaly id -> AnomalyView
 var selected_fleet := ""
 var selected_planet := ""
+var selected_anomaly := ""
+## Optional override of the campaign's permadeath setting (true/false), or null.
+var permadeath_override: Variant = null
 
 var _busy := false
 var _hover: Variant = null
@@ -53,6 +58,9 @@ func _ready() -> void:
 	for e in data.errors:
 		push_error("Content: " + e)
 	hud.end_turn_pressed.connect(_on_end_turn_pressed)
+	hud.heroes_pressed.connect(_toggle_roster)
+	hud.roster.command_requested.connect(_on_roster_command)
+	hud.roster.closed.connect(_refresh)
 	get_viewport().size_changed.connect(_fit_map)
 	start_campaign()
 
@@ -60,15 +68,20 @@ func _ready() -> void:
 func start_campaign() -> void:
 	_token += 1
 	var token := _token
-	for v: Node in fleet_views.values() + planet_views.values():
+	for v: Node in fleet_views.values() + planet_views.values() + anomaly_views.values():
 		v.queue_free()
 	fleet_views.clear()
 	planet_views.clear()
+	anomaly_views.clear()
 	selected_fleet = ""
 	selected_planet = ""
+	selected_anomaly = ""
+	hud.roster.visible = false
 	ai = GalaxyAI.new()
 
 	engine = GalaxyEngine.from_campaign(data, campaign_id, rng_seed)
+	if permadeath_override != null:
+		engine.state.permadeath = permadeath_override
 	player_faction = engine.state.factions[0]["id"]
 	for f in engine.state.factions:
 		if f["controller"] == "player":
@@ -111,6 +124,9 @@ func _continue(token: int) -> void:
 	while token == _token and not engine.state.is_over:
 		if engine.has_pending_battle():
 			await _resolve_battle(token)
+			continue
+		if engine.has_pending_mission():
+			await _resolve_mission(token)
 			continue
 		if _is_human_turn():
 			break
@@ -172,6 +188,59 @@ func _resolve_battle(token: int) -> void:
 		await hud.dialog_choice
 
 
+func _resolve_mission(token: int) -> void:
+	var fleet := engine.pending_mission_fleet()
+	var mission := engine.pending_mission_def()
+	var players := fleet.owner == player_faction
+	var ask_player := players and not autoplay
+	var choice := "auto"
+	if autoplay and watch_battles and players:
+		choice = "launch"
+	if ask_player:
+		hud.ask(mission.get("name", "Mission"), _mission_briefing(fleet, mission),
+				[{"id": "launch", "label": "Launch mission"}, {"id": "auto", "label": "Auto-resolve"},
+				 {"id": "leave", "label": "Not now"}])
+		choice = await hud.dialog_choice
+		if token != _token:
+			return
+
+	var events: Array[Dictionary]
+	if choice == "leave":
+		events = engine.decline_pending_mission()
+	elif choice == "launch" and not battle_requested.get_connections().is_empty():
+		battle_requested.emit(engine.pending_mission_scenario(), engine.next_battle_seed())
+		var battle: BattleEngine = await battle_returned
+		if token != _token:
+			return
+		events = engine.resolve_pending_mission(battle)
+	else:
+		events = engine.auto_resolve_pending_mission()
+	await _play(events, token)
+	_refresh()
+	if ask_player and choice != "leave" and token == _token and not engine.state.is_over:
+		hud.ask("Mission report", _mission_report(events), [{"id": "ok", "label": "Continue"}])
+		await hud.dialog_choice
+
+
+func _toggle_roster() -> void:
+	if hud.roster.visible:
+		hud.roster.visible = false
+		_refresh()
+	else:
+		hud.roster.show_roster(engine, player_faction, not _busy and _is_human_turn())
+
+
+func _on_roster_command(cmd: GalaxyCommand) -> void:
+	if _busy or not _is_human_turn():
+		return
+	var result := engine.submit(cmd)
+	if not result.ok:
+		hud.set_hint(result.error)
+	else:
+		await _play(result.events, _token)
+	hud.roster.show_roster(engine, player_faction, not _busy and _is_human_turn())
+
+
 # --- Event playback -----------------------------------------------------------
 
 func _play(events: Array[Dictionary], token: int) -> void:
@@ -203,6 +272,12 @@ func _play(events: Array[Dictionary], token: int) -> void:
 			GalaxyEvents.FLEET_REPAIRED:
 				if engine.state.fleets[e["fleet"]].owner == player_faction:
 					fx.float_text(fleet_views[e["fleet"]].position, "+%d hull" % e["amount"], Palette.GOOD)
+			GalaxyEvents.HERO_LEVELED:
+				var hero: Hero = engine.state.heroes[e["hero"]]
+				if hero.owner == player_faction and engine.state.fleets.has(hero.fleet_id):
+					fx.float_text(fleet_views[hero.fleet_id].position, "Level up!", Palette.ACTIVE)
+			GalaxyEvents.ANOMALY_REMOVED, GalaxyEvents.ANOMALY_CHANGED:
+				_sync_views()
 			GalaxyEvents.CAMPAIGN_ENDED:
 				_sync_views()
 				_game_over()
@@ -268,6 +343,20 @@ func _sync_views() -> void:
 		view.set_selected(fleet.id == selected_fleet)
 	for p: Planet in engine.state.planets.values():
 		planet_views[p.id].refresh(p, engine.state)
+	var explored := engine.explored_cells(player_faction)
+	for id: String in anomaly_views.keys():
+		if not engine.state.anomalies.has(id):
+			anomaly_views[id].queue_free()
+			anomaly_views.erase(id)
+	for a: Dictionary in engine.state.anomalies.values():
+		var av: AnomalyView = anomaly_views.get(a["id"])
+		if av == null:
+			av = AnomalyView.new()
+			anomalies_layer.add_child(av)
+			anomaly_views[a["id"]] = av
+		av.setup(a)
+		av.position = map_view.cell_center(a["cell"]) + PLANET_OFFSET
+		av.visible = explored.has(a["cell"])
 
 
 ## Recomputes highlights, info panel and hints.
@@ -301,6 +390,8 @@ func _refresh() -> void:
 
 	if fleet != null:
 		hud.set_info(_fleet_info(fleet))
+	elif s.anomalies.has(selected_anomaly):
+		hud.set_info(_anomaly_info(s.anomalies[selected_anomaly]))
 	elif s.planets.has(selected_planet):
 		hud.set_info(_planet_info(s.planets[selected_planet]))
 	else:
@@ -327,6 +418,9 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 		var planet := engine.state.planet_at(_hover)
 		if planet != null:
 			text += "   ·   %s" % planet.name
+		var anomaly := engine.state.anomaly_at(_hover)
+		if not anomaly.is_empty() and engine.explored_cells(player_faction).has(_hover):
+			text += "   ·   %s: end a move here with a commanded fleet to launch a mission" % anomaly["name"]
 		var terrain := engine.state.grid.terrain_def(_hover)
 		if not terrain.is_empty() and engine.explored_cells(player_faction).has(_hover):
 			text += "   ·   %s: %s" % [terrain.get("name", ""), terrain.get("description", "")]
@@ -384,6 +478,77 @@ func _fleet_info(fleet: Fleet) -> String:
 	if planet != null and planet.owner == fleet.owner:
 		lines.append("")
 		lines.append(UiKit.color_tag("At %s: repairing %d%% hull per turn" % [planet.name, roundi(GalaxyEngine.REPAIR_RATE * 100)], Palette.GOOD))
+	var commander := engine.state.commander_of(fleet)
+	lines.append("")
+	if commander == null:
+		lines.append(UiKit.color_tag("No commander. Assign a hero at a planet (H).", Palette.TEXT_DIM))
+	else:
+		var cls: Dictionary = data.hero_classes[commander.class_id]
+		var doctrine: Dictionary = data.statuses.get(cls.get("command_status", ""), {})
+		lines.append("Commander: [b]%s[/b] (%s %d)" % [commander.name, cls.get("name", ""), commander.level])
+		if commander.is_ready():
+			lines.append(UiKit.color_tag("%s: %s" % [doctrine.get("name", ""), doctrine.get("description", "")], Palette.GOOD))
+		else:
+			lines.append(UiKit.color_tag("Away (%s) until turn %d: no doctrine bonus" % [commander.status.replace("_", " "), commander.busy_until], Palette.BAD))
+	return "\n".join(lines)
+
+
+func _anomaly_info(a: Dictionary) -> String:
+	var mission: Dictionary = data.missions[a["mission"]]
+	var needs := "A fleet with a ready commander can launch it." if mission.get("requires_hero", true) \
+			else "Any fleet can launch it."
+	return "[b]%s[/b]\n%s\n\n%s\nAway team: %d. Heroes are away for %d turns." % [a["name"],
+			UiKit.color_tag(mission.get("name", ""), Palette.ACTIVE), mission.get("description", ""), int(mission.get("squad_size", 3)),
+			int(mission.get("duration", 2))] + "\n\n" + UiKit.color_tag(needs + " End a move on it.", Palette.TEXT_DIM)
+
+
+func _mission_briefing(fleet: Fleet, mission: Dictionary) -> String:
+	var heroes := engine.mission_heroes(fleet)
+	var team := PackedStringArray()
+	for h in heroes:
+		team.append("%s (%s %d)" % [h.name, data.hero_classes[h.class_id].get("name", ""), h.level])
+	var marines := int(mission.get("squad_size", 3)) - heroes.size()
+	if marines > 0:
+		team.append("%d marine%s" % [marines, "s" if marines > 1 else ""])
+	var risk := "Heroes who fall will be [b]killed[/b] (permadeath)." if engine.state.permadeath \
+			else "Heroes who fall are injured on success, or captured if the mission fails (a rescue mission follows)."
+	var lines := PackedStringArray([mission.get("description", ""), "",
+			"[b]Away team:[/b] " + ", ".join(team),
+			UiKit.color_tag("Recommended hero level: %d" % int(mission.get("recommended_level", 1)),
+				Palette.BAD if not heroes.is_empty() and heroes[0].level < int(mission.get("recommended_level", 1)) else Palette.TEXT_DIM),
+			UiKit.color_tag("%s will be away for %d turns: %s loses its doctrine bonus meanwhile." % [
+				heroes[0].name if not heroes.is_empty() else "The team", int(mission.get("duration", 2)), fleet.name], Palette.TEXT_DIM),
+			UiKit.color_tag(risk, Palette.TEXT_DIM)])
+	return "\n".join(lines)
+
+
+func _mission_report(events: Array[Dictionary]) -> String:
+	var lines := PackedStringArray()
+	for e in events:
+		match e["type"]:
+			GalaxyEvents.MISSION_RESOLVED:
+				lines.append(UiKit.color_tag("Mission complete", Palette.GOOD) if e["success"] else UiKit.color_tag("Mission failed", Palette.BAD))
+				lines.append("")
+				for hero_id: String in e["heroes"]:
+					lines.append("%s: %s" % [engine.state.heroes[hero_id].name, e["heroes"][hero_id]])
+				if e["xp"] > 0:
+					lines.append("+%d XP" % e["xp"])
+				if e["loyalty"] != 0:
+					lines.append("Loyalty %+d" % e["loyalty"])
+				for item_id: String in e["items"]:
+					lines.append("Recovered: [b]%s[/b] (equip it in the Heroes panel)" % data.items[item_id]["name"])
+				for t: String in e["traits"]:
+					lines.append("New trait: %s (%s)" % [data.traits[t]["name"], data.traits[t]["description"]])
+			GalaxyEvents.HERO_LEVELED:
+				var skills := PackedStringArray()
+				for ability_id: String in e["skills"]:
+					skills.append(data.abilities[ability_id]["name"])
+				lines.append(UiKit.color_tag("%s reached level %d%s" % [engine.state.heroes[e["hero"]].name, e["level"],
+						(": learned " + ", ".join(skills)) if not skills.is_empty() else ""], Palette.ACTIVE))
+			GalaxyEvents.ANOMALY_CHANGED:
+				lines.append(UiKit.color_tag("New mission: %s" % e["name"], Palette.BAD))
+			GalaxyEvents.HERO_FREED:
+				lines.append(UiKit.color_tag("%s has been rescued" % engine.state.heroes[e["hero"]].name, Palette.GOOD))
 	return "\n".join(lines)
 
 
@@ -395,13 +560,26 @@ func _planet_info(planet: Planet) -> String:
 		var f := engine.state.faction(planet.owner)
 		owner = f["name"]
 		color = Palette.team_color(f["team"])
-	return "[b]%s[/b]  %s\n%s\n\n%s\n\nSensors %d. Friendly fleets here repair. Move a fleet here to capture it." % [
+	var text := "[b]%s[/b]  %s\n%s\n\n%s\n\nSensors %d. Friendly fleets here repair. Move a fleet here to capture it." % [
 			planet.name, UiKit.color_tag(type_def.get("name", planet.type), Palette.TEXT_DIM),
 			UiKit.color_tag(owner, color), planet.description, planet.sensor]
+	var waiting := PackedStringArray()
+	for h in engine.state.heroes_of(player_faction):
+		if h.planet_id == planet.id and h.fleet_id.is_empty() and h.status != Hero.CAPTURED and h.status != Hero.DEAD:
+			waiting.append(h.name)
+	if not waiting.is_empty():
+		text += "\n\nHeroes here: %s\n%s" % [", ".join(waiting),
+				UiKit.color_tag("Bring a fleet here and assign them in the Heroes panel (H).", Palette.TEXT_DIM)]
+	return text
 
 
 func _battle_preview(b: Dictionary, attacker: Fleet, defender: Fleet) -> String:
 	var lines := PackedStringArray()
+	for fleet in [attacker, defender]:
+		var cmdr := engine.state.active_commander(fleet)
+		if cmdr != null:
+			lines.append(UiKit.color_tag("%s commands %s: %s" % [cmdr.name, (fleet as Fleet).name,
+					data.statuses[HeroBuilder.command_status(cmdr, data)].get("description", "")], Palette.TEXT_DIM))
 	if b.get("ambush", false) or attacker.owner != player_faction and defender.owner == player_faction:
 		lines.append(UiKit.color_tag("Enemy contact!", Palette.BAD))
 	for fleet in [attacker, defender]:
@@ -459,6 +637,26 @@ func _describe(e: Dictionary) -> String:
 			return "[b]%s eliminated[/b]" % s.faction(e["faction"])["name"]
 		GalaxyEvents.CAMPAIGN_ENDED:
 			return "\n[b]Campaign over[/b]"
+		GalaxyEvents.MISSION_RESOLVED:
+			if s.fleets.has(e["fleet"]) and s.fleets[e["fleet"]].owner != player_faction:
+				return ""
+			return "[b]%s[/b]: %s" % [data.missions[e["mission"]]["name"], "success" if e["success"] else "failed"]
+		GalaxyEvents.HERO_LEVELED, GalaxyEvents.HERO_RETURNED, GalaxyEvents.HERO_INJURED, \
+				GalaxyEvents.HERO_CAPTURED, GalaxyEvents.HERO_KILLED, GalaxyEvents.HERO_FREED:
+			var hero: Hero = s.heroes[e["hero"]]
+			if hero.owner != player_faction:
+				return ""
+			var what := {
+				GalaxyEvents.HERO_LEVELED: "reaches level %d" % e.get("level", 0),
+				GalaxyEvents.HERO_RETURNED: "is back on duty",
+				GalaxyEvents.HERO_INJURED: "is injured until turn %d" % e.get("until", 0),
+				GalaxyEvents.HERO_CAPTURED: "has been captured",
+				GalaxyEvents.HERO_KILLED: "has been killed",
+				GalaxyEvents.HERO_FREED: "has been rescued",
+			}
+			return UiKit.color_tag("   %s %s" % [hero.name, what[e["type"]]], Palette.ACTIVE)
+		GalaxyEvents.ANOMALY_CHANGED:
+			return UiKit.color_tag("New mission available: %s" % e["name"], Palette.BAD)
 	return ""
 
 
@@ -466,6 +664,11 @@ func _describe(e: Dictionary) -> String:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if engine == null or hud.is_dialog_open():
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_H:
+		_toggle_roster()
+		return
+	if hud.roster.visible:
 		return
 	if event is InputEventMouseMotion:
 		var cell: Variant = map_view.cell_at_global(get_global_mouse_position())
@@ -500,12 +703,18 @@ func _on_left_click() -> void:
 			_submit(MoveFleetCommand.new(player_faction, fleet.id, cell))
 			return
 	var other := engine.state.fleet_at(cell)
+	var anomaly := engine.state.anomaly_at(cell)
+	selected_anomaly = ""
 	if other != null and engine.can_see_fleet(player_faction, other, _visible):
 		selected_fleet = other.id
 		selected_planet = ""
 	elif engine.state.planet_at(cell) != null:
 		selected_planet = engine.state.planet_at(cell).id
 		selected_fleet = ""
+	elif not anomaly.is_empty() and engine.explored_cells(player_faction).has(cell):
+		selected_anomaly = anomaly["id"]
+		selected_fleet = ""
+		selected_planet = ""
 	else:
 		_deselect()
 		return
@@ -515,6 +724,7 @@ func _on_left_click() -> void:
 func _deselect() -> void:
 	selected_fleet = ""
 	selected_planet = ""
+	selected_anomaly = ""
 	_refresh()
 
 

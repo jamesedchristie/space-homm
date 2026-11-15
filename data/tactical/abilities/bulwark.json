@@ -1,0 +1,16 @@
+{
+  "id": "bulwark",
+  "name": "Bulwark",
+  "description": "Brace behind your armor: take 40% less damage until your next turn.",
+  "ap_cost": 1,
+  "cooldown": 3,
+  "target": "self",
+  "effects": [
+    {
+      "type": "apply_status",
+      "status": "bulwark",
+      "duration": 1
+    }
+  ],
+  "fx": "self"
+}

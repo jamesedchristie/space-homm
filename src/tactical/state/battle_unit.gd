@@ -8,10 +8,14 @@ extends RefCounted
 ##   max_hull, max_shields, armor, initiative, max_ap  (from unit data)
 ##   damage_dealt, damage_taken                        (multipliers, default 1.0)
 
-const DEFAULT_STATS := {"damage_dealt": 1.0, "damage_taken": 1.0}
+##   sight                                             (vision radius when fog is on)
+
+const DEFAULT_STATS := {"damage_dealt": 1.0, "damage_taken": 1.0, "sight": 6.0}
 
 var id: String
 var def_id: String
+## The definition this unit was built from (content JSON, or generated for heroes).
+var def: Dictionary = {}
 var name: String
 var team: int
 var cell: Vector2i
@@ -36,17 +40,23 @@ var hero_id: String = ""
 ## in a galaxy fleet), so results can be written back after the fight.
 var ref: String = ""
 
+## Dormant units (mission enemies) skip their turns until they spot an enemy,
+## take damage, or a trigger alerts them. Units sharing a `group` wake together.
+var alert := true
+var group := ""
 
-static func from_def(p_id: String, def: Dictionary, p_team: int, p_cell: Vector2i, display_name: String = "") -> BattleUnit:
+
+static func from_def(p_id: String, p_def: Dictionary, p_team: int, p_cell: Vector2i, display_name: String = "") -> BattleUnit:
 	var u := BattleUnit.new()
 	u.id = p_id
-	u.def_id = def.get("id", "")
-	u.name = display_name if not display_name.is_empty() else def.get("name", u.def_id)
+	u.def = p_def
+	u.def_id = p_def.get("id", "")
+	u.name = display_name if not display_name.is_empty() else p_def.get("name", u.def_id)
 	u.team = p_team
 	u.cell = p_cell
-	u.tags = PackedStringArray(def.get("tags", []))
-	u.abilities = PackedStringArray(def.get("abilities", []))
-	var stats: Dictionary = def.get("stats", {})
+	u.tags = PackedStringArray(p_def.get("tags", []))
+	u.abilities = PackedStringArray(p_def.get("abilities", []))
+	var stats: Dictionary = p_def.get("stats", {})
 	for key: String in stats:
 		u.base_stats[key] = float(stats[key])
 	u.hull = u.max_hull()

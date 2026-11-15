@@ -1,0 +1,26 @@
+{
+  "id": "throw_grenade",
+  "name": "Frag Grenade",
+  "description": "Explodes in an area. Hits friends too.",
+  "ap_cost": 2,
+  "cooldown": 3,
+  "target": "cell",
+  "range": [
+    2,
+    5
+  ],
+  "radius": 1,
+  "affects": "all",
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        14,
+        20
+      ],
+      "damage_type": "explosive"
+    }
+  ],
+  "fx": "torpedo"
+}

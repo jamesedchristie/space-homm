@@ -1,0 +1,24 @@
+{
+  "id": "plasma_bolt",
+  "name": "Plasma Bolt",
+  "description": "Superheated energy bolt. Melts shields.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    6
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        14,
+        18
+      ],
+      "damage_type": "energy"
+    }
+  ],
+  "fx": "beam"
+}

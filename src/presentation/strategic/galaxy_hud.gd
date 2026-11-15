@@ -4,6 +4,7 @@ extends Control
 ## and a modal dialog for battles and reports. Emits signals only.
 
 signal end_turn_pressed
+signal heroes_pressed
 ## Emitted when the player clicks one of the dialog's buttons.
 signal dialog_choice(choice_id: String)
 
@@ -19,10 +20,9 @@ var _end_turn_button: Button
 var _info: RichTextLabel
 var _log: RichTextLabel
 var _hint: Label
-var _dialog: PanelContainer
-var _dialog_title: Label
-var _dialog_body: RichTextLabel
-var _dialog_buttons: HBoxContainer
+var _dialog: DialogPanel
+## Hero management overlay (shown by the galaxy screen).
+var roster: HeroRoster
 
 
 func _ready() -> void:
@@ -69,21 +69,11 @@ func clear_log() -> void:
 ## Shows a modal dialog. choices: [{"id": String, "label": String}].
 ## Await `dialog_choice` for the answer.
 func ask(title: String, body_bbcode: String, choices: Array[Dictionary]) -> void:
-	_dialog_title.text = title
-	_dialog_body.clear()
-	_dialog_body.append_text(body_bbcode)
-	for c in _dialog_buttons.get_children():
-		c.queue_free()
-	for choice in choices:
-		var id: String = choice["id"]
-		_dialog_buttons.add_child(UiKit.button(choice["label"], func() -> void:
-			_dialog.visible = false
-			dialog_choice.emit(id)))
-	_dialog.visible = true
+	_dialog.ask(title, body_bbcode, choices)
 
 
 func is_dialog_open() -> bool:
-	return _dialog.visible
+	return _dialog.is_open()
 
 
 func _build() -> void:
@@ -101,6 +91,7 @@ func _build() -> void:
 	_objective_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_objective_label.clip_text = true
 	row.add_child(_objective_label)
+	row.add_child(UiKit.button("Heroes  [H]", func() -> void: heroes_pressed.emit()))
 	_end_turn_button = UiKit.button("End Turn  [Space]", func() -> void: end_turn_pressed.emit())
 	row.add_child(_end_turn_button)
 
@@ -124,21 +115,11 @@ func _build() -> void:
 	_hint.clip_text = true
 	bottom.add_child(_hint)
 
-	_dialog = UiKit.panel(Palette.PANEL_BG, Palette.ACTIVE, 2)
-	UiKit.anchor(_dialog, 0.5, 0.5, 0.5, 0.5, -230, -130, 230, 130)
-	_dialog.visible = false
+	roster = HeroRoster.new()
+	UiKit.anchor(roster, 0, 0, 1, 1, 40, TOP_H + 16, -RIGHT_W - 40, -BOTTOM_H - 16)
+	add_child(roster)
+
+	_dialog = DialogPanel.new()
+	_dialog.place(520, 330)
+	_dialog.choice_made.connect(func(id: String) -> void: dialog_choice.emit(id))
 	add_child(_dialog)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
-	_dialog.add_child(box)
-	_dialog_title = UiKit.label("", 22, Palette.ACTIVE)
-	_dialog_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(_dialog_title)
-	_dialog_body = UiKit.rich_text(13)
-	_dialog_body.scroll_following = false
-	_dialog_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.add_child(_dialog_body)
-	_dialog_buttons = HBoxContainer.new()
-	_dialog_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	_dialog_buttons.add_theme_constant_override("separation", 12)
-	box.add_child(_dialog_buttons)

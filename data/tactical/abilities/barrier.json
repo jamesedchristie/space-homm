@@ -1,0 +1,25 @@
+{
+  "id": "barrier",
+  "name": "Barrier",
+  "description": "Project a barrier on yourself or an ally: +30 shields and 25% less damage until your next turn.",
+  "ap_cost": 2,
+  "cooldown": 3,
+  "target": "friendly",
+  "range": [
+    0,
+    4
+  ],
+  "effects": [
+    {
+      "type": "heal",
+      "stat": "shields",
+      "amount": 30
+    },
+    {
+      "type": "apply_status",
+      "status": "braced",
+      "duration": 1
+    }
+  ],
+  "fx": "self"
+}

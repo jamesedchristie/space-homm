@@ -1,0 +1,12 @@
+{
+  "id": "cmd_vanguard",
+  "name": "Vanguard Doctrine",
+  "description": "Ships take 10% less damage.",
+  "permanent": true,
+  "modifiers": {
+    "damage_taken": {
+      "mul": 0.9
+    }
+  },
+  "ai_value": 5
+}

@@ -1,20 +1,25 @@
 class_name CampaignAutoRunner
 extends RefCounted
-## Plays a campaign headlessly: GalaxyAI for every faction, every battle
-## auto-resolved. Used by tests and tools/simulate_campaign.gd.
+## Plays a campaign headlessly: GalaxyAI for every faction, every battle and
+## mission auto-resolved. Used by tests and tools/simulate_campaign.gd.
 
 
-## Returns {"winner", "turns", "commands", "battles"}.
+## Returns {"winner", "turns", "commands", "battles", "missions"}.
 static func run(engine: GalaxyEngine, max_commands: int = 5000) -> Dictionary:
 	var ai := GalaxyAI.new()
 	if engine.state.turn_number == 0:
 		engine.start()
 	var commands := 0
 	var battles := 0
+	var missions := 0
 	while not engine.state.is_over and commands < max_commands:
 		if engine.has_pending_battle():
 			engine.auto_resolve_pending_battle()
 			battles += 1
+			continue
+		if engine.has_pending_mission():
+			engine.auto_resolve_pending_mission()
+			missions += 1
 			continue
 		var cmd := ai.decide(engine)
 		var result := engine.submit(cmd)
@@ -27,4 +32,5 @@ static func run(engine: GalaxyEngine, max_commands: int = 5000) -> Dictionary:
 		"turns": engine.state.turn_number,
 		"commands": commands,
 		"battles": battles,
+		"missions": missions,
 	}

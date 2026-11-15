@@ -1,0 +1,14 @@
+{
+  "id": "cmd_technician",
+  "name": "Damage Control",
+  "description": "Ships restore 6 shields each turn.",
+  "permanent": true,
+  "on_turn_start": [
+    {
+      "type": "heal",
+      "stat": "shields",
+      "amount": 6
+    }
+  ],
+  "ai_value": 5
+}

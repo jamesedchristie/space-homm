@@ -1,0 +1,24 @@
+{
+  "id": "shotgun_blast",
+  "name": "Shotgun Blast",
+  "description": "Brutal at close range.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    2
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        18,
+        26
+      ],
+      "damage_type": "kinetic"
+    }
+  ],
+  "fx": "projectile"
+}

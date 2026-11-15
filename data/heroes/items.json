@@ -1,0 +1,78 @@
+{
+  "assault_rifle": {
+    "name": "Assault Rifle",
+    "slot": "weapon",
+    "description": "Reliable all-rounder.",
+    "abilities": [
+      "rifle_burst"
+    ]
+  },
+  "shotgun": {
+    "name": "Breaching Shotgun",
+    "slot": "weapon",
+    "description": "Devastating up close.",
+    "abilities": [
+      "shotgun_blast"
+    ]
+  },
+  "plasma_rifle": {
+    "name": "Plasma Rifle",
+    "slot": "weapon",
+    "description": "Recovered prototype. Energy bolts that melt shields.",
+    "abilities": [
+      "plasma_bolt"
+    ]
+  },
+  "light_plating": {
+    "name": "Light Plating",
+    "slot": "armor",
+    "description": "+1 armor, +10 shields.",
+    "modifiers": {
+      "armor": {
+        "add": 1
+      },
+      "max_shields": {
+        "add": 10
+      }
+    }
+  },
+  "heavy_plating": {
+    "name": "Heavy Plating",
+    "slot": "armor",
+    "description": "+3 armor, -1 initiative.",
+    "modifiers": {
+      "armor": {
+        "add": 3
+      },
+      "initiative": {
+        "add": -1
+      }
+    }
+  },
+  "barrier_harness": {
+    "name": "Barrier Harness",
+    "slot": "armor",
+    "description": "+30 shields.",
+    "modifiers": {
+      "max_shields": {
+        "add": 30
+      }
+    }
+  },
+  "frag_grenade": {
+    "name": "Frag Grenades",
+    "slot": "gadget",
+    "description": "Area damage.",
+    "abilities": [
+      "throw_grenade"
+    ]
+  },
+  "medkit": {
+    "name": "Medkit",
+    "slot": "gadget",
+    "description": "Heal yourself or an adjacent ally.",
+    "abilities": [
+      "field_medic"
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "headshot",
+  "name": "Headshot",
+  "description": "Devastating shot that ignores armor.",
+  "ap_cost": 3,
+  "cooldown": 4,
+  "target": "enemy",
+  "range": [
+    1,
+    9
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        40,
+        50
+      ],
+      "damage_type": "kinetic",
+      "ignore_armor": true
+    }
+  ],
+  "fx": "projectile"
+}

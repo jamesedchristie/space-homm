@@ -1,0 +1,86 @@
+{
+  "vanguard": {
+    "name": "Vanguard",
+    "description": "Front-line fighter. Tough, hits hard up close, shields the squad.",
+    "stats": {
+      "max_hull": 80,
+      "max_shields": 35,
+      "armor": 2,
+      "initiative": 6,
+      "max_ap": 5,
+      "sight": 6
+    },
+    "growth": {
+      "max_hull": 8,
+      "max_shields": 4
+    },
+    "skills": {
+      "1": [
+        "bulwark"
+      ],
+      "2": [
+        "shockwave"
+      ],
+      "4": [
+        "rally"
+      ]
+    },
+    "command_status": "cmd_vanguard"
+  },
+  "marksman": {
+    "name": "Marksman",
+    "description": "Long-range specialist. Picks off priority targets.",
+    "stats": {
+      "max_hull": 60,
+      "max_shields": 30,
+      "armor": 1,
+      "initiative": 7,
+      "max_ap": 5,
+      "sight": 8
+    },
+    "growth": {
+      "max_hull": 5,
+      "max_shields": 4
+    },
+    "skills": {
+      "1": [
+        "aimed_shot"
+      ],
+      "2": [
+        "suppress"
+      ],
+      "4": [
+        "headshot"
+      ]
+    },
+    "command_status": "cmd_marksman"
+  },
+  "technician": {
+    "name": "Technician",
+    "description": "Engineer and field medic. Repairs allies, disables machines.",
+    "stats": {
+      "max_hull": 60,
+      "max_shields": 45,
+      "armor": 0,
+      "initiative": 6,
+      "max_ap": 5,
+      "sight": 6
+    },
+    "growth": {
+      "max_hull": 5,
+      "max_shields": 6
+    },
+    "skills": {
+      "1": [
+        "patch_up"
+      ],
+      "2": [
+        "overload"
+      ],
+      "4": [
+        "barrier"
+      ]
+    },
+    "command_status": "cmd_technician"
+  }
+}

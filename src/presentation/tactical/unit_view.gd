@@ -8,7 +8,12 @@ const PLACEHOLDER_SHAPES := {
 	"frigate": [Vector2(1.0, 0), Vector2(0.45, 0.42), Vector2(-0.75, 0.42), Vector2(-1.0, 0.2),
 			Vector2(-1.0, -0.2), Vector2(-0.75, -0.42), Vector2(0.45, -0.42)],
 	"interceptor": [Vector2(1.0, 0), Vector2(-0.7, 0.75), Vector2(-0.35, 0), Vector2(-0.7, -0.75)],
+	"drone": [Vector2(0.8, 0), Vector2(0, 0.6), Vector2(-0.8, 0), Vector2(0, -0.6)],
+	"boarder": [Vector2(0.9, 0), Vector2(0.2, 0.55), Vector2(-0.6, 0.6), Vector2(-0.35, 0), Vector2(-0.6, -0.6),
+			Vector2(0.2, -0.55)],
 }
+## Round-bodied placeholders for people (with a facing marker).
+const ROUND_SHAPES := ["trooper", "hero"]
 
 var unit_id := ""
 var display_name := ""
@@ -54,7 +59,8 @@ func refresh(unit: BattleUnit) -> void:
 	_max_shields = maxi(1, unit.max_shields())
 	var tags := PackedStringArray()
 	for s in unit.statuses:
-		tags.append("%s %d" % [s.def.get("name", s.id), s.remaining])
+		var label: String = s.def.get("name", s.id)
+		tags.append(label if s.is_permanent() else "%s %d" % [label, s.remaining])
 	_status_text = ", ".join(tags)
 	queue_redraw()
 
@@ -113,7 +119,13 @@ func _draw() -> void:
 	if is_active:
 		draw_arc(Vector2.ZERO, radius * 1.15, 0, TAU, 40, Palette.ACTIVE, 2.0, true)
 
-	if _sprite == null:
+	if _sprite == null and shape in ROUND_SHAPES:
+		draw_circle(Vector2.ZERO, radius * 0.62, team_color.darkened(0.45))
+		draw_arc(Vector2.ZERO, radius * 0.62, 0, TAU, 24, team_color.lightened(0.2), 2.0, true)
+		draw_line(Vector2.ZERO, Vector2(radius * 0.95, 0).rotated(facing), team_color.lightened(0.3), 3.0, true)
+		if shape == "hero":
+			_draw_star(Vector2.ZERO, radius * 0.32, Palette.ACTIVE)
+	elif _sprite == null:
 		var pts := PackedVector2Array()
 		for p: Vector2 in PLACEHOLDER_SHAPES.get(shape, PLACEHOLDER_SHAPES["frigate"]):
 			pts.append((p * radius).rotated(facing))
@@ -133,6 +145,14 @@ func _draw() -> void:
 	draw_string(font, Vector2(-60, y + 20.0), display_name, HORIZONTAL_ALIGNMENT_CENTER, 120, 11, Palette.TEXT)
 	if not _status_text.is_empty():
 		draw_string(font, Vector2(-70, -radius - 6.0), _status_text, HORIZONTAL_ALIGNMENT_CENTER, 140, 10, Palette.ACTIVE)
+
+
+func _draw_star(center: Vector2, r: float, color: Color) -> void:
+	var pts := PackedVector2Array()
+	for i in 10:
+		var rr := r if i % 2 == 0 else r * 0.45
+		pts.append(center + Vector2.from_angle(-PI / 2 + i * PI / 5) * rr)
+	draw_colored_polygon(pts, color)
 
 
 func _draw_bar(origin: Vector2, width: float, ratio: float, color: Color) -> void:

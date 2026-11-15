@@ -1,0 +1,16 @@
+{
+  "xp_thresholds": [
+    0,
+    100,
+    250,
+    450,
+    700,
+    1000
+  ],
+  "battle_xp": {
+    "win": 40,
+    "loss": 15
+  },
+  "injury_turns": 3,
+  "_doc": "Level N needs xp_thresholds[N-1] total XP. Fleet commanders earn battle_xp from fleet battles."
+}

@@ -29,6 +29,17 @@ var winner := ""
 
 var next_uid := 0
 
+# Heroes and missions
+var heroes: Dictionary = {}       # id -> Hero
+var inventory: Dictionary = {}    # faction id -> Array[String] of item ids
+## id -> {"id", "name", "cell": Vector2i, "mission": mission id, "faction"?: only this faction may take it}
+var anomalies: Dictionary = {}
+## While non-empty, a fleet is at an anomaly waiting for a decision:
+## {"anomaly": id, "fleet": fleet id}
+var pending_mission: Dictionary = {}
+## Heroes downed on missions die instead of being injured or captured.
+var permadeath := false
+
 
 func current_faction() -> Dictionary:
 	return factions[current_faction_index]
@@ -76,6 +87,38 @@ func planets_of(faction_id: String) -> Array[Planet]:
 		if p.owner == faction_id:
 			out.append(p)
 	return out
+
+
+func heroes_of(faction_id: String) -> Array[Hero]:
+	var out: Array[Hero] = []
+	for h: Hero in heroes.values():
+		if h.owner == faction_id:
+			out.append(h)
+	return out
+
+
+## The hero assigned to the fleet (ready or not), or null.
+func commander_of(fleet: Fleet) -> Hero:
+	return heroes.get(fleet.hero_id) if not fleet.hero_id.is_empty() else null
+
+
+## The commander only counts while ready (not away on a mission or injured).
+func active_commander(fleet: Fleet) -> Hero:
+	var h := commander_of(fleet)
+	return h if h != null and h.is_ready() else null
+
+
+func anomaly_at(cell: Vector2i) -> Dictionary:
+	for a: Dictionary in anomalies.values():
+		if a["cell"] == cell:
+			return a
+	return {}
+
+
+## Where heroes go when they come home: the faction's first planet.
+func home_planet(faction_id: String) -> Planet:
+	var owned := planets_of(faction_id)
+	return owned[0] if not owned.is_empty() else null
 
 
 func make_uid(prefix: String) -> String:

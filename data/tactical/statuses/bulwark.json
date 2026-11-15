@@ -1,0 +1,11 @@
+{
+  "id": "bulwark",
+  "name": "Bulwark",
+  "description": "Takes 40% less damage.",
+  "modifiers": {
+    "damage_taken": {
+      "mul": 0.6
+    }
+  },
+  "ai_value": 8
+}

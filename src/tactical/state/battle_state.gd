@@ -23,6 +23,24 @@ var rng := RandomNumberGenerator.new()
 var seed_value := 0
 
 var objectives: Array[BattleObjective] = []
+
+# --- Missions: fog of war, triggers, rewards ---------------------------------
+## When true, each team only sees cells within its units' sight and line of sight.
+var fog_enabled := false
+## team -> { cell: true } ever seen.
+var explored: Dictionary = {}
+## Scripted cell triggers from the scenario (see BattleEngine._check_triggers).
+var triggers: Array[Dictionary] = []
+## Set while a trigger waits for the player's choice: {"trigger": index, "unit": id}.
+var pending_choice: Dictionary = {}
+## Campaign rewards earned during the battle (xp, items, traits, loyalty).
+var rewards: Array[Dictionary] = []
+## Id of the mission this battle belongs to, if any.
+var mission_id := ""
+## Bumped whenever unit positions change; invalidates the visibility cache.
+var version := 0
+var _vis_cache: Dictionary = {}
+var _vis_version := -1
 var is_over := false
 var winner := NO_WINNER
 
@@ -69,6 +87,31 @@ func team_info(team: int) -> Dictionary:
 		if t["team"] == team:
 			return t
 	return {}
+
+
+## Cells `team` can see right now: within each unit's sight, with line of sight.
+## Without fog, every cell is visible.
+func visible_cells(team: int) -> Dictionary:
+	if _vis_version != version:
+		_vis_cache.clear()
+		_vis_version = version
+	if _vis_cache.has(team):
+		return _vis_cache[team]
+	var vis := {}
+	if not fog_enabled:
+		for c in grid.cells():
+			vis[c] = true
+	else:
+		for u in living_units(team):
+			for c in grid.cells_within(u.cell, u.stat_i("sight")):
+				if not vis.has(c) and grid.has_line_of_sight(u.cell, c):
+					vis[c] = true
+	_vis_cache[team] = vis
+	return vis
+
+
+func is_visible(team: int, cell: Vector2i) -> bool:
+	return not fog_enabled or visible_cells(team).has(cell)
 
 
 func teams_alive() -> Array[int]:

@@ -1,0 +1,24 @@
+{
+  "id": "rifle_burst",
+  "name": "Rifle Burst",
+  "description": "Controlled burst from an assault rifle.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    6
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        12,
+        16
+      ],
+      "damage_type": "kinetic"
+    }
+  ],
+  "fx": "projectile"
+}

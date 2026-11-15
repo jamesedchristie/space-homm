@@ -40,6 +40,12 @@ static func registry() -> DataRegistry:
 		"id": "test_wall", "grid": "hex", "width": 10, "height": 6,
 		"terrain": {"asteroid": [[2, 0], [2, 1], [2, 2], [2, 3], [2, 4]]},
 	}
+	# 8x6 square room with a wall segment and one crate.
+	data.maps["test_room"] = {
+		"id": "test_room", "grid": "square", "width": 8, "height": 6,
+		"terrain": {"wall": [[3, 0], [3, 1], [3, 2], [3, 3]], "crates": [[6, 5]]},
+		"deployment": {"squad": [[0, 4], [0, 5], [1, 5]]},
+	}
 	data.validate()
 	return data
 

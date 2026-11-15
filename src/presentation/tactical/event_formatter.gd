@@ -34,7 +34,18 @@ static func describe(e: Dictionary, engine: BattleEngine) -> String:
 		BattleEvents.TURN_SKIPPED:
 			return "%s is disabled and loses its turn" % unit_name(engine, e["unit"])
 		BattleEvents.UNIT_DESTROYED:
-			return "[color=#%s][b]%s destroyed![/b][/color]" % [Palette.hex(Palette.BAD), engine.state.get_unit(e["unit"]).name]
+			var fallen := engine.state.get_unit(e["unit"])
+			var verb := "is down" if "infantry" in fallen.tags else "destroyed"
+			return "[color=#%s][b]%s %s![/b][/color]" % [Palette.hex(Palette.BAD), fallen.name, verb]
+		BattleEvents.UNIT_SPAWNED:
+			return "[color=#%s]Enemy reinforcements: %s[/color]" % [Palette.hex(Palette.BAD), engine.state.get_unit(e["unit"]).name]
+		BattleEvents.TRIGGER_FIRED:
+			var title: String = e["title"]
+			return "[b]%s[/b] %s" % [title + ":" if not title.is_empty() else "", e["text"]]
+		BattleEvents.CHOICE_MADE:
+			return "   → %s. %s" % [e["label"], e["text"]]
+		BattleEvents.REWARD_GAINED:
+			return UiKit.color_tag("   Reward recorded for the campaign", Palette.ACTIVE)
 		BattleEvents.BATTLE_ENDED:
 			return "\n[b]%s[/b]" % result_text(engine)
 	return ""

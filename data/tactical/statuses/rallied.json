@@ -1,0 +1,11 @@
+{
+  "id": "rallied",
+  "name": "Rallied",
+  "description": "Deals 20% more damage.",
+  "modifiers": {
+    "damage_dealt": {
+      "mul": 1.2
+    }
+  },
+  "ai_value": 10
+}

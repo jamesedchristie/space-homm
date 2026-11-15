@@ -1,0 +1,28 @@
+{
+  "id": "boarder",
+  "name": "Boarder",
+  "description": "Raider shock trooper with a breaching shotgun.",
+  "tags": [
+    "infantry"
+  ],
+  "stats": {
+    "max_hull": 45,
+    "max_shields": 10,
+    "armor": 1,
+    "initiative": 6,
+    "max_ap": 4,
+    "sight": 5
+  },
+  "abilities": [
+    "boarder_shotgun"
+  ],
+  "visual": {
+    "placeholder": "boarder",
+    "sprite": "",
+    "size": 0.75
+  },
+  "stat_names": {
+    "hull": "Health",
+    "shields": "Shields"
+  }
+}

@@ -3,7 +3,7 @@ extends RefCounted
 ## Targeting rules for data-defined abilities.
 ##
 ## Ability fields used here (see docs/architecture.md for the full schema):
-##   target:       "self" | "enemy" | "ally" | "any_unit" | "cell"
+##   target:       "self" | "enemy" | "ally" | "friendly" (ally or self) | "any_unit" | "cell"
 ##   range:        [min, max] in grid steps
 ##   radius:       area around the target cell (0 = single target)
 ##   affects:      "enemies" | "allies" | "all" (default depends on target)
@@ -42,7 +42,12 @@ static func target_cells(state: BattleState, unit: BattleUnit, ability: Dictiona
 			out.append(cell)
 			continue
 		var occupant := state.unit_at(cell)
-		if occupant != null and occupant != unit and _matches(target, unit, occupant):
+		if occupant == null or (occupant == unit and target != "friendly"):
+			continue
+		# Under fog of war you can't target what your side can't see.
+		if occupant.team != unit.team and not state.is_visible(unit.team, cell):
+			continue
+		if _matches(target, unit, occupant):
 			out.append(cell)
 	return out
 
@@ -73,7 +78,7 @@ static func default_affects(target: String) -> String:
 	match target:
 		"enemy":
 			return "enemies"
-		"ally", "self":
+		"ally", "self", "friendly":
 			return "allies"
 	return "all"
 
@@ -82,7 +87,7 @@ static func _matches(target: String, user: BattleUnit, other: BattleUnit) -> boo
 	match target:
 		"enemy":
 			return other.team != user.team
-		"ally":
+		"ally", "friendly":
 			return other.team == user.team
 		"any_unit":
 			return true

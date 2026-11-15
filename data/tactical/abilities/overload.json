@@ -1,0 +1,26 @@
+{
+  "id": "overload",
+  "name": "Overload",
+  "description": "Fry the target's systems: energy damage and it loses its next turn. Brutal on drones.",
+  "ap_cost": 2,
+  "cooldown": 3,
+  "target": "enemy",
+  "range": [
+    1,
+    5
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": 10,
+      "damage_type": "energy"
+    },
+    {
+      "type": "apply_status",
+      "status": "disabled",
+      "duration": 1
+    }
+  ],
+  "fx": "pulse"
+}

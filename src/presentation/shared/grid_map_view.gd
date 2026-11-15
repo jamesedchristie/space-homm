@@ -1,4 +1,4 @@
-class_name HexMapView
+class_name GridMapView
 extends Node2D
 ## Draws a grid (battlefield or galaxy), its terrain, highlights and optional
 ## fog of war. Grid-agnostic: it only uses TacticalGrid geometry, so it will
@@ -17,6 +17,8 @@ var _active: Variant = null
 var _fog_enabled := false
 var _explored: Dictionary = {}
 var _visible: Dictionary = {}
+## cell -> {"color": Color, "label": String} (objectives, triggers, ...)
+var _markers: Dictionary = {}
 
 
 func setup(p_grid: TacticalGrid) -> void:
@@ -82,6 +84,11 @@ func set_fog(explored: Dictionary, visible_now: Dictionary) -> void:
 	queue_redraw()
 
 
+func set_markers(markers: Dictionary) -> void:
+	_markers = markers
+	queue_redraw()
+
+
 func clear_fog() -> void:
 	_fog_enabled = false
 	queue_redraw()
@@ -91,14 +98,17 @@ func _draw() -> void:
 	if grid == null:
 		return
 	for c in grid.cells():
-		var poly := grid.cell_polygon(c, CELL_SIZE * 0.94)
+		var poly := _inset_polygon(c)
 		if _fog_enabled and not _explored.has(c):
 			draw_colored_polygon(poly, Palette.FOG_UNEXPLORED)
 		else:
 			var terrain := grid.terrain_def(c)
 			draw_colored_polygon(poly, Color(terrain["color"]) if terrain.has("color") else Palette.CELL_FILL)
-			if terrain.get("decoration", "") == "rocks":
-				_draw_rocks(c)
+			match terrain.get("decoration", ""):
+				"rocks":
+					_draw_rocks(c)
+				"crates":
+					_draw_crates(c)
 			if _fog_enabled and not _visible.has(c):
 				draw_colored_polygon(poly, Palette.FOG_DIM)
 		if _reachable.has(c):
@@ -114,10 +124,30 @@ func _draw() -> void:
 	if not _path.is_empty():
 		draw_circle(cell_center(_path[_path.size() - 1]), 5.0, Palette.PATH)
 
+	var font := ThemeDB.fallback_font
+	for c: Vector2i in _markers:
+		var m: Dictionary = _markers[c]
+		if _fog_enabled and not _explored.has(c) and not m.get("always", false):
+			continue
+		var center := cell_center(c)
+		draw_arc(center, CELL_SIZE * 0.55, 0, TAU, 32, m["color"], 2.5, true)
+		draw_string(font, center + Vector2(-20, 7), m.get("label", ""), HORIZONTAL_ALIGNMENT_CENTER, 40, 20, m["color"])
+
 	if _active != null:
-		_outline(grid.cell_polygon(_active, CELL_SIZE * 0.94), Palette.ACTIVE, 2.5)
+		_outline(_inset_polygon(_active), Palette.ACTIVE, 2.5)
 	if _hover != null:
-		_outline(grid.cell_polygon(_hover, CELL_SIZE * 0.94), Palette.HOVER, 2.0)
+		_outline(_inset_polygon(_hover), Palette.HOVER, 2.0)
+
+
+## The cell's outline shrunk slightly toward its own centre, so neighbouring
+## cells show a gap. (Shrinking via a smaller cell size would also move the
+## centre and misalign the grid with units.)
+func _inset_polygon(c: Vector2i, inset: float = 0.94) -> PackedVector2Array:
+	var center := cell_center(c)
+	var out := PackedVector2Array()
+	for p in grid.cell_polygon(c, CELL_SIZE):
+		out.append(center + (p - center) * inset)
+	return out
 
 
 func _draw_rocks(c: Vector2i) -> void:
@@ -129,6 +159,15 @@ func _draw_rocks(c: Vector2i) -> void:
 		var r := rng.randf_range(7, 14)
 		draw_circle(center + offset, r, Color(0.42, 0.36, 0.30))
 		draw_circle(center + offset + Vector2(-r * 0.25, -r * 0.25), r * 0.45, Color(0.55, 0.48, 0.40))
+
+
+func _draw_crates(c: Vector2i) -> void:
+	var center := cell_center(c)
+	var s := CELL_SIZE * 0.45
+	for offset: Vector2 in [Vector2(-s * 0.55, -s * 0.4), Vector2(s * 0.5, -s * 0.3), Vector2(0, s * 0.5)]:
+		var r := Rect2(center + offset - Vector2(s, s) * 0.45, Vector2(s, s) * 0.9)
+		draw_rect(r, Color(0.45, 0.5, 0.38))
+		draw_rect(r, Color(0.25, 0.28, 0.2), false, 1.5)
 
 
 func _outline(poly: PackedVector2Array, color: Color, width: float) -> void:

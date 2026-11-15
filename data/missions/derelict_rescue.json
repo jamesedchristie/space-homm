@@ -1,0 +1,73 @@
+{
+  "id": "derelict_rescue",
+  "name": "Distress Beacon",
+  "type": "ground",
+  "description": "Your captured crew are being held on the derelict station. Get in, reach the holding cells, get them out.",
+  "map": "derelict_deck",
+  "squad_size": 3,
+  "marine_unit": "marine",
+  "duration": 2,
+  "max_rounds": 25,
+  "requires_hero": false,
+  "recommended_level": 1,
+  "enemy_name": "Raider Jailers",
+  "enemies": [
+    {
+      "unit": "boarder",
+      "name": "Jailer",
+      "at": [
+        6,
+        2
+      ],
+      "group": "mid"
+    },
+    {
+      "unit": "boarder",
+      "name": "Jailer",
+      "at": [
+        6,
+        7
+      ],
+      "group": "mid"
+    },
+    {
+      "unit": "sentry_drone",
+      "name": "Sentry Drone",
+      "at": [
+        11,
+        2
+      ],
+      "group": "aft"
+    },
+    {
+      "unit": "boarder",
+      "name": "Warden",
+      "at": [
+        12,
+        5
+      ],
+      "group": "aft"
+    }
+  ],
+  "objectives": [
+    {
+      "type": "reach_cells",
+      "cells": [
+        [
+          13,
+          4
+        ],
+        [
+          13,
+          5
+        ]
+      ],
+      "description": "Reach the holding cells"
+    }
+  ],
+  "triggers": [],
+  "rewards": {
+    "xp": 80,
+    "free_captives": true
+  }
+}

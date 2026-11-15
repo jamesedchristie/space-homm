@@ -1,0 +1,26 @@
+{
+  "id": "suppress",
+  "name": "Suppressing Fire",
+  "description": "Pin the target down: it deals 40% less damage for 2 turns.",
+  "ap_cost": 2,
+  "cooldown": 2,
+  "target": "enemy",
+  "range": [
+    1,
+    8
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": 4,
+      "damage_type": "kinetic"
+    },
+    {
+      "type": "apply_status",
+      "status": "suppressed",
+      "duration": 2
+    }
+  ],
+  "fx": "projectile"
+}

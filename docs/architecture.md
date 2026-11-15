@@ -63,9 +63,9 @@ energy strips shields, kinetic and explosive punish hull. `bypass_shields` and
 | To add... | Do this |
 | --- | --- |
 | A new mechanic (push, teleport, summon, AP drain) | Subclass `BattleEffect`, register it in `EffectRegistry` |
-| A new victory condition (reach exit, escort, hack terminals) | Subclass `BattleObjective`, register it in `ObjectiveFactory` |
-| A new grid shape (square grid for ground missions) | Subclass `TacticalGrid`, add it to `GridFactory`. Pathfinding, LOS, abilities, AI and `HexMapView` already work through the interface |
-| Heroes on units | `BattleUnit.hero_id` exists. Step 3 merges hero abilities and stat modifiers into the unit at battle setup |
+| A new victory condition (escort, hack terminals) | Subclass `BattleObjective`, register it in `ObjectiveFactory` (see `ReachCellsObjective`) |
+| A new grid shape | Subclass `TacticalGrid`, add it to `GridFactory` (`HexGrid` and `SquareGrid` exist). Pathfinding, LOS, abilities, AI and `GridMapView` work through the interface |
+| A new trigger effect (open doors, hack, reveal map) | Add a case to `BattleEngine._apply_trigger_effects` and to `DataRegistry.TRIGGER_EFFECTS` |
 | Smarter AI | Swap or extend `RuleBasedAI`. It already scores any ability through `preview_ability()`, so new content needs no AI code |
 
 ## The strategic layer (galaxy)
@@ -106,15 +106,67 @@ the galaxy screen emits `battle_requested(scenario, seed)`. `game.gd` takes the 
 of the tree (keeping its state), shows a `BattleScreen` set up via `configure()`, and on
 `battle_finished(engine)` puts the galaxy back and calls `on_battle_finished(engine)`.
 The galaxy screen's coroutine, which was waiting on that, then resolves the battle into
-the campaign. Both screens share `HexMapView` (with fog support), `FxLayer`, `Starfield`,
+the campaign. Both screens share `GridMapView` (with fog support), `FxLayer`, `Starfield`,
 `Palette` and `UiKit`.
+
+## Heroes and missions (step 3)
+
+**Heroes** (`src/heroes/`) are persistent `Hero` records in `GalaxyState.heroes`: class, level/XP,
+traits, gear, loyalty, status (`ready`, `on_mission`, `injured`, `captured`, `dead`), and either a
+fleet they command or a planet they wait at.
+
+- `HeroBuilder.unit_def(hero)` turns a hero into a tactical unit definition: class stats, plus
+  growth per level, plus gear and trait modifiers. Abilities are the gear abilities (weapon
+  first) and the class skills unlocked so far. It goes into a scenario entry as `"unit_def"`,
+  so heroes fight through the same engine as everything else.
+- **Fleet command:** a *ready* commander adds the class's `command_status` (a `permanent`
+  status) to every ship in that fleet's battles, and earns battle XP. Heroes away, injured or
+  captured give no bonus. That is the cost of sending them on missions.
+- `HeroProgression` handles XP thresholds and level-ups (`data/heroes/progression.json`).
+- Galaxy commands: `AssignHeroCommand`, `UnassignHeroCommand`, `EquipItemCommand` (from the
+  faction's inventory). The Heroes panel (`HeroRoster`) only emits these commands.
+
+**Missions** (`data/missions/`, built by `MissionFactory`) are tactical battles that use these
+engine features, all available to fleet battles too:
+
+| Feature | How |
+| --- | --- |
+| Square grid | `SquareGrid` (8-way moves, Chebyshev distance, no cutting wall corners) behind `TacticalGrid` |
+| Fog of war | scenario `"fog": true`. `BattleState.visible_cells(team)` uses each unit's `sight` stat plus LOS, cached by `state.version`. You can't target what your side can't see |
+| Dormant groups | unit entry `"dormant": true, "group": "aft"`. Skips its turns until it sees an enemy, is damaged or is alerted, and then wakes its whole group |
+| Triggers | scenario `"triggers"`: entering one of the cells fires text, immediate `effects` and optional `choices`. While a choice is pending, only `ChooseOptionCommand` is accepted (the AI picks option 0) |
+| Trigger effects | `effect` (any BattleEffect on the unit or squad), `spawn` (reinforcements), `alert` (a group or team), `reward` (xp/items/trait/loyalty, recorded in `state.rewards` for the campaign) |
+| Objectives | `reach_cells` (stand on a cell) alongside `eliminate_all` |
+| Cover | terrain `"damage_taken": 0.7` multiplies damage to whoever stands in it |
+| Friendly targets | ability `"target": "friendly"`: an ally or yourself |
+
+**Galaxy flow:** anomalies (`campaign.anomalies`) sit on cells. A fleet that ends a move on one,
+with a ready commander (or any fleet if the mission has `requires_hero: false`), sets
+`state.pending_mission`. Like a battle, it is resolved by
+`pending_mission_scenario()` → `BattleEngine` → `resolve_pending_mission(battle)`, or by
+`auto_resolve_pending_mission()` / `decline_pending_mission()`. Results:
+
+- **Success:** mission and trigger rewards (XP to every hero in the squad, items to the faction
+  inventory, traits, loyalty); heroes who fell are injured (or killed with permadeath); the
+  anomaly is cleared. A rescue success (`free_captives`) also frees captured heroes.
+- **Failure:** heroes who fell are captured (or killed with permadeath). The anomaly becomes the
+  mission's `on_failure` follow-up, a rescue that only the captives' faction can take.
+- **Either way:** surviving heroes are away (`on_mission`) for `duration` turns.
+
+The AI only takes a mission when its commander meets the mission's `recommended_level`, and
+never retries an anomaly it has already been offered. The player sees the recommendation in
+the briefing.
 
 ### How later layers plug in
 
-- **Missions (step 3):** same engine, square grid, squad-sized units, and objectives such
-  as `reach_cell` / `survive_rounds` / `interact`. Fog of war is a presentation and query
-  filter on top of the same state. Failed missions are just a result the mission layer
-  turns into a follow-up rescue mission.
+- **More mission types:** exploration missions are the same pieces (fog, triggers, reach
+  objectives, few enemies). Single-ship or small-fleet missions are a mission whose map is a
+  hex map and whose squad entries are ships. Interactable objects (terminals to hack, doors)
+  would be a new trigger effect type or command.
+- **Hero abilities in fleet battles** (HoMM-style spells) would be a hero "unit" with no grid
+  presence, or abilities granted to the flagship via the doctrine status.
+- **Empire systems (step 4):** reward types (`reward` effects) are the hook for resources and
+  tech. Heroes' `planet_id` is where a "governor" role would live.
 
 ## Content schema
 
@@ -175,6 +227,51 @@ shifted right on hex maps). The engine converts them internally.
 `hull` starts a unit damaged. `ref` ties it back to whatever it represents (a fleet's ship).
 
 **Unit, strategic part:** `"strategic": { "speed": 3, "sensor": 2 }` (galaxy moves per turn, sensor radius).
+
+**Hero class** (`data/heroes/classes.json`, keyed by id)
+```jsonc
+"vanguard": {
+  "name": "Vanguard", "description": "...",
+  "stats": { "max_hull": 80, "max_shields": 35, "armor": 2, "initiative": 6, "max_ap": 5, "sight": 6 },
+  "growth": { "max_hull": 8, "max_shields": 4 },          // per level above 1
+  "skills": { "1": ["bulwark"], "2": ["shockwave"], "4": ["rally"] },
+  "command_status": "cmd_vanguard"                        // doctrine for the fleet it commands
+}
+```
+
+**Items** (`data/heroes/items.json`): `name`, `slot` (`weapon` | `armor` | `gadget`), `description`,
+`abilities` (granted), `modifiers` (`{stat: {add, mul}}`, folded into the hero's stats).
+**Traits** (`data/heroes/traits.json`): `name`, `description`, `modifiers`.
+**Progression** (`data/heroes/progression.json`): `xp_thresholds`, `battle_xp` (`win`/`loss`), `injury_turns`.
+
+**Mission** (`data/missions/*.json`)
+```jsonc
+{
+  "id": "derelict_station", "name": "...", "description": "...",
+  "map": "derelict_deck",               // square map with deployment.squad slots
+  "squad_size": 3, "marine_unit": "marine", "requires_hero": true, "recommended_level": 2,
+  "duration": 2, "max_rounds": 25, "enemy_name": "Station Boarders",
+  "enemies": [ { "unit": "boarder", "at": [6, 2], "group": "mid" } ],   // dormant unless "alert": true
+  "objectives": [ { "type": "reach_cells", "cells": [[13, 4]], "description": "Reach the data core" } ],
+  "triggers": [ {
+    "id": "terminal", "cells": [[2, 8]], "title": "...", "text": "...",
+    "effects": [ ... ],                                    // applied on entry
+    "choices": [ { "label": "Download the logs", "text": "result text",
+                   "effects": [ { "type": "reward", "xp": 30 }, { "type": "alert", "group": "aft" } ] } ]
+  } ],
+  "rewards": { "xp": 120, "items": ["plasma_rifle"] },     // on success; "free_captives": true for rescues
+  "on_failure": { "mission": "derelict_rescue", "name": "Distress Beacon" }
+}
+```
+
+**Campaign additions:** `"permadeath": false`,
+`"heroes": [{ "id", "name", "class", "owner", "fleet": "<fleet name>" | "planet": "<planet id>", "level"?, "traits"?, "gear"?, "loyalty"? }]`,
+`"inventory": { "<faction>": ["item ids"] }`,
+`"anomalies": [{ "id", "name", "at": [c, r], "mission" }]`.
+
+**Status additions:** `"permanent": true` (never expires). Unit additions: `"sight"` stat,
+`"stat_names": {"hull": "Health"}` for display. Scenario unit entries also take
+`"unit_def"`, `"statuses": [{status, duration}]`, `"dormant"`, `"group"`.
 
 **Galaxy terrain** (`data/strategic/terrain.json`): `passable`, `move_cost`, `color`,
 `decoration` ("rocks"), `battle_map`.

@@ -19,6 +19,8 @@ static func create(d: Dictionary) -> BattleObjective:
 			o = EliminateAllObjective.new()
 		"survive_rounds":
 			o = SurviveRoundsObjective.new()
+		"reach_cells":
+			o = ReachCellsObjective.new()
 		_:
 			push_error("ObjectiveFactory: unknown objective type '%s'" % d.get("type", ""))
 			return null

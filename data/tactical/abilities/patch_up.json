@@ -1,0 +1,20 @@
+{
+  "id": "patch_up",
+  "name": "Patch Up",
+  "description": "Remote nanite repair: restore 20 health to yourself or an ally.",
+  "ap_cost": 2,
+  "cooldown": 2,
+  "target": "friendly",
+  "range": [
+    0,
+    4
+  ],
+  "effects": [
+    {
+      "type": "heal",
+      "stat": "hull",
+      "amount": 20
+    }
+  ],
+  "fx": "self"
+}

@@ -10,6 +10,11 @@ and Mass Effect-style hero missions, all built on **one shared tactical engine**
   capture and repair at, hidden-fleet ambushes, a strategic AI, and moving into an enemy
   fleet to start a battle you can **Fight** (battle screen) or **Auto-resolve**. Hull
   damage carries over between battles.
+- **Step 3 (done):** heroes and the first mission. Named heroes with classes, levels, skills,
+  gear, traits, loyalty, injuries and optional permadeath. Heroes command fleets (a doctrine
+  bonus in fleet battles) and lead away teams. Anomalies on the galaxy map launch missions:
+  ground missions on a square grid with fog of war, dormant enemy groups, story choices,
+  reinforcements and objectives. A failed mission turns into a rescue mission for captured heroes.
 
 ## Running it
 
@@ -32,11 +37,19 @@ and press **F6** (run current scene).
 | `Tab` | Next fleet with moves left |
 | Right-click / `Esc` | Deselect |
 | `Space` / `Enter` | End turn |
+| `H` | Heroes panel: gear, levels, assign/relieve fleet commanders |
 | `A` | Toggle autoplay (AI plays your faction too) |
 
 Planets: move onto one to capture it. Friendly fleets parked at your planets repair
 25% hull per turn. Nebulae and asteroid belts cost 2 moves, and battles there are
 fought on matching battle maps.
+
+Heroes: a hero commanding a fleet gives its ships a doctrine bonus in battle (Vanguard: -10%
+damage taken, Marksman: +10% damage, Technician: shield regeneration) and earns XP. To pick
+up a hero waiting at a planet, bring a fleet there and assign them in the Heroes panel.
+Anomalies (purple **?**): end a move on one with a commanded fleet to get a mission briefing.
+Launch it, auto-resolve it, or leave it for later. The hero is away for a couple of turns
+afterwards, and the fleet loses its doctrine bonus meanwhile.
 
 ### Battle controls
 
@@ -49,7 +62,9 @@ fought on matching battle maps.
 | `A` | Toggle autoplay |
 | `R` | Restart (standalone battles only) |
 
-Hover over targets to see the expected damage before you commit.
+Hover over targets to see the expected damage before you commit. In missions, the green ★
+marks the objective, yellow **?** marks something to investigate, and enemies stay hidden
+(and mostly asleep) until your squad can see them. Crates are cover (30% less damage).
 
 ## Tests and tools (headless, no editor needed)
 
@@ -83,6 +98,10 @@ CI runs the tests and both smoke tests on every push (`.github/workflows/tests.y
 - **New battle map:** `data/tactical/maps/<id>.json`, with `deployment.west`/`east` if galaxy battles use it.
 - **New campaign:** `data/strategic/campaigns/<id>.json` (map, factions, planets, fleets).
 - **Galaxy terrain / planet types:** `data/strategic/terrain.json`, `data/strategic/planet_types.json`.
+- **Heroes:** classes, items, traits and XP thresholds in `data/heroes/`; named heroes, starting
+  inventory and anomalies in the campaign file.
+- **New mission:** `data/missions/<id>.json` (map, enemies, objectives, story triggers with choices,
+  rewards, follow-up on failure), plus a square-grid map with `deployment.squad`.
 
 The content test catches broken references (unknown ability, status, map, unit, ...).
 Field reference: [docs/architecture.md](docs/architecture.md#content-schema).
@@ -94,7 +113,8 @@ data/                    content only (JSON)
 src/core/                data registry, JSON loading
 src/tactical/            shared tactical engine: pure logic, no nodes
 src/strategic/           galaxy engine: pure logic, no nodes
-src/missions/            step 3: hero missions (empty)
+src/heroes/              hero state, unit building, XP/levels
+src/missions/            mission -> tactical scenario factory
 src/presentation/        scenes and visuals (read engines, never change rules)
   game.gd, main.tscn     top-level flow: galaxy ⇄ battle
   shared/                hex map view (with fog), fx, starfield, palette, UI kit
