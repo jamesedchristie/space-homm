@@ -61,6 +61,9 @@ and press **F6** (run current scene).
 
 The 3D map opens on the area you've explored; zoom out with the wheel to see the whole sector.
 
+Battle and mission offers show the **auto-resolve odds** (from a dozen simulated runs) so you
+can decide whether to fight it yourself.
+
 Planets: move onto one to capture it. Friendly fleets parked at your planets repair
 25% hull per turn. Nebulae and asteroid belts cost 2 moves, and battles there are
 fought on matching battle maps.

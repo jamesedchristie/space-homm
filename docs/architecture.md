@@ -117,6 +117,11 @@ Player preferences (fullscreen, volume, 2D/3D per screen) live in `GameSettings`
 (`user://settings.cfg`), edited through `SettingsPanel` on the title screen and in game.
 A campaign's optional `briefing` (BBCode) is shown when a new game starts.
 
+`OddsEstimator` (`src/tactical/odds_estimator.gd`) plays copies of a pending battle or
+mission with `AutoResolver` (12 seeds) to show auto-resolve odds in the offer dialog. It uses
+`WorkerThreadPool` on desktop (engines are independent RefCounted objects; the shared effect
+table is built before threads start) and one run per frame on the single-threaded Web build.
+
 ### Saving and loading
 
 `GalaxySave` (`src/strategic/galaxy_save.gd`) snapshots the whole `GalaxyState` as plain data

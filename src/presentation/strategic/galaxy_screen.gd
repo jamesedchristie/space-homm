@@ -227,8 +227,10 @@ func _resolve_battle(token: int) -> void:
 	var ask_player := involves_player and not autoplay
 	var fight := autoplay and watch_battles and involves_player
 	if ask_player:
-		hud.ask("Battle %s" % engine.location_phrase(b["cell"]), _battle_preview(b, attacker, defender),
+		var preview := _battle_preview(b, attacker, defender)
+		hud.ask("Battle %s" % engine.location_phrase(b["cell"]), preview,
 				[{"id": "fight", "label": "Fight"}, {"id": "auto", "label": "Auto-resolve"}])
+		_show_odds(engine.pending_battle_scenario(), engine.state.faction(player_faction)["team"], preview)
 		var choice: String = await hud.dialog_choice
 		if token != _token:
 			return
@@ -258,9 +260,11 @@ func _resolve_mission(token: int) -> void:
 	if autoplay and watch_battles and players:
 		choice = "launch"
 	if ask_player:
-		hud.ask(mission.get("name", "Mission"), _mission_briefing(fleet, mission),
+		var briefing := _mission_briefing(fleet, mission)
+		hud.ask(mission.get("name", "Mission"), briefing,
 				[{"id": "launch", "label": "Launch mission"}, {"id": "auto", "label": "Auto-resolve"},
 				 {"id": "leave", "label": "Not now"}])
+		_show_odds(engine.pending_mission_scenario(), engine.state.faction(player_faction)["team"], briefing)
 		choice = await hud.dialog_choice
 		if token != _token:
 			return
@@ -281,6 +285,36 @@ func _resolve_mission(token: int) -> void:
 	if ask_player and choice != "leave" and token == _token and not engine.state.is_over:
 		hud.ask("Mission report", _mission_report(events), [{"id": "ok", "label": "Continue"}])
 		await hud.dialog_choice
+
+
+## Fills in the open battle/mission dialog with auto-resolve odds as the
+## simulations finish (in the background; the player can answer any time).
+func _show_odds(scenario: Dictionary, team: int, body: String) -> void:
+	var odds := OddsEstimator.new(data, scenario, team, 12, engine.state.turn_number * 131)
+	odds.start()
+	var shown := -1
+	var token := _token
+	while is_inside_tree() and token == _token:
+		odds.step()
+		var dialog_up := hud.is_dialog_open()
+		if dialog_up and odds.completed != shown:
+			shown = odds.completed
+			hud.set_dialog_body(body + "\n\n" + _odds_text(odds))
+		if odds.is_done():
+			break
+		if not dialog_up and not OddsEstimator.threaded():
+			break  # answered: no point spending frames on it
+		await get_tree().process_frame
+	odds.finish()
+
+
+func _odds_text(odds: OddsEstimator) -> String:
+	if not odds.is_done():
+		return UiKit.color_tag("Estimating auto-resolve odds... %d/%d" % [odds.completed, odds.runs], Palette.TEXT_DIM)
+	var pct := roundi(odds.ratio() * 100.0)
+	var color := Palette.GOOD if pct >= 65 else (Palette.BAD if pct < 40 else Palette.ACTIVE)
+	return "Auto-resolve: %s %s" % [UiKit.color_tag("about %d%% to win" % pct, color),
+			UiKit.color_tag("(%d simulated battles; fighting it yourself can do better)" % odds.runs, Palette.TEXT_DIM)]
 
 
 func _toggle_empire() -> void:

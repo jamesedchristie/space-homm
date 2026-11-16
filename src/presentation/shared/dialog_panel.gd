@@ -60,5 +60,11 @@ func ask(title: String, body_bbcode: String, choices: Array[Dictionary]) -> void
 	visible = true
 
 
+## Replaces the body text of the open dialog (e.g. a live estimate).
+func set_body(body_bbcode: String) -> void:
+	_body.clear()
+	_body.append_text(body_bbcode)
+
+
 func is_open() -> bool:
 	return visible

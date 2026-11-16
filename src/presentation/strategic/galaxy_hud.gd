@@ -90,6 +90,10 @@ func is_dialog_open() -> bool:
 	return _dialog.is_open()
 
 
+func set_dialog_body(body_bbcode: String) -> void:
+	_dialog.set_body(body_bbcode)
+
+
 ## Settings overlay (from the in-game menu). Emits settings_closed when done.
 func show_settings() -> void:
 	SettingsPanel.open_overlay(self, func() -> void: settings_closed.emit())
