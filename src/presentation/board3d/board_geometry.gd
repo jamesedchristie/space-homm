@@ -175,7 +175,7 @@ static func grid_lines(cell_polys: Array, y: float) -> Mesh:
 static func line_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_color = Color(0.45, 0.7, 0.95, 0.35)
+	m.albedo_color = Color(0.45, 0.7, 0.95, 0.11)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	return m
 
@@ -236,3 +236,133 @@ static func engine_trail(color: Color, size: float = 1.0) -> CPUParticles3D:
 	ramp.set_color(1, Color(0, 0, 0))
 	p.color_ramp = ramp
 	return p
+
+
+# --- Space scenery ------------------------------------------------------------
+
+const PLANET_SHADER := preload("res://src/presentation/shaders/planet_3d.gdshader")
+const ATMOSPHERE_SHADER := preload("res://src/presentation/shaders/atmosphere.gdshader")
+
+
+## Depth around a board: a deep starfield below and around it (parallax as the
+## camera moves), slowly drifting dust over it and a big distant planet.
+## center/extent: the board's middle and half-size (world XZ). Interiors
+## (station decks) only get the stars.
+static func space_scenery(parent: Node3D, center: Vector3, extent: Vector2, rng_seed: int, interior: bool = false) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = rng_seed
+	var span := maxf(extent.x, extent.y)
+
+	# Stars: one MultiMesh of tiny additive spheres, spread through a deep slab.
+	var star := SphereMesh.new()
+	star.radius = 0.5
+	star.height = 1.0
+	star.radial_segments = 6
+	star.rings = 3
+	var star_mat := StandardMaterial3D.new()
+	star_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	star_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	star_mat.vertex_color_use_as_albedo = true
+	star_mat.disable_receive_shadows = true
+	star.material = star_mat
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = star
+	mm.instance_count = 1400
+	for i in mm.instance_count:
+		var depth := rng.randf_range(3.0, 45.0)
+		var spread := span * 2.2 + depth * 1.6
+		var pos := center + Vector3(rng.randf_range(-spread, spread), -depth, rng.randf_range(-spread * 1.2, spread * 0.6))
+		var size := rng.randf_range(0.03, 0.09) * (1.0 + depth * 0.06)
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * size), pos))
+		var hue := rng.randf()
+		var tint := Color(0.75, 0.85, 1.0) if hue < 0.6 else (Color(1.0, 0.9, 0.7) if hue < 0.85 else Color(0.8, 0.7, 1.0))
+		var bright := rng.randf_range(0.25, 1.0) * (1.3 if rng.randf() < 0.05 else 0.7)
+		mm.set_instance_color(i, tint * bright)
+	var stars := MultiMeshInstance3D.new()
+	stars.multimesh = mm
+	stars.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(stars)
+
+	if interior:
+		return
+	# Dust: faint motes drifting through the space above the board.
+	var dust := CPUParticles3D.new()
+	var mote := SphereMesh.new()
+	mote.radius = 0.02
+	mote.height = 0.04
+	mote.radial_segments = 4
+	mote.rings = 2
+	var mote_mat := additive_material(Color(0.55, 0.65, 0.85) * 0.5)
+	mote.material = mote_mat
+	dust.mesh = mote
+	dust.amount = int(clampf(span * 18.0, 60.0, 400.0))
+	dust.lifetime = 14.0
+	dust.preprocess = 14.0
+	dust.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	dust.emission_box_extents = Vector3(extent.x + 2.0, 1.2, extent.y + 2.0)
+	dust.position = center + Vector3(0, 0.9, 0)
+	dust.direction = Vector3(1, 0.05, 0.3)
+	dust.spread = 40.0
+	dust.initial_velocity_min = 0.03
+	dust.initial_velocity_max = 0.12
+	dust.gravity = Vector3.ZERO
+	dust.scale_amount_min = 0.5
+	dust.scale_amount_max = 1.5
+	var fade := Gradient.new()
+	fade.set_color(0, Color(0, 0, 0))
+	fade.add_point(0.2, Color(1, 1, 1))
+	fade.add_point(0.8, Color(1, 1, 1))
+	fade.set_color(fade.get_point_count() - 1, Color(0, 0, 0))
+	dust.color_ramp = fade
+	dust.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(dust)
+
+	# A big planet far below and beyond the board, catching the sun.
+	var radius := span * rng.randf_range(0.7, 0.95)
+	var body := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius * 2.0
+	sphere.radial_segments = 64
+	sphere.rings = 32
+	body.mesh = sphere
+	var mat := ShaderMaterial.new()
+	mat.shader = PLANET_SHADER
+	var palettes := [
+		[Color("2b4a6e"), Color("7fa6c9"), Color("8ec5ff"), 0.0, 0.4],
+		[Color("6b3d2a"), Color("c98d5a"), Color("ffb27a"), 0.8, 0.0],
+		[Color("2f2a4a"), Color("6a5a9a"), Color("b39cff"), 0.5, 0.0],
+		[Color("2e4a3a"), Color("8a9a6a"), Color("9fe0c0"), 0.0, 0.2],
+	]
+	var pal: Array = palettes[rng.randi() % palettes.size()]
+	mat.set_shader_parameter("base_color", pal[0])
+	mat.set_shader_parameter("accent_color", pal[1])
+	mat.set_shader_parameter("atmosphere_color", pal[2])
+	mat.set_shader_parameter("bands", pal[3])
+	mat.set_shader_parameter("ice_caps", pal[4])
+	mat.set_shader_parameter("seed", rng.randf() * 20.0)
+	body.material_override = mat
+	body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var side := -1.0 if rng.randf() < 0.5 else 1.0
+	# Low and far beyond the board's back edge, off to one side: it rises
+	# behind the board at the top of the view rather than under the ships.
+	body.position = center + Vector3(side * (extent.x * 0.9 + radius * 0.6), -(radius + 14.0), -(extent.y + radius * 2.2 + 10.0))
+	body.rotation = Vector3(0.3, rng.randf() * TAU, 0.2)
+	parent.add_child(body)
+	var shell := MeshInstance3D.new()
+	var shell_mesh := SphereMesh.new()
+	shell_mesh.radius = radius * 1.08
+	shell_mesh.height = radius * 2.16
+	shell_mesh.radial_segments = 48
+	shell_mesh.rings = 24
+	shell.mesh = shell_mesh
+	var shell_mat := ShaderMaterial.new()
+	shell_mat.shader = ATMOSPHERE_SHADER
+	shell_mat.set_shader_parameter("atmosphere_color", pal[2])
+	shell_mat.set_shader_parameter("strength", 0.9)
+	shell.material_override = shell_mat
+	shell.position = body.position
+	shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(shell)

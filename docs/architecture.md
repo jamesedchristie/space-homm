@@ -179,7 +179,9 @@ text, a ping for battles, highlights, the cell under the mouse and fitting the v
 Both 3D boards share `src/presentation/board3d/`: `BoardCamera3D` (tilted orbit camera:
 fit to a screen rectangle, zoom, pan, rotate, shake, ray-plane picking; it takes the view back
 when its screen re-enters the tree) and `BoardGeometry` (lighting/environment, materials,
-extruded tiles, overlay buffers for highlights and fog, rocks and nebula puffs).
+extruded tiles, overlay buffers for highlights and fog, rocks and nebula puffs, engine
+trails, and `space_scenery()`: a deep MultiMesh starfield under the board for parallax,
+drifting dust and a distant planet; station interiors only get the stars).
 
 ## Heroes and missions (step 3)
 

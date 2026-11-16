@@ -56,6 +56,13 @@ func setup(p_engine: GalaxyEngine, p_data: DataRegistry, p_player_faction: Strin
 	_world.add_child(_rig)
 	camera = _rig.camera
 	_build_board()
+	var lo := Vector3(INF, 0, INF)
+	var hi := Vector3(-INF, 0, -INF)
+	for c in engine.state.grid.cells():
+		var w := world(c)
+		lo = Vector3(minf(lo.x, w.x), 0, minf(lo.z, w.z))
+		hi = Vector3(maxf(hi.x, w.x), 0, maxf(hi.z, w.z))
+	BoardGeometry.space_scenery(_world, (lo + hi) / 2.0, Vector2(hi.x - lo.x, hi.z - lo.z) / 2.0, engine.state.seed_value)
 	_overlay_mesh = BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material())
 	var fog_mat := ShaderMaterial.new()
 	fog_mat.shader = FOG_SHADER
@@ -121,16 +128,16 @@ func _build_board() -> void:
 	var rift := BoardGeometry.buffer()
 	for c in grid.cells():
 		var terrain := grid.terrain_def(c)
-		var fill := Color(0.05, 0.09, 0.17, 0.34)
+		var fill := Color(0.05, 0.08, 0.15, 0.08)
 		if terrain.has("color"):
 			fill = Color(terrain["color"])
-			fill.a = 0.6
+			fill.a = 0.32
 		if not terrain.get("passable", true):
 			# A rift: a dark well with a faint violet lip.
 			BoardGeometry.fill_poly(rift, _cell_poly(c, 1.0), Color(0.0, 0.0, 0.01, 0.92), -0.03)
 			BoardGeometry.outline(rift, _cell_poly(c, 0.92), -0.02, 0.05, Color(0.45, 0.25, 0.7, 0.45))
 			continue
-		BoardGeometry.prism(glass, _cell_poly(c, 0.95), -0.04, 0.0, fill.darkened(0.3), fill)
+		BoardGeometry.prism(glass, _cell_poly(c, 0.95), -0.02, 0.0, fill.darkened(0.3), fill)
 		polys.append(_cell_poly(c, 0.95))
 		var decor := Node3D.new()
 		if terrain.get("decoration", "") == "rocks":
@@ -205,7 +212,7 @@ func _set_fog(explored: Dictionary, visible_now: Dictionary) -> void:
 		if not explored.has(c):
 			BoardGeometry.fill_poly(solid, poly, top, FOG_HEIGHT)
 			# Faint hex outlines: "charted grid, unknown contents" rather than open space.
-			BoardGeometry.outline(edges, _cell_poly(c, 0.96), FOG_HEIGHT + 0.003, 0.025, Color(0.32, 0.45, 0.8, 0.13))
+			BoardGeometry.outline(edges, _cell_poly(c, 0.96), FOG_HEIGHT + 0.003, 0.025, Color(0.32, 0.45, 0.8, 0.07))
 			for i in poly.size():
 				var a := poly[i]
 				var b := poly[(i + 1) % poly.size()]
@@ -215,7 +222,7 @@ func _set_fog(explored: Dictionary, visible_now: Dictionary) -> void:
 					continue
 				_wall(solid, a, b, -0.05, FOG_HEIGHT, side)
 				BoardGeometry.ribbon(edges, Vector3(a.x, FOG_HEIGHT + 0.004, a.z), Vector3(b.x, FOG_HEIGHT + 0.004, b.z),
-						0.06, Color(0.35, 0.5, 0.85, 0.35))
+						0.05, Color(0.35, 0.5, 0.85, 0.2))
 		elif not visible_now.has(c):
 			BoardGeometry.fill_poly(edges, _cell_poly(c, 0.95), Color(0.0, 0.0, 0.03, 0.45), 0.012)
 	_fog_mesh.mesh = BoardGeometry.commit(solid)
@@ -310,7 +317,7 @@ func _redraw_overlays() -> void:
 	var buf := BoardGeometry.buffer()
 	var y := 0.02
 	for c in _move:
-		BoardGeometry.fill_poly(buf, _cell_poly(c, 0.9), Color(Palette.REACHABLE, 0.3), y)
+		BoardGeometry.fill_poly(buf, _cell_poly(c, 1.0), Color(Palette.REACHABLE, 0.12), y)
 	for c in _attack:
 		BoardGeometry.fill_poly(buf, _cell_poly(c, 0.9), Color(Palette.TARGET, 0.32), y + 0.002)
 	for i in range(1, _path.size()):

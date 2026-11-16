@@ -110,7 +110,8 @@ marks the objective, yellow **?** marks something to investigate, and enemies st
 - 3D models are procedural: each is a recipe of parts (bevelled hulls, boxes, cylinders, cones,
   spheres, rocks) in `data/models/models.json`, built at load time by
   `src/presentation/models/model_factory.gd`. Units pick one with `visual.model`; the `accent`
-  material takes the team color. A model can name a `base` whose parts come first: the
+  material takes the team color. Engine parts get team-tinted exhaust plumes automatically;
+  `light_red` / `light_green` / `beacon` parts blink and `stripe` parts glow. A model can name a `base` whose parts come first: the
   trooper, hero and boarder all build on `humanoid`. Add or reshape a model by editing JSON.
 - The UI theme is built in code (`src/presentation/shared/game_theme.gd`); colors live in `palette.gd`.
 - Ship sprites are set per unit in JSON (`visual.sprite`, with `{team}` replaced by the team's

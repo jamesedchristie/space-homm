@@ -52,6 +52,14 @@ func setup(p_engine: BattleEngine, p_data: DataRegistry, floor_style: String) ->
 	add_child(_world)
 	_build_environment()
 	_build_board()
+	var lo := Vector3(INF, 0, INF)
+	var hi := Vector3(-INF, 0, -INF)
+	for c in engine.state.grid.cells():
+		var w := world(c)
+		lo = Vector3(minf(lo.x, w.x), 0, minf(lo.z, w.z))
+		hi = Vector3(maxf(hi.x, w.x), 0, maxf(hi.z, w.z))
+	BoardGeometry.space_scenery(_world, (lo + hi) / 2.0, Vector2(hi.x - lo.x, hi.z - lo.z) / 2.0,
+			engine.state.seed_value, _floor == "deck")
 	_overlay_mesh = BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material())
 	_fog_mesh = BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material())
 	_marker_root = Node3D.new()
@@ -134,11 +142,11 @@ func _build_board() -> void:
 					if deco == "crates":
 						_crates(solid, c)
 		else:
-			var fill := Color(0.06, 0.11, 0.2, 0.42)
+			var fill := Color(0.05, 0.08, 0.15, 0.1)
 			if terrain.has("color"):
 				fill = Color(terrain["color"])
-				fill.a = 0.55
-			BoardGeometry.prism(glass, _cell_poly(c, 0.95), -0.04, 0.04, fill.darkened(0.3), fill)
+				fill.a = 0.32
+			BoardGeometry.prism(glass, _cell_poly(c, 0.95), -0.02, 0.0, fill.darkened(0.3), fill)
 			if deco == "rocks":
 				BoardGeometry.rocks(_world, world(c), hash(c))
 			if terrain.get("blocks_sight", false) and terrain.get("passable", true):
@@ -288,7 +296,7 @@ func _redraw_overlays() -> void:
 	var im := {"v": [], "c": []}  # geometry buffer, committed below
 	var y := _floor_y + 0.02
 	for c in _reach:
-		_fill_cell(im, c, y, Color(Palette.REACHABLE, 0.35))
+		BoardGeometry.fill_poly(im, _cell_poly(c, 1.0), Color(Palette.REACHABLE, 0.15), y)
 	for c in _targets:
 		_fill_cell(im, c, y + 0.002, Color(Palette.TARGET, 0.32))
 	for c in _area:

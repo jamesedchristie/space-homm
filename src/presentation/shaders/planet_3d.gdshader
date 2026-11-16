@@ -3,6 +3,7 @@
 // rim) but lit by the scene's lights. Uses 3D noise on the object-space
 // normal so there is no seam; the node itself spins.
 shader_type spatial;
+render_mode shadows_disabled;
 
 uniform vec4 base_color : source_color = vec4(0.25, 0.55, 0.38, 1.0);
 uniform vec4 accent_color : source_color = vec4(0.78, 0.74, 0.55, 1.0);

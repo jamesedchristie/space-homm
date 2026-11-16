@@ -14,8 +14,20 @@ extends RefCounted
 ##   sphere    "radius", "detail" (0-2), "squash": [x, y, z]
 ##   rock      "radius", "seed": an irregular faceted boulder
 ## A model may name a "base" model whose parts come first (e.g. "humanoid").
+## Engine parts ("material": "engine") on the x axis also get an exhaust plume
+## pointing backwards. Lights: "light_red", "light_green", "beacon" blink;
+## "stripe" is a brightly glowing team-color strip.
 ## Materials: hull, dark, accent (team color), glass, engine (glowing), gold,
 ## visor (glowing team color), rock, hazard.
+
+const PLUME := preload("res://src/presentation/shaders/engine_plume.gdshader")
+const NAV_LIGHT := preload("res://src/presentation/shaders/nav_light.gdshader")
+## Blinking light materials: [color, period, phase].
+const LIGHTS := {
+	"light_red": [Color(1.0, 0.18, 0.15), 1.4, 0.0],
+	"light_green": [Color(0.2, 1.0, 0.35), 1.4, 0.7],
+	"beacon": [Color(1.0, 0.85, 0.5), 2.2, 0.3],
+}
 
 static var _mesh_cache: Dictionary = {}
 static var _material_cache: Dictionary = {}
@@ -33,7 +45,63 @@ static func build(data: DataRegistry, model_id: String, team_color: Color) -> No
 		mi.mesh = meshes[material_name]
 		mi.material_override = material(material_name, team_color)
 		root.add_child(mi)
+	_add_plumes(root, data, model_id, team_color)
 	return root
+
+
+## Exhaust cones behind every engine part that points along x.
+static func _add_plumes(root: Node3D, data: DataRegistry, model_id: String, team_color: Color) -> void:
+	var tint := team_color.lerp(Color(1.0, 0.6, 0.25), 0.35)
+	var def: Dictionary = data.models.get(model_id, {})
+	var phase := 0.0
+	for part: Dictionary in _parts_of(data, def, 0):
+		if part.get("material", "") != "engine" or part.get("type", "") != "cylinder" or part.get("axis", "x") != "x":
+			continue
+		var at := _vec3(part.get("at", [0, 0, 0]))
+		var r := float(part.get("radius", 0.06))
+		var nozzle := at.x - float(part.get("length", 0.03)) / 2.0
+		for zsign in ([1.0, -1.0] if part.get("mirror", false) else [1.0]):
+			var plume := MeshInstance3D.new()
+			var cone := CylinderMesh.new()
+			var length := r * 6.0
+			cone.top_radius = r * 1.05
+			cone.bottom_radius = r * 0.15
+			cone.height = length
+			cone.radial_segments = 12
+			cone.rings = 1
+			cone.cap_top = false
+			cone.cap_bottom = false
+			plume.mesh = cone
+			var mat := ShaderMaterial.new()
+			mat.shader = PLUME
+			mat.set_shader_parameter("phase", phase)
+			mat.set_shader_parameter("core_color", tint.lerp(Color.WHITE, 0.6))
+			mat.set_shader_parameter("tail_color", tint)
+			phase += 1.9
+			plume.material_override = mat
+			# CylinderMesh runs along +y with the top at +height/2: turn it so
+			# the wide end sits on the nozzle and the tip points backwards (-x).
+			plume.rotation_degrees = Vector3(0, 0, 90)
+			plume.position = Vector3(nozzle - length / 2.0, at.y, at.z * zsign)
+			plume.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			root.add_child(plume)
+			var halo := MeshInstance3D.new()
+			var dot := SphereMesh.new()
+			dot.radius = r * 1.6
+			dot.height = r * 3.2
+			dot.radial_segments = 10
+			dot.rings = 5
+			halo.mesh = dot
+			var glow := StandardMaterial3D.new()
+			glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			glow.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			glow.albedo_color = tint * 0.3
+			glow.cull_mode = BaseMaterial3D.CULL_DISABLED
+			glow.no_depth_test = false
+			halo.material_override = glow
+			halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			halo.position = Vector3(nozzle - r * 0.3, at.y, at.z * zsign)
+			root.add_child(halo)
 
 
 ## A standalone faceted boulder (asteroid terrain on the 3D board).
@@ -53,14 +121,23 @@ static func material(material_name: String, team_color: Color = Color.WHITE) -> 
 	var key := "%s:%s" % [material_name, team_color.to_html()]
 	if _material_cache.has(key):
 		return _material_cache[key]
+	if material_name in LIGHTS:
+		var light := ShaderMaterial.new()
+		light.shader = NAV_LIGHT
+		var spec: Array = LIGHTS[material_name]
+		light.set_shader_parameter("color", spec[0])
+		light.set_shader_parameter("period", spec[1])
+		light.set_shader_parameter("phase", spec[2])
+		_material_cache[key] = light
+		return light
 	var m := StandardMaterial3D.new()
 	m.roughness = 0.55
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED  # normals are set explicitly, winding doesn't matter
 	match material_name:
 		"hull":
-			m.albedo_color = Color("c9ced6")
-			m.metallic = 0.45
-			m.roughness = 0.42
+			m.albedo_color = Color("aab2bf")
+			m.metallic = 0.55
+			m.roughness = 0.38
 		"dark":
 			m.albedo_color = Color("3b4252")
 			m.metallic = 0.5
@@ -90,6 +167,11 @@ static func material(material_name: String, team_color: Color = Color.WHITE) -> 
 			m.emission_enabled = true
 			m.emission = team_color.lightened(0.3)
 			m.emission_energy_multiplier = 1.4
+		"stripe":
+			m.albedo_color = team_color.lightened(0.2)
+			m.emission_enabled = true
+			m.emission = team_color.lightened(0.15)
+			m.emission_energy_multiplier = 1.6
 		"rock":
 			m.albedo_color = Color("6e6258")
 			m.roughness = 0.95
