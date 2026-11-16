@@ -23,6 +23,10 @@ func _draw() -> void:
 		var p := cam.unproject_position(pos)
 		draw_string_outline(font, p + Vector2(-30, 0), m["label"], HORIZONTAL_ALIGNMENT_CENTER, 60, 22, 5, Color(0, 0, 0, 0.8))
 		draw_string(font, p + Vector2(-30, 0), m["label"], HORIZONTAL_ALIGNMENT_CENTER, 60, 22, m["color"])
+	# Units: bars, name and status, staggered so neighbours don't overlap.
+	var shown: Array[Unit3D] = []
+	var anchors: Array[Vector2] = []
+	var boxes: Array[Rect2] = []
 	for view: Unit3D in board.views.values():
 		if not view.visible or not view.is_inside_tree():
 			continue
@@ -30,6 +34,17 @@ func _draw() -> void:
 		if cam.is_position_behind(anchor):
 			continue
 		var p := cam.unproject_position(anchor)
+		var w := maxf(46.0, font.get_string_size(view.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x)
+		var top := -32.0 if not view.status_text.is_empty() else -18.0
+		shown.append(view)
+		anchors.append(p)
+		boxes.append(Rect2(p + Vector2(-w / 2.0, top), Vector2(w, 12.0 - top)))
+	var offsets := LabelLayout.resolve(boxes)
+	for i in shown.size():
+		var view := shown[i]
+		var p := anchors[i] + Vector2(0, offsets[i])
+		if offsets[i] < -1.0:
+			draw_line(anchors[i] + Vector2(0, 10), p + Vector2(0, 12), Color(1, 1, 1, 0.25), 1.0)
 		var w := 46.0
 		_bar(p + Vector2(-w / 2.0, 0), w, float(view.shields) / view.max_shields, Palette.SHIELDS)
 		_bar(p + Vector2(-w / 2.0, 6), w, float(view.hull) / view.max_hull, Palette.HULL)
