@@ -415,6 +415,13 @@ func _play(events: Array[Dictionary], token: int) -> void:
 					board.float_text_at_fleet(hero.fleet_id, "Level up!", Palette.ACTIVE)
 			GalaxyEvents.ANOMALY_REMOVED, GalaxyEvents.ANOMALY_CHANGED:
 				_sync_views()
+			GalaxyEvents.DISCOVERY_FOUND:
+				_sync_views()
+				if e["faction"] == player_faction:
+					board.float_text_at_fleet(e["fleet"], e["name"], Color(data.discoveries.get(e["kind"], {}).get("color", "#ffffff")))
+					if not autoplay:
+						hud.ask(e["name"], "%s\n\n%s" % [e["text"], _reward_text(e["rewards"])], [{"id": "ok", "label": "Continue"}])
+						await hud.dialog_choice
 			GalaxyEvents.CAMPAIGN_ENDED:
 				_sync_views()
 				_game_over()
@@ -537,9 +544,15 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 		var planet := engine.state.planet_at(_hover)
 		if planet != null:
 			text += "   ·   %s" % planet.name
+			if not planet.traits.is_empty():
+				text += " (%s)" % ", ".join(planet.traits.map(func(t: String) -> String: return data.planet_traits.get(t, {}).get("name", t)))
 		var anomaly := engine.state.anomaly_at(_hover)
 		if not anomaly.is_empty() and engine.explored_cells(player_faction).has(_hover):
 			text += "   ·   %s: end a move here with a commanded fleet to launch a mission" % anomaly["name"]
+		var find := engine.state.discovery_at(_hover)
+		if not find.is_empty() and engine.explored_cells(player_faction).has(_hover):
+			var fdef: Dictionary = data.discoveries.get(find["kind"], {})
+			text += "   ·   %s: %s" % [fdef.get("name", ""), fdef.get("description", "")]
 		var terrain := engine.state.grid.terrain_def(_hover)
 		if not terrain.is_empty() and engine.explored_cells(player_faction).has(_hover):
 			text += "   ·   %s: %s" % [terrain.get("name", ""), terrain.get("description", "")]
@@ -666,6 +679,27 @@ func _mission_report(events: Array[Dictionary]) -> String:
 	return "\n".join(lines)
 
 
+## "+45 alloys, Interceptor joins the fleet, map revealed (radius 4)".
+func _reward_text(r: Dictionary) -> String:
+	var parts := PackedStringArray()
+	for k in ["credits", "alloys"]:
+		if r.has(k):
+			parts.append(UiKit.color_tag("+%d %s" % [r[k], k], Color(data.resources[k]["color"])))
+	if r.has("research"):
+		parts.append(UiKit.color_tag("+%d research progress" % r["research"], Color(data.resources["research"]["color"])))
+	if r.has("ship"):
+		parts.append("a %s joins the fleet" % data.units[r["ship"]].get("name", r["ship"]))
+	if r.has("item"):
+		parts.append("found: [b]%s[/b] (equip it in the Heroes panel)" % data.items[r["item"]]["name"])
+	if r.has("intel"):
+		parts.append("star charts for the surrounding systems")
+	if r.has("xp"):
+		parts.append("+%d XP for the commander" % r["xp"])
+	if r.has("damage"):
+		parts.append(UiKit.color_tag("every ship loses %d%% hull" % roundi(float(r["damage"]) * 100.0), Palette.BAD))
+	return ", ".join(parts) if not parts.is_empty() else "Nothing of use."
+
+
 func _planet_info(planet: Planet) -> String:
 	var type_def: Dictionary = data.planet_types.get(planet.type, {})
 	var owner := "Unclaimed"
@@ -683,6 +717,9 @@ func _planet_info(planet: Planet) -> String:
 			EmpirePanel._resource_text(engine, EmpireRules.planet_yields(engine, planet), true),
 			planet.buildings.size(), EmpireRules.slots(engine, planet),
 			(": " + ", ".join(building_names)) if not building_names.is_empty() else ""]
+	for t in planet.traits:
+		var tdef: Dictionary = data.planet_traits.get(t, {})
+		text += "\n" + UiKit.color_tag("%s: %s" % [tdef.get("name", t), tdef.get("description", "")], Palette.ACTIVE)
 	var defenses := EmpireRules.defense_units(engine, planet).size()
 	if defenses > 0:
 		text += "\n" + UiKit.color_tag("Defended by %d platform(s): attackers must fight them." % defenses, Palette.BAD)
@@ -780,6 +817,10 @@ func _describe(e: Dictionary) -> String:
 			return "   Battle won by %s (%d rounds)" % [s.faction(winner).get("name", "nobody"), e["rounds"]]
 		GalaxyEvents.FLEET_DESTROYED:
 			return UiKit.color_tag("   %s destroyed" % e["name"], Palette.BAD)
+		GalaxyEvents.DISCOVERY_FOUND:
+			if e["faction"] != player_faction:
+				return ""
+			return UiKit.color_tag("   %s: %s" % [e["name"], _reward_text(e["rewards"])], Palette.ACTIVE)
 		GalaxyEvents.FLEETS_MERGED:
 			if s.fleets.has(e["into"]) and s.fleets[e["into"]].owner == player_faction:
 				return "   %s joins %s" % [e["name"], e["into_name"]]

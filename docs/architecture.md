@@ -127,6 +127,20 @@ mission with `AutoResolver` (12 seeds) to show auto-resolve odds in the offer di
 `WorkerThreadPool` on desktop (engines are independent RefCounted objects; the shared effect
 table is built before threads start) and one run per frame on the single-threaded Web build.
 
+### Randomness: discoveries and planet traits
+
+A campaign's `"random"` entry adds seeded variety (`GalaxyEngine._roll_random_features`, using
+the campaign RNG so a seed always gives the same sector):
+- `"planet_traits": chance`: each unowned planet without traits may roll one from
+  `data/strategic/planet_traits.json` (`yields`, `slots`), read by `EmpireRules`.
+- `"discoveries": {"count", "kinds"?, "min_distance"?}`: one-time finds placed on free cells
+  away from planets and fleets (or listed explicitly as `"discoveries": [{"kind", "at"}]`).
+  The first fleet to enter one claims it: a weighted roll on its `outcomes` in
+  `data/strategic/discoveries.json`, rewards `credits`, `alloys`, `research` (progress),
+  `ship`, `item`, `intel` (reveal radius), `xp` (commander) or `damage` (hull fraction),
+  reported as `DISCOVERY_FOUND`. The AI grabs known finds within 4 systems unless a stronger
+  enemy is near them.
+
 ### Saving and loading
 
 `GalaxySave` (`src/strategic/galaxy_save.gd`) snapshots the whole `GalaxyState` as plain data

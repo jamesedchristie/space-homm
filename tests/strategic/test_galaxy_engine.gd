@@ -216,3 +216,50 @@ func test_split_fleet() -> void:
 	assert_eq(detached.ships[0]["uid"], "extra")
 	assert_eq(detached.moves_left, fleet.moves_left - e.state.grid.move_cost(to))
 	assert_true(e.split_targets(fleet.id).is_empty(), "a one-ship fleet can't split")
+
+
+func test_discovery_claimed_on_entry() -> void:
+	var e := Fixtures.galaxy([["a", "test_fast_dummy", 1, 2], ["b", "test_dummy", 9, 0]])
+	var f := _fleet_of(e, "a")
+	var cell := _cell(e, 3, 2)
+	e.state.discoveries["d1"] = {"id": "d1", "kind": "supply_cache", "cell": cell}
+	var credits: int = e.state.resources["a"]["credits"]
+	var result := e.submit(MoveFleetCommand.new("a", f.id, _cell(e, 4, 2)))
+	assert_true(result.ok, result.error)
+	var found := result.events.filter(func(ev: Dictionary) -> bool: return ev["type"] == GalaxyEvents.DISCOVERY_FOUND)
+	assert_eq(found.size(), 1, "flying through claims it")
+	assert_false(e.state.discoveries.has("d1"), "one-time")
+	var r: Dictionary = found[0]["rewards"]
+	assert_eq(e.state.resources["a"]["credits"], credits + int(r.get("credits", 0)))
+	if r.has("item"):
+		assert_true(r["item"] in e.state.inventory["a"])
+	assert_eq(f.cell, _cell(e, 4, 2), "the move carries on")
+
+
+func test_random_features_are_seeded() -> void:
+	var data := DataRegistry.get_default()
+	var a := GalaxyEngine.from_campaign(data, "the_drift", 77)
+	var b := GalaxyEngine.from_campaign(data, "the_drift", 77)
+	var c := GalaxyEngine.from_campaign(data, "the_drift", 78)
+	var layout := func(e: GalaxyEngine) -> String:
+		var cells := e.state.discoveries.values().map(func(d: Dictionary) -> String: return "%s@%s" % [d["kind"], d["cell"]])
+		var traits := e.state.planets.values().map(func(p: Planet) -> String: return "%s:%s" % [p.id, p.traits])
+		return str(cells) + str(traits)
+	assert_eq(a.state.discoveries.size(), 7)
+	assert_eq(layout.call(a), layout.call(b), "same seed, same sector")
+	assert_ne(layout.call(a), layout.call(c), "different seed, different finds")
+	for p: Planet in a.state.planets.values():
+		if not p.owner.is_empty():
+			assert_true(p.traits.is_empty(), "home worlds stay fair")
+
+
+func test_planet_traits_change_yields_and_slots() -> void:
+	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 9, 0]])
+	var p: Planet = e.state.planets["middle"]
+	p.traits.clear()
+	var base := EmpireRules.planet_yields(e, p)
+	var slots := EmpireRules.slots(e, p)
+	p.traits.append("rich_deposits")
+	p.traits.append("vast_continents")
+	assert_eq(EmpireRules.planet_yields(e, p).get("alloys", 0), int(base.get("alloys", 0)) + 2)
+	assert_eq(EmpireRules.slots(e, p), slots + 1)

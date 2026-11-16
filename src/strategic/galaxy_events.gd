@@ -39,6 +39,7 @@ const BUILDING_COMPLETED := "building_completed"  # {planet, building}
 const SHIP_COMPLETED := "ship_completed"        # {planet, unit, fleet, ship}
 const FLEET_CREATED := "fleet_created"          # {fleet, planet}
 const FLEETS_MERGED := "fleets_merged"          # {fleet, into, name, into_name}: `fleet` joined `into` and is gone
+const DISCOVERY_FOUND := "discovery_found"      # {discovery, kind, name, fleet, faction, text, rewards}
 const FLEET_SPLIT := "fleet_split"              # {fleet, new_fleet, ships: [names]}
 const WAR_DECLARED := "war_declared"            # {faction, target}
 const PEACE_SIGNED := "peace_signed"            # {factions: [a, b]}

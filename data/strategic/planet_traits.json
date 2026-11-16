@@ -1,0 +1,7 @@
+{
+  "rich_deposits": {"name": "Rich Deposits", "description": "+2 alloys per turn.", "yields": {"alloys": 2}},
+  "ancient_ruins": {"name": "Ancient Ruins", "description": "+2 research per turn.", "yields": {"research": 2}},
+  "trade_crossroads": {"name": "Trade Crossroads", "description": "+3 credits per turn.", "yields": {"credits": 3}},
+  "vast_continents": {"name": "Vast Continents", "description": "+1 building slot.", "slots": 1},
+  "hostile_biosphere": {"name": "Hostile Biosphere", "description": "-1 credits, +1 alloys per turn.", "yields": {"credits": -1, "alloys": 1}}
+}

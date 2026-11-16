@@ -1,0 +1,44 @@
+{
+  "derelict_hulk": {
+    "name": "Derelict Hulk",
+    "description": "A dead warship drifting in the dark. Fly a fleet in to board it.",
+    "color": "#d9a066",
+    "outcomes": [
+      {"weight": 4, "text": "Your crews strip the hulk for parts.", "rewards": {"alloys": 45}},
+      {"weight": 2, "text": "One of its escort craft still flies. A skeleton crew brings it home.", "rewards": {"ship": "interceptor"}},
+      {"weight": 2, "text": "The captain's log names a raider supply route, and the cargo bay is half full.", "rewards": {"alloys": 20, "intel": 4}},
+      {"weight": 1, "text": "The reactor was only sleeping. It goes up as you board.", "rewards": {"damage": 0.25}}
+    ]
+  },
+  "alien_signal": {
+    "name": "Strange Signal",
+    "description": "A repeating signal from no known source. Fly a fleet in to investigate.",
+    "color": "#66e0ff",
+    "outcomes": [
+      {"weight": 3, "text": "First contact, of a sort: the signal carries mathematics far beyond yours. Your scientists are ecstatic.", "rewards": {"research": 40}},
+      {"weight": 2, "text": "A probe of unknown make maps the region for you before falling silent.", "rewards": {"intel": 6}},
+      {"weight": 1, "text": "The beings behind the signal trade freely. A strange device changes hands.", "rewards": {"item": "barrier_harness"}},
+      {"weight": 1, "text": "The signal is a lure. Something old and automated opens fire before your fleet can break away, but your commander learns from it.", "rewards": {"damage": 0.2, "xp": 40}}
+    ]
+  },
+  "supply_cache": {
+    "name": "Smuggler's Cache",
+    "description": "Crates tethered to a rock, hidden from scanners. Fly a fleet in to open them.",
+    "color": "#ffd166",
+    "outcomes": [
+      {"weight": 4, "text": "Credit chips and trade goods. Finders keepers.", "rewards": {"credits": 60}},
+      {"weight": 2, "text": "Military-grade ordnance, still sealed.", "rewards": {"item": "frag_grenade", "credits": 20}},
+      {"weight": 1, "text": "Medical supplies, enough for a field hospital.", "rewards": {"item": "medkit", "credits": 10}}
+    ]
+  },
+  "survivor_pods": {
+    "name": "Escape Pods",
+    "description": "A cluster of pods, some still beeping. Fly a fleet in to pick them up.",
+    "color": "#e8f0ff",
+    "outcomes": [
+      {"weight": 3, "text": "Survivors of a raider attack. Grateful, and some of them are engineers.", "rewards": {"credits": 30, "alloys": 20}},
+      {"weight": 1, "text": "A pilot among the survivors joins your fleet, ship and all.", "rewards": {"ship": "frigate"}},
+      {"weight": 2, "text": "The pods are empty; whatever was inside got out. Your sensor logs show where it went.", "rewards": {"intel": 5}}
+    ]
+  }
+}

@@ -37,6 +37,9 @@ var anomalies: Dictionary = {}
 ## While non-empty, a fleet is at an anomaly waiting for a decision:
 ## {"anomaly": id, "fleet": fleet id}
 var pending_mission: Dictionary = {}
+## id -> {"id", "kind" (data/strategic/discoveries.json), "cell": Vector2i}: one-time
+## finds (salvage, signals, caches) claimed by the first fleet to fly in.
+var discoveries: Dictionary = {}
 ## Heroes downed on missions die instead of being injured or captured.
 var permadeath := false
 
@@ -126,6 +129,13 @@ func anomaly_at(cell: Vector2i) -> Dictionary:
 
 
 ## Where heroes go when they come home: the faction's first planet.
+func discovery_at(cell: Vector2i) -> Dictionary:
+	for d: Dictionary in discoveries.values():
+		if d["cell"] == cell:
+			return d
+	return {}
+
+
 func home_planet(faction_id: String) -> Planet:
 	var owned := planets_of(faction_id)
 	return owned[0] if not owned.is_empty() else null

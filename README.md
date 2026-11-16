@@ -66,6 +66,12 @@ The 3D map opens on the area you've explored; zoom out with the wheel to see the
 Battle and mission offers show the **auto-resolve odds** (from a dozen simulated runs) so you
 can decide whether to fight it yourself.
 
+**Every game is different:** the seed scatters one-time **discoveries** across the sector
+(derelict hulks to salvage, strange signals, smugglers' caches, escape pods). Fly a fleet in to
+find out what's there: resources, research, a free ship, star charts, an item, or now and then
+a trap. Unclaimed planets may roll **traits** (rich deposits, ancient ruins, trade crossroads,
+vast continents, hostile biosphere) that change what they're worth. Hover to see them.
+
 Planets: move onto one to capture it. Friendly fleets parked at your planets repair
 25% hull per turn. Nebulae and asteroid belts cost 2 moves, and battles there are
 fought on matching battle maps.

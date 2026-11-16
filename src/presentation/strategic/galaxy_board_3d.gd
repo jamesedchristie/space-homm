@@ -21,6 +21,7 @@ var camera: Camera3D
 var fleet_views: Dictionary = {}    # fleet id -> Fleet3D
 var planet_views: Dictionary = {}   # planet id -> Planet3D
 var anomaly_views: Dictionary = {}  # anomaly id -> Anomaly3D
+var discovery_views: Dictionary = {}  # discovery id -> Discovery3D
 
 var _world: Node3D
 var _rig: BoardCamera3D
@@ -91,6 +92,7 @@ func teardown() -> void:
 	fleet_views.clear()
 	planet_views.clear()
 	anomaly_views.clear()
+	discovery_views.clear()
 	_fog_key = ""
 	_explored = {}
 	_decor.clear()
@@ -190,6 +192,19 @@ func sync(visible_now: Dictionary, explored: Dictionary, selected_fleet: String)
 		av.setup(a)
 		av.position = world(a["cell"]) + PLANET_OFFSET
 		av.visible = explored.has(a["cell"])
+	for id: String in discovery_views.keys():
+		if not engine.state.discoveries.has(id):
+			discovery_views[id].queue_free()
+			discovery_views.erase(id)
+	for d: Dictionary in engine.state.discoveries.values():
+		var dv: Discovery3D = discovery_views.get(d["id"])
+		if dv == null:
+			dv = Discovery3D.new()
+			_world.add_child(dv)
+			dv.setup(d, data)
+			discovery_views[d["id"]] = dv
+		dv.position = world(d["cell"])
+		dv.visible = explored.has(d["cell"])
 
 
 ## Unexplored space is a dark slab with a soft rim; explored cells out of

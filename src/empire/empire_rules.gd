@@ -56,6 +56,8 @@ static func planet_yields(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 	_add(out, engine.data.planet_types.get(planet.type, {}).get("yields", {}))
 	for b in planet.buildings:
 		_add(out, engine.data.buildings.get(b, {}).get("yields", {}))
+	for t in planet.traits:
+		_add(out, engine.data.planet_traits.get(t, {}).get("yields", {}))
 	if not planet.owner.is_empty():
 		for e in tech_effects(engine, planet.owner, "yield"):
 			if out.has(e["resource"]):
@@ -96,7 +98,10 @@ static func cost_text(engine: GalaxyEngine, cost: Dictionary) -> String:
 # --- Colonies -----------------------------------------------------------------
 
 static func slots(engine: GalaxyEngine, planet: Planet) -> int:
-	return int(engine.data.planet_types.get(planet.type, {}).get("slots", 2))
+	var n := int(engine.data.planet_types.get(planet.type, {}).get("slots", 2))
+	for t in planet.traits:
+		n += int(engine.data.planet_traits.get(t, {}).get("slots", 0))
+	return n
 
 
 static func has_shipyard(engine: GalaxyEngine, planet: Planet) -> bool:

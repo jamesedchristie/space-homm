@@ -11,6 +11,7 @@ extends RefCounted
 ##   2. If badly damaged, go home to the nearest friendly planet to repair;
 ##      a small fleet without a commander joins a friendly fleet within reach.
 ##   3. With a ready commander, investigate the nearest known anomaly (mission).
+##   3b. Pick up a known discovery within 4 systems.
 ##   4. Otherwise head for the nearest planet it can take (unowned or an enemy's),
 ##      skipping planets whose defenses are too strong for it.
 ## One move per fleet per turn, then it ends the turn.
@@ -128,6 +129,17 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 				target = a["cell"]
 				anomaly_key = key
 
+	# 3b. Grab a discovery nearby (salvage, signals, caches): cheap, often rich.
+	if target == null:
+		var best_find := 5
+		var explored_cells := engine.explored_cells(fleet.owner)
+		for d: Dictionary in s.discoveries.values():
+			var dist := s.grid.distance(fleet.cell, d["cell"])
+			if dist < best_find and explored_cells.has(d["cell"]) and s.fleet_at(d["cell"]) == null \
+					and not _dangerous(engine, fleet, d["cell"], vis, my_strength, attack_ratio):
+				best_find = dist
+				target = d["cell"]
+
 	# 4. Expand.
 	if target == null:
 		var candidates: Array[Planet] = []
@@ -175,6 +187,18 @@ func _step_towards(engine: GalaxyEngine, fleet: Fleet, target: Vector2i) -> Vect
 			best_dist = d
 			best_cell = c
 	return best_cell
+
+
+## Whether a visible enemy fleet that would beat us sits within 3 of `cell`
+## (don't wander off for salvage into the jaws of a raider pack).
+func _dangerous(engine: GalaxyEngine, fleet: Fleet, cell: Vector2i, vis: Dictionary, my_strength: float,
+		attack_ratio: float) -> bool:
+	for other: Fleet in engine.state.fleets.values():
+		if engine.state.at_war(fleet.owner, other.owner) and vis.has(other.cell) \
+				and engine.state.grid.distance(other.cell, cell) <= 3 \
+				and other.strength(engine.data) * attack_ratio > my_strength:
+			return true
+	return false
 
 
 ## A faction's AI setting from its campaign "ai" entry, or the default.

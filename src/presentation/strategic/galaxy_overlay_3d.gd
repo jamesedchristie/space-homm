@@ -25,6 +25,9 @@ func _draw() -> void:
 	for av: Anomaly3D in board.anomaly_views.values():
 		if av.visible:
 			_add_text_item(items, boxes, av, av.label_height, av.display_name, 11, Anomaly3D.COLOR.lightened(0.35))
+	for dv: Discovery3D in board.discovery_views.values():
+		if dv.visible:
+			_add_text_item(items, boxes, dv, dv.label_height, dv.display_name, 10, dv.color.lightened(0.2))
 	for fv: Fleet3D in board.fleet_views.values():
 		if not fv.visible or not fv.is_inside_tree():
 			continue

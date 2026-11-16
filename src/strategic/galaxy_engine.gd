@@ -69,6 +69,8 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 		p.description = p_def.get("description", p_data.planet_types.get(p.type, {}).get("description", ""))
 		for b: String in p_def.get("buildings", []):
 			p.buildings.append(b)
+		for t: String in p_def.get("traits", []):
+			p.traits.append(t)
 		s.planets[p.id] = p
 
 	var fleet_by_name := {}
@@ -115,6 +117,10 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 	for a_def: Dictionary in def.get("anomalies", []):
 		s.anomalies[a_def["id"]] = {"id": a_def["id"], "name": a_def.get("name", a_def["id"]),
 				"cell": s.grid.cell_from_layout(_layout(a_def.get("at", [0, 0]))), "mission": a_def["mission"]}
+	for d_def: Dictionary in def.get("discoveries", []):
+		var d_id: String = d_def.get("id", s.make_uid("discovery"))
+		s.discoveries[d_id] = {"id": d_id, "kind": d_def["kind"], "cell": s.grid.cell_from_layout(_layout(d_def.get("at", [0, 0])))}
+	engine._roll_random_features(def.get("random", {}))
 	s.permadeath = def.get("permadeath", false)
 	for r: Dictionary in def.get("relations", []):
 		var pair: Array = r["factions"]
@@ -122,6 +128,52 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 		DiplomacyRules.change_opinion(s, pair[0], pair[1], int(r.get("opinion", 0)))
 		DiplomacyRules.change_opinion(s, pair[1], pair[0], int(r.get("opinion", 0)))
 	return engine
+
+
+## Seeded variety, so no two games of a campaign play the same:
+##   "planet_traits": chance (0..1) that each unowned planet without traits rolls one
+##   "discoveries": {"count", "kinds": [ids] (default all), "min_distance": from planets and fleets}
+func _roll_random_features(random: Dictionary) -> void:
+	var s := state
+	var trait_ids := data.planet_traits.keys()
+	trait_ids.sort()
+	if not trait_ids.is_empty():
+		var chance := float(random.get("planet_traits", 0.0))
+		var ids := s.planets.keys()
+		ids.sort()
+		for id: String in ids:
+			var p: Planet = s.planets[id]
+			if p.owner.is_empty() and p.traits.is_empty() and s.rng.randf() < chance:
+				p.traits.append(trait_ids[s.rng.randi() % trait_ids.size()])
+	var spec: Dictionary = random.get("discoveries", {})
+	var count := int(spec.get("count", 0))
+	if count <= 0:
+		return
+	var kinds: Array = spec.get("kinds", data.discoveries.keys())
+	kinds.sort()
+	var min_d := int(spec.get("min_distance", 2))
+	var free: Array[Vector2i] = []
+	for c in s.grid.cells():
+		if not s.grid.is_passable(c) or not s.anomaly_at(c).is_empty() or not s.discovery_at(c).is_empty():
+			continue
+		var clear := true
+		for p: Planet in s.planets.values():
+			if s.grid.distance(p.cell, c) < min_d:
+				clear = false
+				break
+		for f: Fleet in s.fleets.values():
+			if clear and s.grid.distance(f.cell, c) < min_d:
+				clear = false
+		if clear:
+			free.append(c)
+	for i in count:
+		if free.is_empty() or kinds.is_empty():
+			break
+		var cell: Vector2i = free[s.rng.randi() % free.size()]
+		# Keep finds spread out.
+		free = free.filter(func(c: Vector2i) -> bool: return s.grid.distance(c, cell) >= 2)
+		var d_id := s.make_uid("discovery")
+		s.discoveries[d_id] = {"id": d_id, "kind": kinds[s.rng.randi() % kinds.size()], "cell": cell}
 
 
 static func _layout(at: Array) -> Vector2i:
@@ -787,6 +839,12 @@ func _do_move(cmd: MoveFleetCommand) -> void:
 		fleet.cell = next
 		walked.append(next)
 		_reveal_around(fleet)
+		var find := state.discovery_at(next)
+		if not find.is_empty():
+			# Report the move so far first, so the find happens where the fleet is.
+			emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": fleet.id, "path": walked.duplicate(), "moves_left": fleet.moves_left})
+			walked = [next]
+			_claim_discovery(fleet, find)
 	if walked.size() > 1:
 		emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": fleet.id, "path": walked, "moves_left": fleet.moves_left})
 
@@ -833,6 +891,63 @@ func _merge(fleet: Fleet, into: Fleet) -> void:
 			"into_name": into.name})
 
 
+## The first fleet into a discovery rolls on its outcome table and gets the rewards:
+## credits, alloys, research (progress on the current project), ship (joins the
+## fleet if there's room, else becomes alloys), item, intel (reveals a radius),
+## xp (commander), damage (fraction of every ship's hull).
+func _claim_discovery(fleet: Fleet, find: Dictionary) -> void:
+	state.discoveries.erase(find["id"])
+	var def: Dictionary = data.discoveries.get(find["kind"], {})
+	var outcomes: Array = def.get("outcomes", [])
+	var total := 0
+	for o: Dictionary in outcomes:
+		total += int(o.get("weight", 1))
+	var roll := state.rng.randi_range(1, maxi(total, 1))
+	var outcome: Dictionary = outcomes[0] if not outcomes.is_empty() else {}
+	for o: Dictionary in outcomes:
+		roll -= int(o.get("weight", 1))
+		if roll <= 0:
+			outcome = o
+			break
+	var rewards: Dictionary = outcome.get("rewards", {}).duplicate()
+	var faction := fleet.owner
+	var stock: Dictionary = state.resources[faction]
+	for k in ["credits", "alloys"]:
+		if rewards.has(k):
+			stock[k] = int(stock[k]) + int(rewards[k])
+	if rewards.has("research"):
+		var r: Dictionary = state.research[faction]
+		r["progress"] = int(r["progress"]) + int(rewards["research"])
+	if rewards.has("ship"):
+		var unit_def: Dictionary = data.units[rewards["ship"]]
+		if fleet.ships.size() < EmpireRules.MAX_FLEET_SIZE:
+			fleet.ships.append({"uid": state.make_uid("ship"), "unit": rewards["ship"],
+					"name": "%s %d" % [unit_def.get("name", rewards["ship"]), state.next_uid],
+					"hull": int(unit_def["stats"]["max_hull"])})
+		else:
+			rewards.erase("ship")
+			rewards["alloys"] = int(rewards.get("alloys", 0)) + 40
+			stock["alloys"] = int(stock["alloys"]) + 40
+	if rewards.has("item"):
+		state.inventory[faction].append(rewards["item"])
+	if rewards.has("intel"):
+		var explored: Dictionary = state.explored[faction]
+		for c in state.grid.cells_within(find["cell"], int(rewards["intel"])):
+			explored[c] = true
+	if rewards.has("xp"):
+		var commander := state.commander_of(fleet)
+		if commander != null:
+			_grant_xp(commander, int(rewards["xp"]))
+		else:
+			rewards.erase("xp")
+	if rewards.has("damage"):
+		for ship in fleet.ships:
+			ship["hull"] = maxi(1, int(ship["hull"]) - ceili(int(ship["hull"]) * float(rewards["damage"])))
+	emit({"type": GalaxyEvents.DISCOVERY_FOUND, "discovery": find["id"], "kind": find["kind"],
+			"name": def.get("name", find["kind"]), "fleet": fleet.id, "faction": faction,
+			"text": outcome.get("text", ""), "rewards": rewards})
+
+
 func _do_split(cmd: SplitFleetCommand) -> void:
 	var fleet: Fleet = state.fleets[cmd.fleet_id]
 	var detached := Fleet.new()
@@ -852,6 +967,9 @@ func _do_split(cmd: SplitFleetCommand) -> void:
 	emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": detached.id, "path": [fleet.cell, cmd.to] as Array[Vector2i],
 			"moves_left": detached.moves_left})
 	_reveal_around(detached)
+	var find := state.discovery_at(detached.cell)
+	if not find.is_empty():
+		_claim_discovery(detached, find)
 	var planet := state.planet_at(detached.cell)
 	if planet != null and planet.owner.is_empty():
 		_capture_planet(planet, detached)

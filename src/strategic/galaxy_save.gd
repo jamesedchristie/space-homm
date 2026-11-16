@@ -28,6 +28,7 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 	for p: Planet in s.planets.values():
 		planets.append({"id": p.id, "name": p.name, "type": p.type, "cell": p.cell, "owner": p.owner,
 				"sensor": p.sensor, "description": p.description, "buildings": p.buildings.duplicate(),
+				"traits": p.traits.duplicate(),
 				"queue": p.queue.duplicate(true)})
 	var fleets := []
 	for f: Fleet in s.fleets.values():
@@ -69,6 +70,7 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 			"next_uid": s.next_uid,
 			"inventory": s.inventory.duplicate(true),
 			"anomalies": s.anomalies.duplicate(true),
+			"discoveries": s.discoveries.duplicate(true),
 			"permadeath": s.permadeath,
 			"resources": s.resources.duplicate(true),
 			"research": s.research.duplicate(true),
@@ -107,6 +109,7 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 		p.sensor = p_d["sensor"]
 		p.description = p_d["description"]
 		p.buildings.assign(p_d["buildings"])
+		p.traits.assign(p_d.get("traits", []))
 		p.queue = p_d["queue"]
 		s.planets[p.id] = p
 	for f_d: Dictionary in d["fleets"]:
@@ -152,6 +155,7 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 	s.next_uid = d["next_uid"]
 	s.inventory = d["inventory"]
 	s.anomalies = d["anomalies"]
+	s.discoveries = d.get("discoveries", {})
 	s.permadeath = d["permadeath"]
 	s.resources = d["resources"]
 	s.research = d["research"]

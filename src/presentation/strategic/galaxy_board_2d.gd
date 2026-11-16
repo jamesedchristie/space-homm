@@ -14,6 +14,7 @@ var fx: FxLayer
 var fleet_views: Dictionary = {}    # fleet id -> FleetView
 var planet_views: Dictionary = {}   # planet id -> PlanetView
 var anomaly_views: Dictionary = {}  # anomaly id -> AnomalyView
+var discovery_views: Dictionary = {}  # discovery id -> DiscoveryView
 
 
 func _init(p_map_view: GridMapView, p_planets: Node2D, p_fleets: Node2D, p_anomalies: Node2D, p_fx: FxLayer) -> void:
@@ -43,11 +44,12 @@ func teardown() -> void:
 
 
 func _clear() -> void:
-	for v: Node in fleet_views.values() + planet_views.values() + anomaly_views.values():
+	for v: Node in fleet_views.values() + planet_views.values() + anomaly_views.values() + discovery_views.values():
 		v.queue_free()
 	fleet_views.clear()
 	planet_views.clear()
 	anomaly_views.clear()
+	discovery_views.clear()
 
 
 func sync(visible_now: Dictionary, explored: Dictionary, selected_fleet: String) -> void:
@@ -82,6 +84,19 @@ func sync(visible_now: Dictionary, explored: Dictionary, selected_fleet: String)
 		av.setup(a)
 		av.position = map_view.cell_center(a["cell"]) + PLANET_OFFSET
 		av.visible = explored.has(a["cell"])
+	for id: String in discovery_views.keys():
+		if not engine.state.discoveries.has(id):
+			discovery_views[id].queue_free()
+			discovery_views.erase(id)
+	for d: Dictionary in engine.state.discoveries.values():
+		var dv: DiscoveryView = discovery_views.get(d["id"])
+		if dv == null:
+			dv = DiscoveryView.new()
+			anomalies_layer.add_child(dv)
+			dv.setup(d, data)
+			discovery_views[d["id"]] = dv
+		dv.position = map_view.cell_center(d["cell"])
+		dv.visible = explored.has(d["cell"])
 
 
 func is_fleet_shown(fleet_id: String) -> bool:

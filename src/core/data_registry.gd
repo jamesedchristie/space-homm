@@ -28,6 +28,8 @@ var scenarios: Dictionary = {}
 # Strategic layer
 var galaxy_terrain: Dictionary = {}
 var planet_types: Dictionary = {}
+var discoveries: Dictionary = {}
+var planet_traits: Dictionary = {}
 var campaigns: Dictionary = {}
 
 # Heroes and missions
@@ -70,6 +72,8 @@ func load_from(root: String) -> bool:
 	_load_keyed_file(root.path_join("tactical/terrain.json"), terrain)
 	_load_keyed_file(root.path_join("strategic/terrain.json"), galaxy_terrain)
 	_load_keyed_file(root.path_join("strategic/planet_types.json"), planet_types)
+	_load_keyed_file(root.path_join("strategic/discoveries.json"), discoveries)
+	_load_keyed_file(root.path_join("strategic/planet_traits.json"), planet_traits)
 	_load_dir(root.path_join("strategic/campaigns"), campaigns)
 	_load_keyed_file(root.path_join("heroes/classes.json"), hero_classes)
 	_load_keyed_file(root.path_join("heroes/items.json"), items)
@@ -131,6 +135,13 @@ func validate() -> PackedStringArray:
 		_validate_battle_map("galaxy terrain '%s'" % id, galaxy_terrain[id])
 	for id: String in planet_types:
 		_validate_battle_map("planet type '%s'" % id, planet_types[id])
+	for id: String in discoveries:
+		for o: Dictionary in discoveries[id].get("outcomes", []):
+			var r: Dictionary = o.get("rewards", {})
+			if r.has("ship") and not units.has(r["ship"]):
+				_err("discovery '%s': unknown ship '%s'" % [id, r["ship"]])
+			if r.has("item") and not items.has(r["item"]):
+				_err("discovery '%s': unknown item '%s'" % [id, r["item"]])
 	for id: String in campaigns:
 		_validate_campaign(id, campaigns[id])
 
