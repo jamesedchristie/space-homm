@@ -8,7 +8,8 @@ extends RefCounted
 ##   (make peace with AI factions that will accept, declare war on hated weak ones).
 ## Then per fleet, in order:
 ##   1. Attack a visible fleet it is at war with and strong enough to beat.
-##   2. If badly damaged, go home to the nearest friendly planet to repair.
+##   2. If badly damaged, go home to the nearest friendly planet to repair;
+##      a small fleet without a commander joins a friendly fleet within reach.
 ##   3. With a ready commander, investigate the nearest known anomaly (mission).
 ##   4. Otherwise head for the nearest planet it can take (unowned or an enemy's),
 ##      skipping planets whose defenses are too strong for it.
@@ -97,6 +98,18 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 			if home.cell == fleet.cell:
 				return fleet.cell
 			target = home.cell
+
+	# 2b. Regroup: a small fleet with nothing to attack joins a friendly fleet
+	# it can reach this turn (bigger fleets win more battles).
+	if target == null and fleet.ships.size() < MUSTER_SIZE and fleet.hero_id.is_empty():
+		var reach := engine.reachable_for(fleet.id)
+		var best_join: Fleet = null
+		for other: Fleet in s.fleets_of(fleet.owner):
+			if other != fleet and reach.has(other.cell) and engine.can_merge(fleet, other) \
+					and (best_join == null or other.ships.size() > best_join.ships.size()):
+				best_join = other
+		if best_join != null:
+			return best_join.cell
 
 	# 3. Investigate anomalies the fleet is ready for.
 	var anomaly_key := ""
