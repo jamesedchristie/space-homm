@@ -24,6 +24,7 @@ var _active_ring: MeshInstance3D
 var _is_ship := false
 var _spins := false
 var _t := 0.0
+var _trail: CPUParticles3D
 
 
 func setup(u: BattleUnit, data: DataRegistry, color: Color) -> void:
@@ -40,6 +41,9 @@ func setup(u: BattleUnit, data: DataRegistry, color: Color) -> void:
 	add_child(_model)
 	if _is_ship and not _spins:
 		_model.position.y = SHIP_ALTITUDE
+		_trail = BoardGeometry.engine_trail(color, 1.3)
+		_trail.position.y = SHIP_ALTITUDE
+		add_child(_trail)
 	label_height = (SHIP_ALTITUDE + 0.75) if _is_ship else 1.6
 	_t = randf() * TAU
 
@@ -125,7 +129,11 @@ func move_along(points: Array[Vector3], step_time: float = 0.16) -> void:
 		tw.tween_callback(face_angle.bind(atan2(d.z, d.x)))
 		tw.tween_property(self, "position", p, step_time).set_trans(Tween.TRANS_SINE)
 		prev = p
+	if _trail != null:
+		_trail.emitting = true
 	await tw.finished
+	if _trail != null:
+		_trail.emitting = false
 
 
 func play_hit() -> void:

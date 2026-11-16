@@ -205,3 +205,34 @@ static func rocks(parent: Node3D, center: Vector3, rng_seed: int, scale: float =
 		rock.position = center + Vector3(rng.randf_range(-0.3, 0.3), rng.randf_range(0.15, 0.4), rng.randf_range(-0.3, 0.3)) * scale
 		rock.rotation = Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU)
 		parent.add_child(rock)
+
+
+## A fading wake of glowing motes, emitted in world space (so it trails
+## behind a moving parent). Toggle `emitting` while the parent moves.
+static func engine_trail(color: Color, size: float = 1.0) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	var mote := SphereMesh.new()
+	mote.radius = 0.055 * size
+	mote.height = 0.11 * size
+	mote.radial_segments = 6
+	mote.rings = 3
+	var mat := additive_material(Color.WHITE)
+	mat.vertex_color_use_as_albedo = true
+	mote.material = mat
+	p.mesh = mote
+	p.local_coords = false
+	p.emitting = false
+	p.amount = 150
+	p.lifetime = 0.7
+	p.direction = Vector3.ZERO
+	p.spread = 180.0
+	p.initial_velocity_min = 0.0
+	p.initial_velocity_max = 0.08
+	p.gravity = Vector3.ZERO
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.2
+	var ramp := Gradient.new()
+	ramp.set_color(0, color.lightened(0.6) * 1.6)
+	ramp.set_color(1, Color(0, 0, 0))
+	p.color_ramp = ramp
+	return p

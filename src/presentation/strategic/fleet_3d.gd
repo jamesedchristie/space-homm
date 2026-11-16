@@ -22,6 +22,7 @@ var _models: Node3D
 var _select_ring: MeshInstance3D
 var _composition := ""
 var _t := 0.0
+var _trail: CPUParticles3D
 
 
 func setup(fleet: Fleet, team: int, data: DataRegistry, owned_by_player: bool) -> void:
@@ -33,6 +34,9 @@ func setup(fleet: Fleet, team: int, data: DataRegistry, owned_by_player: bool) -
 	_models = Node3D.new()
 	_models.position.y = ALTITUDE
 	add_child(_models)
+	_trail = BoardGeometry.engine_trail(color)
+	_trail.position = Vector3(0, ALTITUDE, 0)
+	add_child(_trail)
 
 	var ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
@@ -133,7 +137,9 @@ func move_along(points: Array[Vector3], step_time: float = 0.14) -> void:
 		tw.tween_callback(face_angle.bind(atan2(d.z, d.x)))
 		tw.tween_property(self, "position", p, step_time).set_trans(Tween.TRANS_SINE)
 		prev = p
+	_trail.emitting = true
 	await tw.finished
+	_trail.emitting = false
 
 
 func play_destroyed() -> void:
