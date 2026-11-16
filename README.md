@@ -174,10 +174,34 @@ tools/                   balance simulators, smoke tests
 
 See [docs/architecture.md](docs/architecture.md) for how the pieces fit together.
 
-## Notes for exports
+## Builds and exports
 
-- Renderer is **GL Compatibility** so the same project exports to Mac, Windows, Linux and Web.
-- Web export: Godot 4.3+ can export single-threaded, which avoids the SharedArrayBuffer headers
-  most hosts (e.g. itch.io) don't send. Tick "Thread Support: off" in the Web export preset.
-- When you create export presets, add `data/*` to **Resources → Filters to export non-resource
-  files** so the JSON content ships with the build.
+Every push runs the **builds** workflow, which exports the game for Linux, Windows, macOS and
+the Web (presets in `export_presets.cfg`). Download them from the repository's **Actions** tab:
+open the latest *builds* run and scroll to **Artifacts**.
+
+- **Windows**: unzip, run `space-homm.exe`. SmartScreen may warn about an unknown publisher
+  ("More info" -> "Run anyway").
+- **macOS** (Intel and Apple Silicon): unzip twice to get `space-homm.app`. It isn't notarized,
+  so macOS will say it's damaged or from an unidentified developer. Clear the download
+  quarantine once in Terminal, then open it normally:
+
+  ```bash
+  xattr -dr com.apple.quarantine /path/to/space-homm.app
+  ```
+- **Linux**: unzip, `chmod +x space-homm.x86_64`, run it.
+- **Web**: unzip and serve the folder over HTTP (browsers won't load it from `file://`), e.g.
+  `python3 -m http.server` in that folder, then open <http://localhost:8000>. Saves go to the
+  browser's storage. It's a single-threaded build, so it also works on hosts like itch.io that
+  don't send cross-origin isolation headers.
+
+To export locally: Editor -> Project -> Export (install the 4.5.1 export templates when asked), or
+headless: `godot --headless --path . --export-release "Linux"` (also `Windows`, `macOS`, `Web`;
+create `build/<platform>/` and an empty `build/.gdignore` first).
+
+Notes:
+- Renderer is **GL Compatibility** so the same project runs on all four targets.
+- The presets include `data/*` as non-resource files so the JSON content ships with the build;
+  keep that filter if you add presets.
+- macOS builds are universal and ad-hoc signed (needed on Apple Silicon); that's why ETC2/ASTC
+  texture import is enabled in the project settings.

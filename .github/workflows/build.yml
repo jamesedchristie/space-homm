@@ -1,0 +1,73 @@
+name: builds
+
+# Exports playable builds for every platform and attaches them to the run as
+# artifacts (Actions tab -> run -> Artifacts). Runs on pushes and on demand.
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.5.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Godot
+        run: |
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot
+          chmod +x godot
+
+      - name: Cache export templates
+        id: templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-${{ env.GODOT_VERSION }}-desktop-web
+
+      - name: Download export templates
+        if: steps.templates.outputs.cache-hit != 'true'
+        run: |
+          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dir"
+          curl -sSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          # Only the templates the presets use (the full set is ~1.3 GB).
+          unzip -o -j -q templates.tpz templates/version.txt templates/linux_release.x86_64 \
+            templates/windows_release_x86_64.exe templates/macos.zip templates/web_nothreads_release.zip -d "$dir"
+          rm templates.tpz
+
+      - name: Import project
+        run: ./godot --headless --path . --import
+
+      - name: Export
+        run: |
+          mkdir -p build/linux build/windows build/macos build/web
+          touch build/.gdignore
+          for preset in Linux Windows macOS Web; do
+            ./godot --headless --path . --export-release "$preset" 2>&1 | tee "export-$preset.log"
+          done
+          ls -la build/*
+          test -f build/linux/space-homm.x86_64
+          test -f build/windows/space-homm.exe
+          test -f build/macos/space-homm.zip
+          test -f build/web/index.html
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: space-homm-linux
+          path: build/linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: space-homm-windows
+          path: build/windows
+      - uses: actions/upload-artifact@v4
+        with:
+          name: space-homm-macos
+          path: build/macos
+      - uses: actions/upload-artifact@v4
+        with:
+          name: space-homm-web
+          path: build/web
