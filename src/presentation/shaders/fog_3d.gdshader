@@ -46,5 +46,5 @@ void fragment() {
 	// Rare faint stars, so it reads as "uncharted" rather than "nothing".
 	float star = step(0.9965, hash(floor(world_pos.xz * 18.0)));
 	col += vec3(0.5, 0.6, 0.8) * star * 0.5;
-	ALBEDO = col * COLOR.rgb;
+	ALBEDO = col * COLOR.rgb * 0.8;
 }

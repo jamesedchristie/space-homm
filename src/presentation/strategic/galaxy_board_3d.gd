@@ -204,6 +204,8 @@ func _set_fog(explored: Dictionary, visible_now: Dictionary) -> void:
 		var poly := _cell_poly(c, 1.0)
 		if not explored.has(c):
 			BoardGeometry.fill_poly(solid, poly, top, FOG_HEIGHT)
+			# Faint hex outlines: "charted grid, unknown contents" rather than open space.
+			BoardGeometry.outline(edges, _cell_poly(c, 0.96), FOG_HEIGHT + 0.003, 0.025, Color(0.32, 0.45, 0.8, 0.13))
 			for i in poly.size():
 				var a := poly[i]
 				var b := poly[(i + 1) % poly.size()]

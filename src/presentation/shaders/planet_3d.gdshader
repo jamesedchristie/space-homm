@@ -54,7 +54,9 @@ void fragment() {
 		float cap = smoothstep(0.62, 0.82, abs(n.y) + (h - 0.5) * 0.25);
 		col = mix(col, vec3(0.93, 0.97, 1.0), cap * ice_caps);
 	}
-	ALBEDO = col * 0.8;
+	// Pale surfaces (gas giants, ice) would glare under the board's lights.
+	float lum = dot(col, vec3(0.299, 0.587, 0.114));
+	ALBEDO = col * mix(0.8, 0.55, smoothstep(0.45, 0.85, lum));
 	ROUGHNESS = 0.8;
 	SPECULAR = 0.15;
 	float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.5);
