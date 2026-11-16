@@ -25,8 +25,14 @@ and Mass Effect-style hero missions, all built on **one shared tactical engine**
 1. Install **Godot 4.5** (standard build, not .NET): <https://godotengine.org/download>.
    On a Mac, drag it into Applications. It runs natively on Apple Silicon.
 2. Open Godot, click **Import**, and select this folder's `project.godot`.
-3. Press **F5** (or the ▶ button). The campaign *The Drift* starts with you as the
-   Patrol Group (blue).
+3. Press **F5** (or the ▶ button). On the title screen, pick **New campaign** (options:
+   permadeath, a fixed seed) to play *The Drift* as the Patrol Group (blue), or **Continue**
+   the latest save.
+
+Saving: the game autosaves at the start of each of your turns. `Esc` (with nothing selected)
+or the **Menu** button opens the in-game menu with Save (three slots), Load, Main menu and
+Quit. `F5` quicksaves and `F9` loads the quicksave. Saves live in Godot's user data folder
+(`user://saves/`; on a Mac that's `~/Library/Application Support/Godot/app_userdata/space-homm/`).
 
 To jump straight into a single battle, open `src/presentation/tactical/battle_screen.tscn`
 and press **F6** (run current scene).
@@ -39,7 +45,8 @@ and press **F6** (run current scene).
 | Click a blue / red hex | Move there / attack the fleet there |
 | Click a planet or visible enemy | Show info |
 | `Tab` | Next fleet with moves left |
-| Right-click / `Esc` | Deselect |
+| Right-click / `Esc` | Deselect (`Esc` with nothing selected opens the menu) |
+| `F5` / `F9` | Quicksave / load the quicksave |
 | `Space` / `Enter` | End turn |
 | `E` | Empire panel: colonies and build queues, research, diplomacy |
 | `H` | Heroes panel: gear, levels, assign/relieve fleet commanders |

@@ -101,13 +101,27 @@ It reuses `HexGrid` and `Pathfinding`. A galaxy is just a hex map with galaxy te
 
 ### Screens
 
-`main.tscn` runs `game.gd`, which owns the galaxy screen. When the player picks **Fight**,
+`main.tscn` runs `game.gd`, which shows the title screen (`MainMenu`) and then owns the
+galaxy screen (`skip_menu`, or the `--new-campaign` user argument, goes straight to a new
+campaign; the smoke test uses it). When the player picks **Fight**,
 the galaxy screen emits `battle_requested(scenario, seed)`. `game.gd` takes the galaxy out
 of the tree (keeping its state), shows a `BattleScreen` set up via `configure()`, and on
 `battle_finished(engine)` puts the galaxy back and calls `on_battle_finished(engine)`.
 The galaxy screen's coroutine, which was waiting on that, then resolves the battle into
 the campaign. Both screens share `GridMapView` (with fog support), `FxLayer`, `Starfield`,
 `Palette` and `UiKit`.
+
+### Saving and loading
+
+`GalaxySave` (`src/strategic/galaxy_save.gd`) snapshots the whole `GalaxyState` as plain data
+(dictionaries, arrays, numbers, strings, `Vector2i`) plus the campaign id and display info
+(campaign name, turn, time). The grid isn't stored: it's rebuilt from the campaign, since
+galaxy terrain never changes. The RNG state is stored, so a loaded game continues exactly as
+the original would have (a test plays both to the end and compares). Files go to
+`user://saves/<slot>.save` via `FileAccess.store_var` and are read with objects disallowed, so
+a save can only hold data. Saves are only taken between turns (no pending battle or mission);
+the galaxy screen autosaves at the start of each human turn. Bump `GalaxySave.VERSION` and
+migrate in `from_dict()` when the state's shape changes.
 
 ### Battle views (2D and 2.5D)
 

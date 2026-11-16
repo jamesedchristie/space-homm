@@ -11,6 +11,10 @@ extends Node2D
 signal battle_requested(scenario: Dictionary, battle_seed: int)
 ## Internal: the owner handed back a finished battle.
 signal battle_returned(engine: BattleEngine)
+## The player chose "Main menu" in the in-game menu.
+signal main_menu_requested
+## The player chose a save to load (the owner loads it via load_campaign()).
+signal load_requested(slot: String)
 
 ## "3d" (tilted camera over a lit board) or "2d" (flat top-down). V toggles.
 static var view_mode := "3d"
@@ -18,6 +22,8 @@ static var view_mode := "3d"
 @export var campaign_id := "the_drift"
 ## 0 picks a random seed each campaign.
 @export var rng_seed := 0
+## Start a campaign on _ready (running this scene alone). Game turns it off.
+@export var auto_start := true
 ## Autoplay: the AI also plays the player's faction (press A).
 @export var autoplay := false
 ## In autoplay, play battles involving the player on the battle screen
@@ -43,6 +49,7 @@ var selected_anomaly := ""
 var permadeath_override: Variant = null
 
 var _busy := false
+var _last_autosave_turn := -1
 var _hover: Variant = null
 var _reach: Dictionary = {}
 var _attack_cells: Array[Vector2i] = []
@@ -62,23 +69,49 @@ func _ready() -> void:
 	hud.empire.closed.connect(_refresh)
 	hud.roster.command_requested.connect(_on_roster_command)
 	hud.roster.closed.connect(_refresh)
+	hud.menu_pressed.connect(_open_menu)
 	get_viewport().size_changed.connect(_fit_map)
-	start_campaign()
+	if auto_start:
+		start_campaign()
 
 
 func start_campaign() -> void:
+	var token := _begin(GalaxyEngine.from_campaign(data, campaign_id, rng_seed))
+	if permadeath_override != null:
+		engine.state.permadeath = permadeath_override
+	_busy = true
+	await _play(engine.start(), token)
+	if token == _token:
+		_fit_map()  # now that the starting area is explored
+		await _continue(token)
+
+
+## Continues a saved campaign (see GalaxySave). Saves are made between turns,
+## so play picks up at the start of the player's turn.
+func load_campaign(loaded: GalaxyEngine, p_campaign_id: String, label: String = "") -> void:
+	campaign_id = p_campaign_id
+	autoplay = false
+	var token := _begin(loaded)
+	_last_autosave_turn = engine.state.turn_number
+	_sync_views()
+	_fit_map()
+	hud.log_line("\n[b]Turn %d[/b]  %s" % [engine.state.turn_number, UiKit.color_tag("Loaded %s" % label, Palette.TEXT_DIM)])
+	await _continue(token)
+
+
+## Swaps in an engine and resets the screen around it. Returns the new token.
+func _begin(new_engine: GalaxyEngine) -> int:
 	_token += 1
-	var token := _token
 	selected_fleet = ""
 	selected_planet = ""
 	selected_anomaly = ""
+	_hover = null
+	_last_autosave_turn = -1
 	hud.roster.visible = false
 	hud.empire.visible = false
+	hud.close_dialog()
 	ai = GalaxyAI.new()
-
-	engine = GalaxyEngine.from_campaign(data, campaign_id, rng_seed)
-	if permadeath_override != null:
-		engine.state.permadeath = permadeath_override
+	engine = new_engine
 	player_faction = engine.state.factions[0]["id"]
 	for f in engine.state.factions:
 		if f["controller"] == "player":
@@ -89,12 +122,7 @@ func start_campaign() -> void:
 	hud.clear_log()
 	hud.set_objective(engine.campaign.get("description", ""))
 	hud.log_line(UiKit.color_tag("%s  (seed %d)" % [engine.campaign.get("name", campaign_id), engine.state.seed_value], Palette.TEXT_DIM))
-
-	_busy = true
-	await _play(engine.start(), token)
-	if token == _token:
-		_fit_map()  # now that the starting area is explored
-		await _continue(token)
+	return _token
 
 
 ## (Re)creates the map view for view_mode and brings it up to date.
@@ -153,6 +181,11 @@ func _continue(token: int) -> void:
 	if token != _token:
 		return
 	_busy = false
+	if _is_human_turn() and not engine.state.is_over and engine.state.turn_number != _last_autosave_turn:
+		_last_autosave_turn = engine.state.turn_number
+		var error := GalaxySave.write(GalaxySave.AUTOSAVE, engine, campaign_id)
+		if not error.is_empty():
+			hud.log_line(UiKit.color_tag("Autosave failed: " + error, Palette.BAD))
 	if _is_human_turn() and not engine.state.fleets.has(selected_fleet):
 		_select_next_fleet()
 	_refresh()
@@ -366,10 +399,14 @@ func _game_over() -> void:
 	for f in s.factions:
 		if not s.is_eliminated(f["id"]):
 			lines.append("%s: score %d" % [UiKit.color_tag(f["name"], Palette.team_color(f["team"])), EmpireRules.score(engine, f["id"])])
-	hud.ask(title, "\n".join(lines), [{"id": "new", "label": "New campaign"}])
+	hud.ask(title, "\n".join(lines), [{"id": "new", "label": "New campaign"}, {"id": "menu", "label": "Main menu"}])
 	var token := _token
-	await hud.dialog_choice
-	if token == _token:
+	var choice: String = await hud.dialog_choice
+	if token != _token:
+		return
+	if choice == "menu" and not main_menu_requested.get_connections().is_empty():
+		main_menu_requested.emit()
+	else:
 		start_campaign()
 
 
@@ -737,6 +774,14 @@ func _describe(e: Dictionary) -> String:
 func _unhandled_input(event: InputEvent) -> void:
 	if engine == null or hud.is_dialog_open():
 		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		match event.keycode:
+			KEY_F5:
+				_quick_save()
+				return
+			KEY_F9:
+				_request_load(GalaxySave.QUICKSAVE)
+				return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_H:
 		_toggle_roster()
 		return
@@ -758,7 +803,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_ESCAPE:
-				_deselect()
+				if selected_fleet.is_empty() and selected_planet.is_empty() and selected_anomaly.is_empty():
+					_open_menu()
+				else:
+					_deselect()
 			KEY_SPACE, KEY_ENTER, KEY_KP_ENTER:
 				_on_end_turn_pressed()
 			KEY_TAB:
@@ -824,3 +872,109 @@ func _toggle_autoplay() -> void:
 		_continue(_token)
 	else:
 		_refresh()
+
+
+# --- Menu, saving and loading -------------------------------------------------
+
+func _can_save() -> bool:
+	return engine != null and not _busy and _is_human_turn() and not engine.state.is_over
+
+
+func _quick_save() -> void:
+	if not _can_save():
+		hud.set_hint("You can save on your own turn, between moves")
+		return
+	var error := GalaxySave.write(GalaxySave.QUICKSAVE, engine, campaign_id)
+	hud.set_hint("Quicksaved (F9 to load)" if error.is_empty() else error)
+
+
+func _request_load(slot: String) -> void:
+	if not FileAccess.file_exists(GalaxySave.path_for(slot)):
+		hud.set_hint("No %s yet" % MainMenu.slot_label(slot).to_lower())
+		return
+	if _busy and not hud.is_dialog_open() and not _is_human_turn():
+		hud.set_hint("Wait for the other factions to finish their turns")
+		return
+	if load_requested.get_connections().is_empty():
+		var loaded := GalaxySave.load_slot(data, slot)
+		if loaded.has("error"):
+			hud.set_hint(loaded["error"])
+		else:
+			load_campaign(loaded["engine"], loaded["campaign"], MainMenu.slot_label(slot))
+	else:
+		load_requested.emit(slot)
+
+
+## Esc / Menu button: resume, save, load, main menu, quit.
+func _open_menu() -> void:
+	if engine == null or hud.is_dialog_open() or (_busy and not engine.state.is_over):
+		return
+	hud.roster.visible = false
+	hud.empire.visible = false
+	var choices: Array[Dictionary] = [{"id": "resume", "label": "Resume"}]
+	if _can_save():
+		choices.append({"id": "save", "label": "Save"})
+	if not GalaxySave.list().is_empty():
+		choices.append({"id": "load", "label": "Load"})
+	if not main_menu_requested.get_connections().is_empty():
+		choices.append({"id": "menu", "label": "Main menu"})
+	if OS.get_name() != "Web":
+		choices.append({"id": "quit", "label": "Quit"})
+	var body := "%s, turn %d.\n\n%s" % [engine.campaign.get("name", campaign_id), engine.state.turn_number,
+			UiKit.color_tag("The game autosaves at the start of each of your turns. F5 quicksaves, F9 loads the quicksave.", Palette.TEXT_DIM)]
+	hud.ask("Menu", body, choices)
+	var token := _token
+	var choice: String = await hud.dialog_choice
+	if token != _token:
+		return
+	match choice:
+		"save":
+			_save_menu()
+		"load":
+			_load_menu()
+		"menu":
+			main_menu_requested.emit()
+		"quit":
+			get_tree().quit()
+		_:
+			_refresh()
+
+
+func _save_menu() -> void:
+	var slots := ["slot_1", "slot_2", "slot_3"]
+	var existing := {}
+	for s in GalaxySave.list():
+		existing[s["slot"]] = s
+	var lines := PackedStringArray()
+	var choices: Array[Dictionary] = []
+	for slot: String in slots:
+		var label := MainMenu.slot_label(slot)
+		lines.append("[b]%s[/b]  %s" % [label, MainMenu._describe(existing[slot]).split("  ·  ", true, 1)[1]
+				if existing.has(slot) else UiKit.color_tag("empty", Palette.TEXT_DIM)])
+		choices.append({"id": slot, "label": label})
+	choices.append({"id": "cancel", "label": "Cancel"})
+	hud.ask("Save game", "\n".join(lines), choices)
+	var token := _token
+	var choice: String = await hud.dialog_choice
+	if token != _token or choice == "cancel":
+		_refresh()
+		return
+	var error := GalaxySave.write(choice, engine, campaign_id)
+	hud.set_hint("Saved to %s" % MainMenu.slot_label(choice) if error.is_empty() else error)
+
+
+func _load_menu() -> void:
+	var saves := GalaxySave.list()
+	var lines := PackedStringArray()
+	var choices: Array[Dictionary] = []
+	for s in saves.slice(0, 5):
+		lines.append(MainMenu._describe(s))
+		choices.append({"id": s["slot"], "label": MainMenu.slot_label(s["slot"])})
+	choices.append({"id": "cancel", "label": "Cancel"})
+	hud.ask("Load game", "\n".join(lines) + "\n\n" + UiKit.color_tag("Progress since your last save will be lost.", Palette.TEXT_DIM), choices)
+	var token := _token
+	var choice: String = await hud.dialog_choice
+	if token != _token or choice == "cancel":
+		_refresh()
+		return
+	_request_load(choice)

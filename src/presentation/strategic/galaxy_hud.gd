@@ -6,6 +6,7 @@ extends Control
 signal end_turn_pressed
 signal heroes_pressed
 signal empire_pressed
+signal menu_pressed
 ## Emitted when the player clicks one of the dialog's buttons.
 signal dialog_choice(choice_id: String)
 
@@ -87,6 +88,11 @@ func is_dialog_open() -> bool:
 	return _dialog.is_open()
 
 
+## Hides the dialog without answering it (e.g. when a game is loaded).
+func close_dialog() -> void:
+	_dialog.visible = false
+
+
 func _build() -> void:
 	var top := UiKit.panel()
 	UiKit.anchor(top, 0, 0, 1, 0, 0, 0, 0, TOP_H)
@@ -109,6 +115,7 @@ func _build() -> void:
 	row.add_child(UiKit.button("Heroes  [H]", func() -> void: heroes_pressed.emit()))
 	_end_turn_button = UiKit.button("End Turn  [Space]", func() -> void: end_turn_pressed.emit())
 	row.add_child(_end_turn_button)
+	row.add_child(UiKit.button("Menu  [Esc]", func() -> void: menu_pressed.emit()))
 
 	var info_panel := UiKit.panel()
 	UiKit.anchor(info_panel, 1, 0, 1, 0, -RIGHT_W, TOP_H, 0, TOP_H + INFO_H)

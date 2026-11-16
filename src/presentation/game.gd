@@ -1,20 +1,80 @@
 extends Node
-## Top-level flow. Owns the galaxy screen and swaps in a tactical battle screen
-## when the player chooses to fight, then hands the result back.
-## Later: main menu, save/load and mission screens hang off here too.
+## Top-level flow: main menu -> galaxy screen, which swaps in a tactical
+## battle screen when the player chooses to fight and gets the result back.
 
 const GALAXY_SCENE := preload("res://src/presentation/strategic/galaxy_screen.tscn")
 const BATTLE_SCENE := preload("res://src/presentation/tactical/battle_screen.tscn")
 
+## Skip the title screen and start a campaign straight away (tools, F6 runs).
+@export var skip_menu := false
+
+var menu: MainMenu
 var galaxy: Node
 var battle: Node
 
 
 func _ready() -> void:
+	if skip_menu or "--new-campaign" in OS.get_cmdline_user_args():
+		new_campaign({})
+	else:
+		show_menu()
+
+
+func show_menu(error: String = "") -> void:
+	_clear()
+	menu = MainMenu.new()
+	menu.new_campaign_requested.connect(func(options: Dictionary) -> void: new_campaign.call_deferred(options))
+	menu.load_requested.connect(func(slot: String) -> void: load_game.call_deferred(slot))
+	menu.quit_requested.connect(func() -> void: get_tree().quit())
+	add_child(menu)
+	if not error.is_empty():
+		menu.show_error(error)
+
+
+## options: {"campaign", "permadeath", "seed"} (all optional).
+func new_campaign(options: Dictionary) -> void:
+	_show_galaxy()
+	if options.has("campaign"):
+		galaxy.campaign_id = options["campaign"]
+	galaxy.rng_seed = int(options.get("seed", 0))
+	if options.has("permadeath"):
+		galaxy.permadeath_override = options["permadeath"]
+	galaxy.start_campaign()
+
+
+func load_game(slot: String) -> void:
+	var loaded := GalaxySave.load_slot(DataRegistry.get_default(), slot)
+	if loaded.has("error"):
+		if galaxy != null and galaxy.is_inside_tree():
+			galaxy.hud.set_hint(loaded["error"])
+		else:
+			show_menu(loaded["error"])
+		return
+	if galaxy == null:
+		_show_galaxy()
+	galaxy.load_campaign(loaded["engine"], loaded["campaign"], MainMenu.slot_label(slot))
+
+
+func _show_galaxy() -> void:
+	_clear()
 	galaxy = GALAXY_SCENE.instantiate()
+	galaxy.auto_start = false
 	galaxy.battle_requested.connect(func(scenario: Dictionary, battle_seed: int) -> void:
 		_show_battle.call_deferred(scenario, battle_seed))
+	galaxy.main_menu_requested.connect(func() -> void: show_menu.call_deferred())
+	galaxy.load_requested.connect(func(slot: String) -> void: load_game.call_deferred(slot))
 	add_child(galaxy)
+
+
+func _clear() -> void:
+	for node: Node in [menu, galaxy, battle]:
+		if node != null:
+			if node.get_parent() == self:
+				remove_child(node)
+			node.queue_free()
+	menu = null
+	galaxy = null
+	battle = null
 
 
 func _show_battle(scenario: Dictionary, battle_seed: int) -> void:

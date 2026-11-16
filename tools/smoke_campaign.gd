@@ -15,6 +15,7 @@ var _last_battle: Node
 func _initialize() -> void:
 	Engine.time_scale = 10.0  # animations and AI pauses run 10x faster
 	_game = load("res://src/presentation/main.tscn").instantiate()
+	_game.skip_menu = true
 	root.add_child(_game)
 
 
