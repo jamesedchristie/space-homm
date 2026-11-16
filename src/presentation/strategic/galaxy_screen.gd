@@ -12,8 +12,8 @@ signal battle_requested(scenario: Dictionary, battle_seed: int)
 ## Internal: the owner handed back a finished battle.
 signal battle_returned(engine: BattleEngine)
 
-const FLEET_OFFSET := Vector2(9, 9)
-const PLANET_OFFSET := Vector2(-8, -6)
+## "3d" (tilted camera over a lit board) or "2d" (flat top-down). V toggles.
+static var view_mode := "3d"
 
 @export var campaign_id := "the_drift"
 ## 0 picks a random seed each campaign.
@@ -35,9 +35,7 @@ var data: DataRegistry
 var engine: GalaxyEngine
 var ai := GalaxyAI.new()
 var player_faction := ""
-var fleet_views: Dictionary = {}   # fleet id -> FleetView
-var planet_views: Dictionary = {}  # planet id -> PlanetView
-var anomaly_views: Dictionary = {}  # anomaly id -> AnomalyView
+var board: GalaxyBoard
 var selected_fleet := ""
 var selected_planet := ""
 var selected_anomaly := ""
@@ -71,11 +69,6 @@ func _ready() -> void:
 func start_campaign() -> void:
 	_token += 1
 	var token := _token
-	for v: Node in fleet_views.values() + planet_views.values() + anomaly_views.values():
-		v.queue_free()
-	fleet_views.clear()
-	planet_views.clear()
-	anomaly_views.clear()
 	selected_fleet = ""
 	selected_planet = ""
 	selected_anomaly = ""
@@ -91,16 +84,8 @@ func start_campaign() -> void:
 		if f["controller"] == "player":
 			player_faction = f["id"]
 			break
-	map_view.setup(engine.state.grid)
 	$Background/Backdrop.configure(engine.campaign.get("backdrop", {}), 5.0)
-	for p: Planet in engine.state.planets.values():
-		var pv := PlanetView.new()
-		planets_layer.add_child(pv)
-		pv.setup(p, data)
-		pv.position = map_view.cell_center(p.cell) + PLANET_OFFSET
-		planet_views[p.id] = pv
-	_sync_views()
-	_fit_map()
+	_build_board()
 	hud.clear_log()
 	hud.set_objective(engine.campaign.get("description", ""))
 	hud.log_line(UiKit.color_tag("%s  (seed %d)" % [engine.campaign.get("name", campaign_id), engine.state.seed_value], Palette.TEXT_DIM))
@@ -108,7 +93,31 @@ func start_campaign() -> void:
 	_busy = true
 	await _play(engine.start(), token)
 	if token == _token:
+		_fit_map()  # now that the starting area is explored
 		await _continue(token)
+
+
+## (Re)creates the map view for view_mode and brings it up to date.
+func _build_board() -> void:
+	if board != null:
+		board.teardown()
+		board.queue_free()
+	map_view.visible = false
+	board = GalaxyBoard3D.new() if view_mode == "3d" \
+			else GalaxyBoard2D.new(map_view, planets_layer, fleets_layer, anomalies_layer, fx)
+	add_child(board)
+	board.setup(engine, data, player_faction)
+	_sync_views()
+	_fit_map()
+
+
+func _switch_view() -> void:
+	if _busy:
+		hud.set_hint("Switch views between turns")
+		return
+	view_mode = "2d" if view_mode == "3d" else "3d"
+	_build_board()
+	_refresh()
 
 
 ## Called by the owner when a battle requested via battle_requested is over.
@@ -306,26 +315,20 @@ func _play(events: Array[Dictionary], token: int) -> void:
 				await _animate_move(e)
 				_sync_views()
 			GalaxyEvents.PLANET_CAPTURED:
-				var pv: PlanetView = planet_views[e["planet"]]
-				pv.refresh(engine.state.planets[e["planet"]], engine.state)
+				board.refresh_planet(e["planet"])
 				if _visible.has(engine.state.planets[e["planet"]].cell) or e["faction"] == player_faction:
-					fx.float_text(pv.position, "Captured", Palette.team_color(engine.state.faction(e["faction"])["team"]))
+					board.float_text_at_planet(e["planet"], "Captured", Palette.team_color(engine.state.faction(e["faction"])["team"]))
 			GalaxyEvents.BATTLE_TRIGGERED:
-				var pos := map_view.cell_center(e["cell"])
-				fx.play("pulse", pos, pos, Palette.BAD, 0.0, "Red")
+				board.pulse(e["cell"], Palette.BAD)
 			GalaxyEvents.FLEET_DESTROYED:
-				var view: FleetView = fleet_views.get(e["fleet"])
-				if view != null and view.visible:
-					fx.explode(view.position, 1.0)
-					fx.play_sound("explosion")
-					await view.play_destroyed()
+				await board.destroy_fleet(e["fleet"])
 			GalaxyEvents.FLEET_REPAIRED:
 				if engine.state.fleets[e["fleet"]].owner == player_faction:
-					fx.float_text(fleet_views[e["fleet"]].position, "+%d hull" % e["amount"], Palette.GOOD)
+					board.float_text_at_fleet(e["fleet"], "+%d hull" % e["amount"], Palette.GOOD)
 			GalaxyEvents.HERO_LEVELED:
 				var hero: Hero = engine.state.heroes[e["hero"]]
 				if hero.owner == player_faction and engine.state.fleets.has(hero.fleet_id):
-					fx.float_text(fleet_views[hero.fleet_id].position, "Level up!", Palette.ACTIVE)
+					board.float_text_at_fleet(hero.fleet_id, "Level up!", Palette.ACTIVE)
 			GalaxyEvents.ANOMALY_REMOVED, GalaxyEvents.ANOMALY_CHANGED:
 				_sync_views()
 			GalaxyEvents.CAMPAIGN_ENDED:
@@ -336,8 +339,7 @@ func _play(events: Array[Dictionary], token: int) -> void:
 
 func _animate_move(e: Dictionary) -> void:
 	var fleet: Fleet = engine.state.fleets.get(e["fleet"])
-	var view: FleetView = fleet_views.get(e["fleet"])
-	if fleet == null or view == null:
+	if fleet == null:
 		return
 	var path: Array = e["path"]
 	var seen := fleet.owner == player_faction
@@ -347,11 +349,7 @@ func _animate_move(e: Dictionary) -> void:
 			seen = true
 	if not seen or not is_inside_tree():
 		return
-	view.visible = true
-	var points: Array[Vector2] = []
-	for i in range(1, path.size()):
-		points.append(map_view.cell_center(path[i]) + FLEET_OFFSET)
-	await view.move_along(points)
+	await board.move_fleet(fleet.id, path)
 
 
 func _game_over() -> void:
@@ -380,38 +378,7 @@ func _game_over() -> void:
 ## Updates fog, fleet markers and planet owners from engine state.
 func _sync_views() -> void:
 	_visible = engine.visible_cells(player_faction)
-	map_view.set_fog(engine.explored_cells(player_faction), _visible)
-	for id: String in fleet_views.keys():
-		if not engine.state.fleets.has(id):
-			fleet_views[id].queue_free()
-			fleet_views.erase(id)
-	for fleet: Fleet in engine.state.fleets.values():
-		var view: FleetView = fleet_views.get(fleet.id)
-		if view == null:
-			view = FleetView.new()
-			fleets_layer.add_child(view)
-			view.setup(fleet, engine.state.faction(fleet.owner)["team"], data, fleet.owner == player_faction)
-			fleet_views[fleet.id] = view
-		view.refresh(fleet, data, engine.fleet_speed(fleet))
-		view.position = map_view.cell_center(fleet.cell) + FLEET_OFFSET
-		view.visible = engine.can_see_fleet(player_faction, fleet, _visible)
-		view.set_selected(fleet.id == selected_fleet)
-	for p: Planet in engine.state.planets.values():
-		planet_views[p.id].refresh(p, engine.state)
-	var explored := engine.explored_cells(player_faction)
-	for id: String in anomaly_views.keys():
-		if not engine.state.anomalies.has(id):
-			anomaly_views[id].queue_free()
-			anomaly_views.erase(id)
-	for a: Dictionary in engine.state.anomalies.values():
-		var av: AnomalyView = anomaly_views.get(a["id"])
-		if av == null:
-			av = AnomalyView.new()
-			anomalies_layer.add_child(av)
-			anomaly_views[a["id"]] = av
-		av.setup(a)
-		av.position = map_view.cell_center(a["cell"]) + PLANET_OFFSET
-		av.visible = explored.has(a["cell"])
+	board.sync(_visible, engine.explored_cells(player_faction), selected_fleet)
 
 
 ## Recomputes highlights, info panel and hints.
@@ -438,11 +405,10 @@ func _refresh() -> void:
 		if _hover != null and _reach.has(_hover) and _hover != fleet.cell:
 			path = Pathfinding.path_to(_reach, _hover)
 
-	map_view.set_highlights(move_cells, _attack_cells, [], path)
-	map_view.set_active(fleet.cell if fleet != null and fleet_views.has(fleet.id) and fleet_views[fleet.id].visible else null)
-	map_view.set_hover(_hover)
-	for id: String in fleet_views:
-		fleet_views[id].set_selected(id == selected_fleet)
+	board.set_highlights(move_cells, _attack_cells, path)
+	board.set_active_cell(fleet.cell if fleet != null and board.is_fleet_shown(fleet.id) else null)
+	board.set_hover(_hover)
+	board.set_selected_fleet(selected_fleet)
 
 	if fleet != null:
 		hud.set_info(_fleet_info(fleet))
@@ -463,7 +429,7 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 				else "%s is moving..." % engine.state.current_faction()["name"]
 	var text := ""
 	if fleet == null:
-		text = "Click one of your fleets. Tab: next fleet with moves. Space: end turn."
+		text = "Click one of your fleets. Tab: next fleet with moves. Space: end turn. V: 2D/3D. 3D: wheel zoom, Q/R rotate, arrows pan."
 	elif _hover != null and _hover in _attack_cells:
 		text = "Attack %s here" % engine.state.fleet_at(_hover).name
 	elif _hover != null and _reach.has(_hover) and _hover != fleet.cell:
@@ -502,13 +468,8 @@ func _select_next_fleet() -> void:
 
 
 func _fit_map() -> void:
-	if engine == null:
-		return
-	var area := hud.map_area()
-	var b := map_view.bounds()
-	var f := clampf(minf((area.size.x - 32.0) / b.size.x, (area.size.y - 32.0) / b.size.y), 0.4, 1.6)
-	map_view.scale = Vector2(f, f)
-	map_view.position = area.get_center() - b.get_center() * f
+	if engine != null and board != null:
+		board.fit(hud.map_area())
 
 
 # --- Text ---------------------------------------------------------------------
@@ -784,11 +745,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if hud.roster.visible or hud.empire.visible:
 		return
+	if board.handle_input(event):
+		_update_hover()
+		return
 	if event is InputEventMouseMotion:
-		var cell: Variant = map_view.cell_at_global(get_global_mouse_position())
-		if cell != _hover:
-			_hover = cell
-			_refresh()
+		_update_hover()
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_on_left_click()
@@ -805,6 +766,15 @@ func _unhandled_input(event: InputEvent) -> void:
 				_refresh()
 			KEY_A:
 				_toggle_autoplay()
+			KEY_V:
+				_switch_view()
+
+
+func _update_hover() -> void:
+	var cell: Variant = board.cell_at_mouse()
+	if cell != _hover:
+		_hover = cell
+		_refresh()
 
 
 func _on_left_click() -> void:

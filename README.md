@@ -44,6 +44,10 @@ and press **F6** (run current scene).
 | `E` | Empire panel: colonies and build queues, research, diplomacy |
 | `H` | Heroes panel: gear, levels, assign/relieve fleet commanders |
 | `A` | Toggle autoplay (AI plays your faction too) |
+| `V` | Switch between the 2.5D (3D) and top-down (2D) galaxy map |
+| Mouse wheel / `Q` `R` / right-drag / arrows / middle-drag | 3D map: zoom / rotate / rotate / pan / pan |
+
+The 3D map opens on the area you've explored; zoom out with the wheel to see the whole sector.
 
 Planets: move onto one to capture it. Friendly fleets parked at your planets repair
 25% hull per turn. Nebulae and asteroid belts cost 2 moves, and battles there are
@@ -74,7 +78,7 @@ afterwards, and the fleet loses its doctrine bonus meanwhile.
 | `A` | Toggle autoplay |
 | `R` | Restart (standalone battles only) |
 | `V` | Switch between the 2.5D (3D) and top-down (2D) battle view |
-| Mouse wheel / `Q` `E` / arrows / middle-drag | 3D view: zoom / rotate / pan |
+| Mouse wheel / `Q` `E` / right-drag / arrows / middle-drag | 3D view: zoom / rotate / rotate / pan / pan |
 
 Hover over targets to see the expected damage before you commit. In missions, the green ★
 marks the objective, yellow **?** marks something to investigate, and enemies stay hidden
@@ -84,11 +88,13 @@ marks the objective, yellow **?** marks something to investigate, and enemies st
 
 - Ships, lasers, meteors, effect sprites, the Kenvector fonts and sound effects:
   **Kenney** "Space Shooter Redux" (CC0, `assets/kenney_space_shooter/`, see its README/LICENSE).
-- Planets and the space backdrop are procedural shaders (`src/presentation/shaders/`).
+- Planets (2D and 3D), atmospheres, the fog of unexplored space and the space backdrop are
+  procedural shaders (`src/presentation/shaders/`).
 - 3D models are procedural: each is a recipe of parts (bevelled hulls, boxes, cylinders, cones,
   spheres, rocks) in `data/models/models.json`, built at load time by
   `src/presentation/models/model_factory.gd`. Units pick one with `visual.model`; the `accent`
-  material takes the team color. Add or reshape a ship by editing JSON.
+  material takes the team color. A model can name a `base` whose parts come first: the
+  trooper, hero and boarder all build on `humanoid`. Add or reshape a model by editing JSON.
 - The UI theme is built in code (`src/presentation/shared/game_theme.gd`); colors live in `palette.gd`.
 - Ship sprites are set per unit in JSON (`visual.sprite`, with `{team}` replaced by the team's
   color variant). Battle maps can set `backdrop` colors and `floor: "deck"` for interiors.
@@ -150,8 +156,10 @@ src/missions/            mission -> tactical scenario factory
 src/presentation/        scenes and visuals (read engines, never change rules)
   game.gd, main.tscn     top-level flow: galaxy ⇄ battle
   shared/                hex map view (with fog), fx, starfield, palette, UI kit
-  tactical/              battle screen
-  strategic/             galaxy screen
+  board3d/               shared 2.5D pieces: camera rig, board geometry and lighting
+  models/                procedural 3D models from data/models/models.json
+  tactical/              battle screen (2D and 3D boards)
+  strategic/             galaxy screen (2D and 3D boards)
 assets/                  sprites, fonts, audio (one folder + LICENSE per asset pack)
 tests/                   headless tests
 tools/                   balance simulators, smoke tests

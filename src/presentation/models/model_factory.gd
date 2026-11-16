@@ -13,6 +13,7 @@ extends RefCounted
 ##   cone      same as cylinder; the tip points along +axis
 ##   sphere    "radius", "detail" (0-2), "squash": [x, y, z]
 ##   rock      "radius", "seed": an irregular faceted boulder
+## A model may name a "base" model whose parts come first (e.g. "humanoid").
 ## Materials: hull, dark, accent (team color), glass, engine (glowing), gold,
 ## visor (glowing team color), rock, hazard.
 
@@ -110,7 +111,7 @@ static func _meshes_for(data: DataRegistry, model_id: String) -> Dictionary:
 	if def.is_empty():
 		push_warning("ModelFactory: unknown model '%s'" % model_id)
 		def = {"parts": [{"type": "box", "size": [0.6, 0.3, 0.4], "material": "accent"}]}
-	for part: Dictionary in def.get("parts", []):
+	for part: Dictionary in _parts_of(data, def, 0):
 		var copies: Array = [1.0, -1.0] if part.get("mirror", false) else [1.0]
 		for zsign in copies:
 			var st: SurfaceTool = tools.get(part.get("material", "hull"))
@@ -125,6 +126,19 @@ static func _meshes_for(data: DataRegistry, model_id: String) -> Dictionary:
 		meshes[material_name] = st.commit()
 	_mesh_cache[model_id] = meshes
 	return meshes
+
+
+## A model's parts, after those of its "base" model (if any).
+static func _parts_of(data: DataRegistry, def: Dictionary, depth: int) -> Array:
+	var parts: Array = []
+	var base: String = def.get("base", "")
+	if not base.is_empty() and depth < 4:
+		if data.models.has(base):
+			parts.append_array(_parts_of(data, data.models[base], depth + 1))
+		else:
+			push_warning("ModelFactory: unknown base model '%s'" % base)
+	parts.append_array(def.get("parts", []))
+	return parts
 
 
 static func _add_part(st: SurfaceTool, part: Dictionary, zsign: float) -> void:

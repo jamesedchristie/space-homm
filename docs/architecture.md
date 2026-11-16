@@ -125,7 +125,31 @@ and fitting the view to the HUD-free area. There are two implementations:
   `Environment.BG_CANVAS`.
 
 The view is chosen per screen (`BattleScreen.view_mode`, toggled with V, even mid-battle) and is
-rebuilt from engine state, so the views can never disagree about the game.
+rebuilt from engine state, so the views can never disagree about the game. On big maps the 3D
+camera starts zoomed in on the player's units (closer still in missions, on `floor: "deck"`
+maps) instead of framing everything from far away.
+
+### Galaxy views (2D and 2.5D)
+
+The galaxy screen works the same way through a `GalaxyBoard`
+(`src/presentation/strategic/galaxy_board.gd`): `sync()` brings fleets, planets, anomalies and
+fog in line with the engine (as the player sees it), plus fleet moves and explosions, floating
+text, a ping for battles, highlights, the cell under the mouse and fitting the view.
+
+- `GalaxyBoard2D` wraps the original top-down map (`GridMapView`, `PlanetView`, `FleetView`,
+  `AnomalyView`, `FxLayer`).
+- `GalaxyBoard3D` builds translucent hex tiles over the nebula, terrain props (asteroids,
+  nebula glow, dark rifts), spinning planet spheres (`Planet3D`: `planet_3d.gdshader` surface,
+  `atmosphere.gdshader` glow shell, an orbit ring in the owner's color), fleets as small models
+  of their biggest ships (`Fleet3D`) and anomaly crystals (`Anomaly3D`). Unexplored space is a
+  low slab with drifting dark clouds (`fog_3d.gdshader`); charted planets rest on top of it.
+  Names, hull bars and move pips are 2D (`GalaxyOverlay3D`). The camera opens on the explored
+  area. Q/R rotate here because E opens the Empire panel.
+
+Both 3D boards share `src/presentation/board3d/`: `BoardCamera3D` (tilted orbit camera:
+fit to a screen rectangle, zoom, pan, rotate, shake, ray-plane picking; it takes the view back
+when its screen re-enters the tree) and `BoardGeometry` (lighting/environment, materials,
+extruded tiles, overlay buffers for highlights and fog, rocks and nebula puffs).
 
 ## Heroes and missions (step 3)
 

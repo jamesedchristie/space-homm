@@ -1,1033 +1,126 @@
 {
- "frigate": {
-  "description": "Workhorse warship: broad armoured hull, dorsal turret, twin engines.",
-  "parts": [
-   {
-    "type": "hull",
-    "outline": [
-     [
-      0.78,
-      0
-     ],
-     [
-      0.4,
-      0.3
-     ],
-     [
-      -0.5,
-      0.36
-     ],
-     [
-      -0.68,
-      0.22
-     ],
-     [
-      -0.68,
-      -0.22
-     ],
-     [
-      -0.5,
-      -0.36
-     ],
-     [
-      0.4,
-      -0.3
-     ]
-    ],
-    "height": 0.24,
-    "bevel": 0.32,
-    "taper": 0.2,
-    "material": "hull"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.9,
-     0.05,
-     0.1
-    ],
-    "at": [
-     -0.05,
-     0.245,
-     0
-    ],
-    "material": "accent"
-   },
-   {
-    "type": "hull",
-    "outline": [
-     [
-      0.5,
-      0
-     ],
-     [
-      0.3,
-      0.1
-     ],
-     [
-      0.12,
-      0.1
-     ],
-     [
-      0.12,
-      -0.1
-     ],
-     [
-      0.3,
-      -0.1
-     ]
-    ],
-    "height": 0.1,
-    "bevel": 0.45,
-    "at": [
-     0,
-     0.22,
-     0
-    ],
-    "material": "glass"
-   },
-   {
-    "type": "hull",
-    "outline": [
-     [
-      0.15,
-      0.3
-     ],
-     [
-      -0.12,
-      0.72
-     ],
-     [
-      -0.45,
-      0.74
-     ],
-     [
-      -0.42,
-      0.34
-     ]
-    ],
-    "height": 0.06,
-    "bevel": 0.2,
-    "at": [
-     0,
-     0.06,
-     0
-    ],
-    "material": "accent",
-    "mirror": true
-   },
-   {
-    "type": "box",
-    "size": [
-     0.22,
-     0.09,
-     0.16
-    ],
-    "at": [
-     -0.2,
-     0.29,
-     0
-    ],
-    "material": "dark"
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.028,
-    "length": 0.36,
-    "axis": "x",
-    "at": [
-     0.06,
-     0.31,
-     0.04
-    ],
-    "material": "dark",
-    "mirror": true
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.09,
-    "length": 0.26,
-    "axis": "x",
-    "at": [
-     -0.74,
-     0.11,
-     0.2
-    ],
-    "material": "dark",
-    "mirror": true
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.0648,
-    "length": 0.03,
-    "axis": "x",
-    "at": [
-     -0.88,
-     0.11,
-     0.2
-    ],
-    "material": "engine",
-    "mirror": true
-   }
-  ]
- },
- "interceptor": {
-  "description": "Fast dart: needle hull, swept wings, single big engine.",
-  "parts": [
-   {
-    "type": "hull",
-    "outline": [
-     [
-      0.72,
-      0
-     ],
-     [
-      -0.42,
-      0.15
-     ],
-     [
-      -0.55,
-      0
-     ],
-     [
-      -0.42,
-      -0.15
-     ]
-    ],
-    "height": 0.14,
-    "bevel": 0.4,
-    "material": "hull"
-   },
-   {
-    "type": "hull",
-    "outline": [
-     [
-      0.05,
-      0.1
-     ],
-     [
-      -0.42,
-      0.56
-     ],
-     [
-      -0.56,
-      0.56
-     ],
-     [
-      -0.36,
-      0.12
-     ]
-    ],
-    "height": 0.04,
-    "bevel": 0.15,
-    "at": [
-     0,
-     0.04,
-     0
-    ],
-    "material": "accent",
-    "mirror": true
-   },
-   {
-    "type": "hull",
-    "outline": [
-     [
-      0.38,
-      0
-     ],
-     [
-      0.16,
-      0.07
-     ],
-     [
-      0.0,
-      0.0
-     ],
-     [
-      0.16,
-      -0.07
-     ]
-    ],
-    "height": 0.07,
-    "bevel": 0.4,
-    "at": [
-     0,
-     0.13,
-     0
-    ],
-    "material": "glass"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.3,
-     0.12,
-     0.02
-    ],
-    "at": [
-     -0.4,
-     0.17,
-     0
-    ],
-    "material": "accent"
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.075,
-    "length": 0.2,
-    "axis": "x",
-    "at": [
-     -0.6,
-     0.07,
-     0
-    ],
-    "material": "dark",
-    "mirror": false
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.054,
-    "length": 0.03,
-    "axis": "x",
-    "at": [
-     -0.71,
-     0.07,
-     0
-    ],
-    "material": "engine",
-    "mirror": false
-   }
-  ]
- },
- "destroyer": {
-  "description": "Heavy warship: long armoured hull, raised bridge, twin turrets, triple engines.",
-  "parts": [
-   {
-    "type": "hull",
-    "outline": [
-     [
-      0.98,
-      0
-     ],
-     [
-      0.62,
-      0.28
-     ],
-     [
-      -0.62,
-      0.42
-     ],
-     [
-      -0.86,
-      0.3
-     ],
-     [
-      -0.86,
-      -0.3
-     ],
-     [
-      -0.62,
-      -0.42
-     ],
-     [
-      0.62,
-      -0.28
-     ]
-    ],
-    "height": 0.3,
-    "bevel": 0.28,
-    "taper": 0.2,
-    "material": "hull"
-   },
-   {
-    "type": "box",
-    "size": [
-     1.05,
-     0.08,
-     0.05
-    ],
-    "at": [
-     -0.05,
-     0.16,
-     0.38
-    ],
-    "material": "accent",
-    "mirror": true
-   },
-   {
-    "type": "hull",
-    "outline": [
-     [
-      0.0,
-      0
-     ],
-     [
-      -0.14,
-      0.16
-     ],
-     [
-      -0.46,
-      0.16
-     ],
-     [
-      -0.52,
-      0
-     ],
-     [
-      -0.46,
-      -0.16
-     ],
-     [
-      -0.14,
-      -0.16
-     ]
-    ],
-    "height": 0.2,
-    "bevel": 0.3,
-    "at": [
-     0,
-     0.28,
-     0
-    ],
-    "material": "dark"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.1,
-     0.05,
-     0.22
-    ],
-    "at": [
-     -0.08,
-     0.46,
-     0
-    ],
-    "material": "glass"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.2,
-     0.08,
-     0.18
-    ],
-    "at": [
-     0.45,
-     0.33,
-     0
-    ],
-    "material": "dark"
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.03,
-    "length": 0.36,
-    "axis": "x",
-    "at": [
-     0.66,
-     0.35,
-     0.05
-    ],
-    "material": "dark",
-    "mirror": true
-   },
-   {
-    "type": "box",
-    "size": [
-     0.2,
-     0.08,
-     0.18
-    ],
-    "at": [
-     0.18,
-     0.33,
-     0
-    ],
-    "material": "dark"
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.03,
-    "length": 0.36,
-    "axis": "x",
-    "at": [
-     0.39,
-     0.35,
-     0.05
-    ],
-    "material": "dark",
-    "mirror": true
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.1,
-    "length": 0.28,
-    "axis": "x",
-    "at": [
-     -0.92,
-     0.14,
-     0.24
-    ],
-    "material": "dark",
-    "mirror": true
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.072,
-    "length": 0.03,
-    "axis": "x",
-    "at": [
-     -1.07,
-     0.14,
-     0.24
-    ],
-    "material": "engine",
-    "mirror": true
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.12,
-    "length": 0.3,
-    "axis": "x",
-    "at": [
-     -0.92,
-     0.16,
-     0
-    ],
-    "material": "dark",
-    "mirror": false
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.08639999999999999,
-    "length": 0.03,
-    "axis": "x",
-    "at": [
-     -1.08,
-     0.16,
-     0
-    ],
-    "material": "engine",
-    "mirror": false
-   }
-  ]
- },
- "station": {
-  "description": "Defense platform: armoured hub, cross of gun arms, glowing core.",
-  "parts": [
-   {
-    "type": "cylinder",
-    "radius": 0.42,
-    "length": 0.22,
-    "axis": "y",
-    "segments": 8,
-    "at": [
-     0,
-     0.22,
-     0
-    ],
-    "material": "hull"
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.5,
-    "length": 0.08,
-    "axis": "y",
-    "segments": 8,
-    "at": [
-     0,
-     0.22,
-     0
-    ],
-    "material": "accent"
-   },
-   {
-    "type": "sphere",
-    "radius": 0.24,
-    "detail": 1,
-    "squash": [
-     1,
-     0.7,
-     1
-    ],
-    "at": [
-     0,
-     0.36,
-     0
-    ],
-    "material": "glass"
-   },
-   {
-    "type": "box",
-    "size": [
-     1.5,
-     0.08,
-     0.12
-    ],
-    "at": [
-     0,
-     0.22,
-     0
-    ],
-    "rot": 0,
-    "material": "dark"
-   },
-   {
-    "type": "box",
-    "size": [
-     1.5,
-     0.08,
-     0.12
-    ],
-    "at": [
-     0,
-     0.22,
-     0
-    ],
-    "rot": 90,
-    "material": "dark"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.18,
-     0.14,
-     0.18
-    ],
-    "at": [
-     0.75,
-     0.24,
-     0
-    ],
-    "material": "accent",
-    "mirror": false
-   },
-   {
-    "type": "box",
-    "size": [
-     0.18,
-     0.14,
-     0.18
-    ],
-    "at": [
-     -0.75,
-     0.24,
-     0
-    ],
-    "material": "accent"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.18,
-     0.14,
-     0.18
-    ],
-    "at": [
-     0,
-     0.24,
-     0.75
-    ],
-    "material": "accent",
-    "mirror": true
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.025,
-    "length": 0.3,
-    "axis": "x",
-    "at": [
-     0.95,
-     0.27,
-     0
-    ],
-    "material": "dark"
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.025,
-    "length": 0.3,
-    "axis": "x",
-    "at": [
-     -0.95,
-     0.27,
-     0
-    ],
-    "material": "dark"
-   }
-  ]
- },
- "drone": {
-  "description": "Security drone: armoured ball, side fins, red sensor eye.",
-  "parts": [
-   {
-    "type": "sphere",
-    "radius": 0.24,
-    "detail": 1,
-    "at": [
-     0,
-     0.5,
-     0
-    ],
-    "material": "dark"
-   },
-   {
-    "type": "cylinder",
-    "radius": 0.27,
-    "length": 0.06,
-    "axis": "y",
-    "segments": 10,
-    "at": [
-     0,
-     0.5,
-     0
-    ],
-    "material": "accent"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.22,
-     0.04,
-     0.16
-    ],
-    "at": [
-     -0.05,
-     0.52,
-     0.3
-    ],
-    "material": "hull",
-    "mirror": true
-   },
-   {
-    "type": "sphere",
-    "radius": 0.08,
-    "detail": 0,
-    "at": [
-     0.21,
-     0.52,
-     0
-    ],
-    "material": "engine"
-   }
-  ]
- },
- "trooper": {
-  "description": "Marine: armoured trooper with rifle.",
-  "parts": [
-   {
-    "type": "box",
-    "size": [
-     0.16,
-     0.3,
-     0.1
-    ],
-    "at": [
-     0,
-     0.15,
-     0.1
-    ],
-    "material": "dark",
-    "mirror": true
-   },
-   {
-    "type": "box",
-    "size": [
-     0.22,
-     0.3,
-     0.36
-    ],
-    "at": [
-     0,
-     0.45,
-     0
-    ],
-    "material": "accent"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.2,
-     0.08,
-     0.14
-    ],
-    "at": [
-     0,
-     0.6,
-     0.2
-    ],
-    "material": "hull",
-    "mirror": true
-   },
-   {
-    "type": "sphere",
-    "radius": 0.13,
-    "detail": 1,
-    "at": [
-     0.02,
-     0.73,
-     0
-    ],
-    "material": "hull"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.06,
-     0.06,
-     0.16
-    ],
-    "at": [
-     0.12,
-     0.74,
-     0
-    ],
-    "material": "visor"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.42,
-     0.06,
-     0.06
-    ],
-    "at": [
-     0.2,
-     0.47,
-     0.2
-    ],
-    "material": "dark"
-   }
-  ]
- },
- "hero": {
-  "description": "Hero: officer armour with gold trim.",
-  "parts": [
-   {
-    "type": "box",
-    "size": [
-     0.16,
-     0.3,
-     0.1
-    ],
-    "at": [
-     0,
-     0.15,
-     0.1
-    ],
-    "material": "dark",
-    "mirror": true
-   },
-   {
-    "type": "box",
-    "size": [
-     0.22,
-     0.3,
-     0.36
-    ],
-    "at": [
-     0,
-     0.45,
-     0
-    ],
-    "material": "accent"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.2,
-     0.08,
-     0.14
-    ],
-    "at": [
-     0,
-     0.6,
-     0.2
-    ],
-    "material": "hull",
-    "mirror": true
-   },
-   {
-    "type": "sphere",
-    "radius": 0.13,
-    "detail": 1,
-    "at": [
-     0.02,
-     0.73,
-     0
-    ],
-    "material": "gold"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.06,
-     0.06,
-     0.16
-    ],
-    "at": [
-     0.12,
-     0.74,
-     0
-    ],
-    "material": "visor"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.42,
-     0.06,
-     0.06
-    ],
-    "at": [
-     0.2,
-     0.47,
-     0.2
-    ],
-    "material": "dark"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.24,
-     0.04,
-     0.38
-    ],
-    "at": [
-     0,
-     0.32,
-     0
-    ],
-    "material": "gold"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.04,
-     0.26,
-     0.3
-    ],
-    "at": [
-     -0.13,
-     0.45,
-     0
-    ],
-    "material": "gold"
-   }
-  ]
- },
- "boarder": {
-  "description": "Raider boarder: spiked helmet, stubby scattergun.",
-  "parts": [
-   {
-    "type": "box",
-    "size": [
-     0.16,
-     0.3,
-     0.1
-    ],
-    "at": [
-     0,
-     0.15,
-     0.1
-    ],
-    "material": "dark",
-    "mirror": true
-   },
-   {
-    "type": "box",
-    "size": [
-     0.22,
-     0.3,
-     0.36
-    ],
-    "at": [
-     0,
-     0.45,
-     0
-    ],
-    "material": "accent"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.2,
-     0.08,
-     0.14
-    ],
-    "at": [
-     0,
-     0.6,
-     0.2
-    ],
-    "material": "hull",
-    "mirror": true
-   },
-   {
-    "type": "sphere",
-    "radius": 0.13,
-    "detail": 1,
-    "at": [
-     0.02,
-     0.73,
-     0
-    ],
-    "material": "dark"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.06,
-     0.06,
-     0.16
-    ],
-    "at": [
-     0.12,
-     0.74,
-     0
-    ],
-    "material": "visor"
-   },
-   {
-    "type": "box",
-    "size": [
-     0.3,
-     0.06,
-     0.06
-    ],
-    "at": [
-     0.2,
-     0.47,
-     0.2
-    ],
-    "material": "dark"
-   },
-   {
-    "type": "cone",
-    "radius": 0.035,
-    "length": 0.18,
-    "axis": "y",
-    "at": [
-     -0.02,
-     0.88,
-     0.07
-    ],
-    "material": "hazard",
-    "mirror": true
-   },
-   {
-    "type": "cone",
-    "radius": 0.035,
-    "length": 0.18,
-    "axis": "y",
-    "at": [
-     -0.08,
-     0.88,
-     0
-    ],
-    "material": "hazard"
-   }
-  ]
- }
+  "frigate": {
+    "description": "Workhorse warship: broad armoured hull, dorsal turret, twin engines.",
+    "parts": [
+      {"type": "hull", "outline": [[0.78, 0], [0.4, 0.3], [-0.5, 0.36], [-0.68, 0.22], [-0.68, -0.22], [-0.5, -0.36], [0.4, -0.3]], "height": 0.24, "bevel": 0.32, "taper": 0.2, "material": "hull"},
+      {"type": "box", "size": [0.9, 0.05, 0.1], "at": [-0.05, 0.245, 0], "material": "accent"},
+      {"type": "hull", "outline": [[0.5, 0], [0.3, 0.1], [0.12, 0.1], [0.12, -0.1], [0.3, -0.1]], "height": 0.1, "bevel": 0.45, "at": [0, 0.22, 0], "material": "glass"},
+      {"type": "hull", "outline": [[0.15, 0.3], [-0.12, 0.72], [-0.45, 0.74], [-0.42, 0.34]], "height": 0.06, "bevel": 0.2, "at": [0, 0.06, 0], "material": "accent", "mirror": true},
+      {"type": "box", "size": [0.22, 0.09, 0.16], "at": [-0.2, 0.29, 0], "material": "dark"},
+      {"type": "cylinder", "radius": 0.028, "length": 0.36, "axis": "x", "at": [0.06, 0.31, 0.04], "material": "dark", "mirror": true},
+      {"type": "cylinder", "radius": 0.09, "length": 0.26, "axis": "x", "at": [-0.74, 0.11, 0.2], "material": "dark", "mirror": true},
+      {"type": "cylinder", "radius": 0.0648, "length": 0.03, "axis": "x", "at": [-0.88, 0.11, 0.2], "material": "engine", "mirror": true}
+    ]
+  },
+  "interceptor": {
+    "description": "Fast dart: needle hull, swept wings, single big engine.",
+    "parts": [
+      {"type": "hull", "outline": [[0.72, 0], [-0.42, 0.15], [-0.55, 0], [-0.42, -0.15]], "height": 0.14, "bevel": 0.4, "material": "hull"},
+      {"type": "hull", "outline": [[0.05, 0.1], [-0.42, 0.56], [-0.56, 0.56], [-0.36, 0.12]], "height": 0.04, "bevel": 0.15, "at": [0, 0.04, 0], "material": "accent", "mirror": true},
+      {"type": "hull", "outline": [[0.38, 0], [0.16, 0.07], [0.0, 0.0], [0.16, -0.07]], "height": 0.07, "bevel": 0.4, "at": [0, 0.13, 0], "material": "glass"},
+      {"type": "box", "size": [0.3, 0.12, 0.02], "at": [-0.4, 0.17, 0], "material": "accent"},
+      {"type": "cylinder", "radius": 0.075, "length": 0.2, "axis": "x", "at": [-0.6, 0.07, 0], "material": "dark", "mirror": false},
+      {"type": "cylinder", "radius": 0.054, "length": 0.03, "axis": "x", "at": [-0.71, 0.07, 0], "material": "engine", "mirror": false}
+    ]
+  },
+  "destroyer": {
+    "description": "Heavy warship: long armoured hull, raised bridge, twin turrets, triple engines.",
+    "parts": [
+      {"type": "hull", "outline": [[0.98, 0], [0.62, 0.28], [-0.62, 0.42], [-0.86, 0.3], [-0.86, -0.3], [-0.62, -0.42], [0.62, -0.28]], "height": 0.3, "bevel": 0.28, "taper": 0.2, "material": "hull"},
+      {"type": "box", "size": [1.05, 0.08, 0.05], "at": [-0.05, 0.16, 0.38], "material": "accent", "mirror": true},
+      {"type": "hull", "outline": [[0.0, 0], [-0.14, 0.16], [-0.46, 0.16], [-0.52, 0], [-0.46, -0.16], [-0.14, -0.16]], "height": 0.2, "bevel": 0.3, "at": [0, 0.28, 0], "material": "dark"},
+      {"type": "box", "size": [0.1, 0.05, 0.22], "at": [-0.08, 0.46, 0], "material": "glass"},
+      {"type": "box", "size": [0.2, 0.08, 0.18], "at": [0.45, 0.33, 0], "material": "dark"},
+      {"type": "cylinder", "radius": 0.03, "length": 0.36, "axis": "x", "at": [0.66, 0.35, 0.05], "material": "dark", "mirror": true},
+      {"type": "box", "size": [0.2, 0.08, 0.18], "at": [0.18, 0.33, 0], "material": "dark"},
+      {"type": "cylinder", "radius": 0.03, "length": 0.36, "axis": "x", "at": [0.39, 0.35, 0.05], "material": "dark", "mirror": true},
+      {"type": "cylinder", "radius": 0.1, "length": 0.28, "axis": "x", "at": [-0.92, 0.14, 0.24], "material": "dark", "mirror": true},
+      {"type": "cylinder", "radius": 0.072, "length": 0.03, "axis": "x", "at": [-1.07, 0.14, 0.24], "material": "engine", "mirror": true},
+      {"type": "cylinder", "radius": 0.12, "length": 0.3, "axis": "x", "at": [-0.92, 0.16, 0], "material": "dark", "mirror": false},
+      {"type": "cylinder", "radius": 0.08639999999999999, "length": 0.03, "axis": "x", "at": [-1.08, 0.16, 0], "material": "engine", "mirror": false}
+    ]
+  },
+  "station": {
+    "description": "Defense platform: armoured hub, cross of gun arms, glowing core.",
+    "parts": [
+      {"type": "cylinder", "radius": 0.42, "length": 0.22, "axis": "y", "segments": 8, "at": [0, 0.22, 0], "material": "hull"},
+      {"type": "cylinder", "radius": 0.5, "length": 0.08, "axis": "y", "segments": 8, "at": [0, 0.22, 0], "material": "accent"},
+      {"type": "sphere", "radius": 0.24, "detail": 1, "squash": [1, 0.7, 1], "at": [0, 0.36, 0], "material": "glass"},
+      {"type": "box", "size": [1.5, 0.08, 0.12], "at": [0, 0.22, 0], "rot": 0, "material": "dark"},
+      {"type": "box", "size": [1.5, 0.08, 0.12], "at": [0, 0.22, 0], "rot": 90, "material": "dark"},
+      {"type": "box", "size": [0.18, 0.14, 0.18], "at": [0.75, 0.24, 0], "material": "accent", "mirror": false},
+      {"type": "box", "size": [0.18, 0.14, 0.18], "at": [-0.75, 0.24, 0], "material": "accent"},
+      {"type": "box", "size": [0.18, 0.14, 0.18], "at": [0, 0.24, 0.75], "material": "accent", "mirror": true},
+      {"type": "cylinder", "radius": 0.025, "length": 0.3, "axis": "x", "at": [0.95, 0.27, 0], "material": "dark"},
+      {"type": "cylinder", "radius": 0.025, "length": 0.3, "axis": "x", "at": [-0.95, 0.27, 0], "material": "dark"}
+    ]
+  },
+  "drone": {
+    "description": "Security drone: armoured ball, side fins, red sensor eye.",
+    "parts": [
+      {"type": "sphere", "radius": 0.24, "detail": 1, "at": [0, 0.5, 0], "material": "dark"},
+      {"type": "cylinder", "radius": 0.27, "length": 0.06, "axis": "y", "segments": 10, "at": [0, 0.5, 0], "material": "accent"},
+      {"type": "box", "size": [0.22, 0.04, 0.16], "at": [-0.05, 0.52, 0.3], "material": "hull", "mirror": true},
+      {"type": "sphere", "radius": 0.08, "detail": 0, "at": [0.21, 0.52, 0], "material": "engine"}
+    ]
+  },
+  "humanoid": {
+    "description": "Shared body for people models (other models list it as their \"base\"): boots, armoured legs, belt, tapered torso, shoulder pads, arms forward holding a weapon, backpack. No head or weapon.",
+    "parts": [
+      {"type": "box", "size": [0.15, 0.07, 0.1], "at": [0.02, 0.035, 0.08], "material": "dark", "mirror": true},
+      {"type": "cylinder", "radius": 0.045, "length": 0.2, "axis": "y", "segments": 6, "at": [0, 0.17, 0.08], "material": "hull", "mirror": true},
+      {"type": "box", "size": [0.05, 0.06, 0.07], "at": [0.04, 0.27, 0.08], "material": "hull", "mirror": true},
+      {"type": "cylinder", "radius": 0.055, "length": 0.16, "axis": "y", "segments": 6, "at": [0, 0.35, 0.08], "material": "dark", "mirror": true},
+      {"type": "box", "size": [0.17, 0.08, 0.28], "at": [0, 0.43, 0], "material": "dark"},
+      {"type": "hull", "outline": [[0.11, 0.1], [0.06, 0.17], [-0.08, 0.17], [-0.11, 0.1], [-0.11, -0.1], [-0.08, -0.17], [0.06, -0.17], [0.11, -0.1]], "height": 0.26, "bevel": 0.25, "taper": 0.3, "at": [0, 0.46, 0], "material": "accent"},
+      {"type": "box", "size": [0.04, 0.13, 0.2], "at": [0.1, 0.6, 0], "material": "hull"},
+      {"type": "sphere", "radius": 0.08, "detail": 1, "squash": [1.1, 0.7, 1], "at": [0, 0.7, 0.19], "material": "hull", "mirror": true},
+      {"type": "cylinder", "radius": 0.038, "length": 0.16, "axis": "y", "segments": 6, "at": [0.01, 0.6, 0.2], "material": "dark", "mirror": true},
+      {"type": "cylinder", "radius": 0.036, "length": 0.17, "axis": "x", "segments": 6, "at": [0.09, 0.52, 0.17], "material": "hull", "mirror": true},
+      {"type": "cylinder", "radius": 0.045, "length": 0.07, "axis": "y", "segments": 6, "at": [0, 0.755, 0], "material": "dark"},
+      {"type": "box", "size": [0.1, 0.2, 0.22], "at": [-0.15, 0.6, 0], "material": "dark"},
+      {"type": "box", "size": [0.02, 0.03, 0.18], "at": [-0.2, 0.66, 0], "material": "engine"}
+    ]
+  },
+  "trooper": {
+    "description": "Marine: armoured trooper with a long rifle and closed helmet.",
+    "base": "humanoid",
+    "parts": [
+      {"type": "sphere", "radius": 0.115, "detail": 1, "squash": [1.08, 1, 0.95], "at": [0.01, 0.84, 0], "material": "hull"},
+      {"type": "box", "size": [0.05, 0.045, 0.15], "at": [0.1, 0.84, 0], "material": "visor"},
+      {"type": "box", "size": [0.08, 0.03, 0.2], "at": [-0.02, 0.94, 0], "material": "accent"},
+      {"type": "box", "size": [0.38, 0.055, 0.05], "at": [0.22, 0.53, 0.07], "material": "dark"},
+      {"type": "cylinder", "radius": 0.018, "length": 0.14, "axis": "x", "segments": 6, "at": [0.47, 0.535, 0.07], "material": "dark"},
+      {"type": "box", "size": [0.08, 0.035, 0.03], "at": [0.2, 0.575, 0.07], "material": "hull"},
+      {"type": "box", "size": [0.05, 0.1, 0.04], "at": [0.15, 0.47, 0.07], "material": "dark"}
+    ]
+  },
+  "hero": {
+    "description": "Hero: officer armour with gold trim, a cape and a sidearm.",
+    "base": "humanoid",
+    "parts": [
+      {"type": "sphere", "radius": 0.115, "detail": 1, "squash": [1.08, 1, 0.95], "at": [0.01, 0.84, 0], "material": "gold"},
+      {"type": "box", "size": [0.05, 0.05, 0.16], "at": [0.1, 0.84, 0], "material": "visor"},
+      {"type": "cone", "radius": 0.03, "length": 0.12, "axis": "y", "segments": 5, "at": [-0.03, 0.96, 0], "material": "gold"},
+      {"type": "sphere", "radius": 0.085, "detail": 1, "squash": [1.15, 0.5, 1.05], "at": [0, 0.725, 0.19], "material": "gold", "mirror": true},
+      {"type": "box", "size": [0.19, 0.03, 0.3], "at": [0, 0.475, 0], "material": "gold"},
+      {"type": "box", "size": [0.03, 0.36, 0.3], "at": [-0.21, 0.47, 0], "material": "accent"},
+      {"type": "box", "size": [0.2, 0.05, 0.045], "at": [0.22, 0.53, 0.1], "material": "dark"},
+      {"type": "box", "size": [0.06, 0.03, 0.04], "at": [0.3, 0.56, 0.1], "material": "engine"},
+      {"type": "cylinder", "radius": 0.008, "length": 0.22, "axis": "y", "segments": 4, "at": [-0.17, 0.8, 0.08], "material": "hull"}
+    ]
+  },
+  "boarder": {
+    "description": "Raider boarder: spiked helmet, hazard-striped pads, stubby scattergun.",
+    "base": "humanoid",
+    "parts": [
+      {"type": "sphere", "radius": 0.12, "detail": 1, "squash": [1.05, 0.95, 1], "at": [0.01, 0.84, 0], "material": "dark"},
+      {"type": "box", "size": [0.05, 0.035, 0.17], "at": [0.105, 0.83, 0], "material": "visor"},
+      {"type": "cone", "radius": 0.035, "length": 0.16, "axis": "y", "segments": 5, "at": [-0.02, 0.97, 0.06], "material": "hazard", "mirror": true},
+      {"type": "cone", "radius": 0.035, "length": 0.18, "axis": "y", "segments": 5, "at": [-0.07, 0.97, 0], "material": "hazard"},
+      {"type": "sphere", "radius": 0.085, "detail": 1, "squash": [1.15, 0.5, 1.05], "at": [0, 0.725, 0.19], "material": "hazard", "mirror": true},
+      {"type": "box", "size": [0.26, 0.08, 0.07], "at": [0.2, 0.52, 0.08], "material": "dark"},
+      {"type": "cylinder", "radius": 0.032, "length": 0.1, "axis": "x", "segments": 6, "at": [0.37, 0.53, 0.08], "material": "hull"}
+    ]
+  }
 }
