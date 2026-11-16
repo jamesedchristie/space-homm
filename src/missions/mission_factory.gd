@@ -73,14 +73,22 @@ static func _caches(mission: Dictionary, squad_team: int) -> Dictionary:
 
 
 ## Away team: the given heroes plus marines up to the mission's squad size.
-static func squad_for(data: DataRegistry, mission: Dictionary, heroes: Array[Hero]) -> Array[Dictionary]:
+## Everyone gets the species' squad ability (data/strategic/species.json).
+static func squad_for(data: DataRegistry, mission: Dictionary, heroes: Array[Hero], species_id: String = "") -> Array[Dictionary]:
 	var squad: Array[Dictionary] = []
+	var extra: String = data.species.get(species_id, {}).get("squad_ability", "")
 	for h in heroes:
-		squad.append({"unit_def": HeroBuilder.unit_def(h, data), "ref": "hero:" + h.id})
+		var def := HeroBuilder.unit_def(h, data)
+		if not extra.is_empty() and extra not in def["abilities"]:
+			def["abilities"].insert(mini(2, def["abilities"].size()), extra)
+		squad.append({"unit_def": def, "ref": "hero:" + h.id})
 	var marine: String = mission.get("marine_unit", "marine")
+	var marine_def: Dictionary = data.units[marine].duplicate(true)
+	if not extra.is_empty() and extra not in marine_def["abilities"]:
+		marine_def["abilities"].insert(mini(1, marine_def["abilities"].size()), extra)
 	var n := 1
 	while squad.size() < int(mission.get("squad_size", 3)):
-		squad.append({"unit": marine, "name": "Marine %d" % n})
+		squad.append({"unit_def": marine_def, "name": "Marine %d" % n})
 		n += 1
 	return squad
 

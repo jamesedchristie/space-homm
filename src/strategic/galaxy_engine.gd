@@ -47,8 +47,13 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 			"name": f.get("name", f["id"]),
 			"controller": f.get("controller", "ai"),
 			"team": team,
-			"always_hostile": f.get("always_hostile", false),
+			"always_hostile": f.get("always_hostile", false) or f.get("role", "") == "barbarian",
+			## Barbarians: {"spawn_every": turns, "max_fleets": n, "fleet": [unit ids], "den_loot": {credits, alloys}}
+			"barbarian": f.get("barbarian", {}),
 			"ai": f.get("ai", {}),
+			"species": f.get("species", ""),
+			## major: plays to win; barbarian: raids, never negotiates or wins; minor: a neutral power.
+			"role": f.get("role", "major"),
 		})
 		s.explored[f["id"]] = {}
 		var stock: Dictionary = def.get("resources", {}).get(f["id"], {})
@@ -513,7 +518,8 @@ func _battle_side(fleet: Fleet, faction_id: String, slots: Array, planet: Planet
 					"ref": "platform:%s:%d" % [planet.id, i], "statuses": statuses})
 		if not defenses.is_empty():
 			names.append("%s defenses" % planet.name)
-	return {"team": faction["team"], "name": " + ".join(names), "controller": faction["controller"], "units": units}
+	return {"team": faction["team"], "name": " + ".join(names), "controller": faction["controller"], "units": units,
+			"species": faction.get("species", "")}
 
 
 ## Deterministic seed for the next battle (so campaigns replay exactly).
@@ -642,9 +648,11 @@ func pending_mission_scenario() -> Dictionary:
 	var fleet := pending_mission_fleet()
 	var mission := pending_mission_def()
 	var faction := state.faction(fleet.owner)
-	var squad := MissionFactory.squad_for(data, mission, mission_heroes(fleet))
-	return MissionFactory.scenario(data, mission, squad, faction["team"],
+	var squad := MissionFactory.squad_for(data, mission, mission_heroes(fleet), faction.get("species", ""))
+	var scenario := MissionFactory.scenario(data, mission, squad, faction["team"],
 			"%s away team" % fleet.name, faction["controller"])
+	scenario["teams"][0]["species"] = faction.get("species", "")
+	return scenario
 
 
 func decline_pending_mission() -> Array[Dictionary]:
@@ -1019,6 +1027,15 @@ func _do_split(cmd: SplitFleetCommand) -> void:
 
 func _capture_planet(planet: Planet, fleet: Fleet) -> void:
 	var previous := planet.owner
+	if state.faction(fleet.owner).get("role", "") == "barbarian":
+		_plunder(planet, fleet)
+		return
+	var loot: Dictionary = state.faction(previous).get("barbarian", {}).get("den_loot", {}) if not previous.is_empty() else {}
+	if not loot.is_empty():
+		var stock: Dictionary = state.resources[fleet.owner]
+		for k in ["credits", "alloys"]:
+			stock[k] = int(stock.get(k, 0)) + int(loot.get(k, 0))
+		emit({"type": GalaxyEvents.DEN_CLEARED, "planet": planet.id, "faction": fleet.owner, "loot": loot})
 	planet.owner = fleet.owner
 	planet.queue = {}
 	DiplomacyRules.change_opinion(state, previous, fleet.owner, DiplomacyRules.PLANET_TAKEN_OPINION)
@@ -1031,6 +1048,7 @@ func _capture_planet(planet: Planet, fleet: Fleet) -> void:
 func _begin_faction_turn() -> void:
 	var faction_id := current_faction_id()
 	_run_economy(faction_id)
+	_barbarian_spawns(faction_id)
 	for h in state.heroes_of(faction_id):
 		if (h.status == Hero.ON_MISSION or h.status == Hero.INJURED) and state.turn_number >= h.busy_until:
 			h.status = Hero.READY
@@ -1106,6 +1124,62 @@ func _run_economy(faction_id: String) -> void:
 	for f in state.factions:
 		if f["id"] != faction_id and not state.is_eliminated(f["id"]) and not state.at_war(faction_id, f["id"]):
 			DiplomacyRules.change_opinion(state, faction_id, f["id"], DiplomacyRules.PEACE_DRIFT)
+
+
+## Barbarians don't hold what they take: they strip a system (credits from
+## its owner, one building wrecked, the build queue lost) and leave it
+## unclaimed.
+func _plunder(planet: Planet, fleet: Fleet) -> void:
+	var previous := planet.owner
+	var stolen := 0
+	if not previous.is_empty():
+		var stock: Dictionary = state.resources[previous]
+		stolen = mini(int(stock.get("credits", 0)), 40)
+		stock["credits"] = int(stock["credits"]) - stolen
+		state.resources[fleet.owner]["credits"] = int(state.resources[fleet.owner].get("credits", 0)) + stolen
+	var wrecked := ""
+	for b_id: String in planet.buildings:
+		if b_id != "colony":
+			wrecked = b_id
+	if not wrecked.is_empty():
+		planet.remove_building(wrecked)
+	planet.queue = {}
+	planet.owner = ""
+	DiplomacyRules.change_opinion(state, previous, fleet.owner, DiplomacyRules.PLANET_TAKEN_OPINION)
+	emit({"type": GalaxyEvents.SYSTEM_PLUNDERED, "planet": planet.id, "faction": fleet.owner, "previous_owner": previous,
+			"credits": stolen, "building": wrecked})
+	_update_explored()
+	_check_eliminations()
+
+
+## Barbarian dens (systems a barbarian faction holds) launch a new raider
+## fleet every `spawn_every` turns while the faction has fewer than
+## `max_fleets` fleets.
+func _barbarian_spawns(faction_id: String) -> void:
+	var f := state.faction(faction_id)
+	var spec: Dictionary = f.get("barbarian", {})
+	if f.get("role", "") != "barbarian" or spec.is_empty():
+		return
+	var every := int(spec.get("spawn_every", 4))
+	if state.turn_number % every != 0:
+		return
+	for den in state.planets_of(faction_id):
+		if state.fleets_of(faction_id).size() >= int(spec.get("max_fleets", 4)):
+			return
+		if state.fleet_at(den.cell) != null:
+			continue
+		var fleet := Fleet.new()
+		fleet.id = state.make_uid("fleet")
+		fleet.owner = faction_id
+		fleet.cell = den.cell
+		fleet.name = "%s Raiders %d" % [den.name, state.next_uid]
+		for unit_id: String in spec.get("fleet", ["interceptor", "interceptor"]):
+			var def: Dictionary = data.units[unit_id]
+			fleet.ships.append({"uid": state.make_uid("ship"), "unit": unit_id,
+					"name": "%s %d" % [def.get("name", unit_id), state.next_uid], "hull": int(def["stats"]["max_hull"])})
+		fleet.moves_left = 0
+		state.fleets[fleet.id] = fleet
+		emit({"type": GalaxyEvents.FLEET_CREATED, "fleet": fleet.id, "planet": den.id})
 
 
 ## A finished ship joins the faction's fleet in orbit, or forms a new fleet.
@@ -1219,10 +1293,25 @@ func _check_eliminations() -> void:
 		if state.fleets_of(fid).is_empty() and state.planets_of(fid).is_empty():
 			state.eliminated.append(fid)
 			emit({"type": GalaxyEvents.FACTION_ELIMINATED, "faction": fid})
+	# Only major powers play to win: barbarians and minor powers neither win
+	# nor keep the game going.
 	var remaining: Array[String] = []
 	for f in state.factions:
-		if f["id"] not in state.eliminated:
+		if f["id"] not in state.eliminated and f.get("role", "major") == "major":
 			remaining.append(f["id"])
+	# Scenario goal: {"victory": {"eliminate": faction id}} ends the game, won by
+	# the strongest surviving major power, once that faction is gone.
+	var target: String = campaign.get("victory", {}).get("eliminate", "")
+	if not target.is_empty():
+		if target in state.eliminated:
+			var winner := ""
+			for f in remaining:
+				if winner.is_empty() or EmpireRules.score(self, f) > EmpireRules.score(self, winner):
+					winner = f
+			_finish(winner, "objective")
+		elif remaining.is_empty():
+			_finish("", "elimination")
+		return
 	if remaining.size() <= 1:
 		_finish(remaining[0] if remaining.size() == 1 else "", "elimination")
 		return

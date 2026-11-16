@@ -174,7 +174,7 @@ func _crates(st: SurfaceTool, c: Vector2i) -> void:
 func add_unit(u: BattleUnit) -> void:
 	var view := Unit3D.new()
 	_world.add_child(view)
-	view.setup(u, data, Palette.team_color(u.team))
+	view.setup(u, data, Palette.team_color(u.team), engine.state.team_info(u.team).get("species", ""))
 	view.position = _unit_ground(u)
 	view.face_angle(0.0 if u.team == 0 else PI)
 	views[u.id] = view

@@ -83,6 +83,21 @@ func show_new_campaign() -> void:
 	box.add_child(picker)
 	var description := _note("")
 	box.add_child(description)
+	var species_row := HBoxContainer.new()
+	species_row.add_theme_constant_override("separation", 10)
+	species_row.add_child(UiKit.label("Play as", 14, Palette.TEXT))
+	var species_picker := OptionButton.new()
+	var species_ids: Array = data.species.keys()
+	for sp_id: String in species_ids:
+		species_picker.add_item("%s  (%s)" % [data.species[sp_id]["empire_name"], data.species[sp_id]["name"]])
+	species_row.add_child(species_picker)
+	box.add_child(species_row)
+	var species_note := _note("")
+	box.add_child(species_note)
+	species_picker.item_selected.connect(func(i: int) -> void:
+		var sp: Dictionary = data.species[species_ids[i]]
+		species_note.text = "%s  %s" % [sp.get("description", ""), sp.get("bonus_text", "")])
+	species_picker.item_selected.emit(0)
 	var permadeath := CheckButton.new()
 	permadeath.text = "Permadeath: heroes who fall on missions die"
 	box.add_child(permadeath)
@@ -104,6 +119,7 @@ func show_new_campaign() -> void:
 	row.add_theme_constant_override("separation", 12)
 	row.add_child(UiKit.button("Start", func() -> void:
 		new_campaign_requested.emit({"campaign": ids[picker.selected], "permadeath": permadeath.button_pressed,
+				"species": species_ids[species_picker.selected],
 				"seed": int(seed_edit.text) if seed_edit.text.strip_edges().is_valid_int() else 0})))
 	row.add_child(UiKit.button("Back", show_main))
 	box.add_child(row)

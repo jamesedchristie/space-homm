@@ -166,9 +166,10 @@ func test_battle_map_follows_location() -> void:
 
 func test_ai_campaign_finishes_deterministically() -> void:
 	var data := DataRegistry.get_default()
-	var a := CampaignAutoRunner.run(GalaxyEngine.from_campaign(data, "the_drift", 2024))
-	var b := CampaignAutoRunner.run(GalaxyEngine.from_campaign(data, "the_drift", 2024))
+	var a := CampaignAutoRunner.run(GalaxyEngine.from_campaign(data, "random_sector", 2024))
+	var b := CampaignAutoRunner.run(GalaxyEngine.from_campaign(data, "random_sector", 2024))
 	assert_ne(a["winner"], "", "campaign should end with a winner (turns: %d)" % a["turns"])
+	assert_true(a["winner"] in ["patrol", "veltari", "kesh"], "only major powers win")
 	assert_true(a["battles"] > 0)
 	assert_eq(a, b, "same seed, same campaign")
 

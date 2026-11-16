@@ -1,0 +1,1 @@
+{"id": "species_sorn", "name": "Baffled Hulls", "description": "Sorn hulls: 8% less damage.", "hidden": true, "permanent": true, "modifiers": {"damage_taken": {"mul": 0.92}}, "ai_value": 4}

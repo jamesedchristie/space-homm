@@ -1,0 +1,1 @@
+{"id": "blood_oath", "name": "Blood Oath", "description": "Kesh fury: recover 15 health and deal 20% more damage for 2 turns.", "ap_cost": 1, "cooldown": 4, "target": "self", "effects": [{"type": "heal", "stat": "hull", "amount": 15}, {"type": "apply_status", "status": "rallied", "duration": 2}], "fx": "self"}

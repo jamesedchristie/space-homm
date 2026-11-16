@@ -43,6 +43,10 @@ var board: GalaxyBoard
 var selected_fleet := ""
 var selected_planet := ""
 var selected_anomaly := ""
+## Species the player chose ("" = the campaign's). The player's faction takes
+## its species and empire name; an AI faction of that species swaps with the
+## player's original one so every species stays unique.
+var player_species := ""
 ## Optional override of the campaign's permadeath setting (true/false), or null.
 var permadeath_override: Variant = null
 
@@ -86,7 +90,7 @@ func _ready() -> void:
 
 
 func start_campaign() -> void:
-	var token := _begin(GalaxyEngine.from_campaign(data, campaign_id, rng_seed))
+	var token := _begin(GalaxyEngine.from_campaign(data, _campaign_with_species(), rng_seed))
 	if permadeath_override != null:
 		engine.state.permadeath = permadeath_override
 	_busy = true
@@ -102,6 +106,28 @@ func start_campaign() -> void:
 		if token != _token:
 			return
 	await _continue(token)
+
+
+func _campaign_with_species() -> Variant:
+	if player_species.is_empty():
+		return campaign_id
+	var def: Dictionary = data.campaigns[campaign_id].duplicate(true)
+	var player: Dictionary = {}
+	for f: Dictionary in def["factions"]:
+		if f.get("controller", "") == "player":
+			player = f
+	if player.is_empty() or player.get("species", "") == player_species:
+		return def
+	var original: String = player.get("species", "")
+	for f: Dictionary in def["factions"]:
+		if f != player and f.get("species", "") == player_species and f.get("role", "major") == "major":
+			f["species"] = original
+			if data.species.has(original):
+				f["name"] = data.species[original]["empire_name"]
+	player["species"] = player_species
+	player["name"] = data.species[player_species]["empire_name"]
+	def["id"] = campaign_id
+	return def
 
 
 ## Continues a saved campaign (see GalaxySave). Saves are made between turns,
@@ -427,6 +453,10 @@ func _play(events: Array[Dictionary], token: int) -> void:
 			GalaxyEvents.FLEET_MOVED:
 				await _animate_move(e)
 				_sync_views()
+			GalaxyEvents.SYSTEM_PLUNDERED:
+				board.refresh_planet(e["planet"])
+				if _visible.has(engine.state.planets[e["planet"]].cell):
+					board.float_text_at_planet(e["planet"], "Plundered!", Palette.BAD)
 			GalaxyEvents.PLANET_CAPTURED:
 				board.refresh_planet(e["planet"])
 				if _visible.has(engine.state.planets[e["planet"]].cell) or e["faction"] == player_faction:
@@ -854,6 +884,15 @@ func _describe(e: Dictionary) -> String:
 			return "   Battle won by %s (%d rounds)" % [s.faction(winner).get("name", "nobody"), e["rounds"]]
 		GalaxyEvents.FLEET_DESTROYED:
 			return UiKit.color_tag("   %s destroyed" % e["name"], Palette.BAD)
+		GalaxyEvents.SYSTEM_PLUNDERED:
+			if e["previous_owner"] != player_faction:
+				return ""
+			return UiKit.color_tag("   Raiders plundered %s: %d credits stolen%s" % [s.planets[e["planet"]].name, e["credits"],
+					(", %s wrecked" % data.buildings[e["building"]]["name"]) if not e["building"].is_empty() else ""], Palette.BAD)
+		GalaxyEvents.DEN_CLEARED:
+			if e["faction"] != player_faction:
+				return ""
+			return UiKit.color_tag("   Raider den cleared: +%d credits, +%d alloys in loot" % [int(e["loot"].get("credits", 0)), int(e["loot"].get("alloys", 0))], Palette.GOOD)
 		GalaxyEvents.DISCOVERY_FOUND:
 			if e["faction"] != player_faction:
 				return ""

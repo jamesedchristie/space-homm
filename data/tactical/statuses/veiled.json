@@ -1,0 +1,1 @@
+{"id": "veiled", "name": "Veiled", "description": "Takes 50% less damage.", "modifiers": {"damage_taken": {"mul": 0.5}}, "ai_value": 10}

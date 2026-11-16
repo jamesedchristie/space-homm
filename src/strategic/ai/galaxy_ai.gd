@@ -140,7 +140,9 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 				best_find = dist
 				target = d["cell"]
 
-	# 4. Expand.
+	# 4. Expand. Barbarians only raid what others hold; minor powers stay
+	# close to home (within 4 systems of their capital).
+	var role: String = s.faction(fleet.owner).get("role", "major")
 	if target == null:
 		var candidates: Array[Planet] = []
 		for p: Planet in s.planets.values():
@@ -148,7 +150,16 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 				continue
 			if defense_strength(engine, p) > my_strength * attack_ratio:
 				continue
+			if role == "barbarian" and p.owner.is_empty():
+				continue
+			if role == "minor":
+				var capital := s.home_planet(fleet.owner)
+				if capital != null and s.grid.distance(capital.cell, p.cell) > 4:
+					continue
 			candidates.append(p)
+		# Barbarians strike within their hunting range; farther targets they leave alone.
+		if role == "barbarian":
+			candidates = candidates.filter(func(p: Planet) -> bool: return s.grid.distance(fleet.cell, p.cell) <= hunt_range + 2)
 		var planet := _nearest(s, fleet.cell, candidates)
 		if planet != null:
 			target = planet.cell

@@ -1,0 +1,1 @@
+{"id": "species_veltari", "name": "Crystal Shields", "description": "Vel'tari shields: +15% shields.", "hidden": true, "permanent": true, "modifiers": {"max_shields": {"mul": 1.15}}, "ai_value": 4}

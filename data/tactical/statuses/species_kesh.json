@@ -1,0 +1,1 @@
+{"id": "species_kesh", "name": "Forged Guns", "description": "Kesh weapons: +10% damage.", "hidden": true, "permanent": true, "modifiers": {"damage_dealt": {"mul": 1.1}}, "ai_value": 4}

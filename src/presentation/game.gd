@@ -47,6 +47,7 @@ func new_campaign(options: Dictionary) -> void:
 	galaxy.rng_seed = int(options.get("seed", 0))
 	if options.has("permadeath"):
 		galaxy.permadeath_override = options["permadeath"]
+	galaxy.player_species = options.get("species", "")
 	galaxy.start_campaign()
 
 

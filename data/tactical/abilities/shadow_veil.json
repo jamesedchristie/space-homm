@@ -1,0 +1,1 @@
+{"id": "shadow_veil", "name": "Shadow Veil", "description": "Sorn tradecraft: fade into the shadows. Take 50% less damage until your next turn.", "ap_cost": 1, "cooldown": 3, "target": "self", "effects": [{"type": "apply_status", "status": "veiled", "duration": 1}], "fx": "self"}

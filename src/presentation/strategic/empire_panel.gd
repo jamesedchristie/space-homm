@@ -134,8 +134,15 @@ func _build_research(engine: GalaxyEngine, faction_id: String, interactive: bool
 func _build_diplomacy(engine: GalaxyEngine, faction_id: String, interactive: bool) -> void:
 	var list := _lists[2]
 	var s := engine.state
-	list.add_child(_text(UiKit.color_tag("At peace, fleets can't attack each other or take each other's planets. "
-			+ "The war ends when no surviving factions are at war; the highest score wins.", Palette.TEXT_DIM)))
+	var mine: Dictionary = engine.data.species.get(s.faction(faction_id).get("species", ""), {})
+	if not mine.is_empty():
+		list.add_child(_text("You are [b]%s[/b]: %s" % [mine["name"], UiKit.color_tag(mine.get("bonus_text", ""), Palette.ACTIVE)]))
+	list.add_child(_text(UiKit.color_tag("At peace, fleets can't attack each other or take each other's systems. "
+			+ "Only major powers compete for victory: the game ends when one is left, or when none are at war "
+			+ "(highest score wins). Minor powers pay trade income to friends at peace (opinion 30+: +3, 60+: +6 credits).", Palette.TEXT_DIM)))
+	var trade := EmpireRules.trade_income(engine, faction_id)
+	if trade > 0:
+		list.add_child(_text(UiKit.color_tag("Trade income: +%d credits per turn" % trade, Palette.GOOD)))
 	for f in s.factions:
 		var other: String = f["id"]
 		if other == faction_id:
@@ -149,11 +156,15 @@ func _build_diplomacy(engine: GalaxyEngine, faction_id: String, interactive: boo
 			list.add_child(card)
 			continue
 		var war := s.at_war(faction_id, other)
-		box.add_child(_text("[b]%s[/b]   %s   ·   their opinion of you: %d   ·   score %d%s" % [
+		var sp: Dictionary = engine.data.species.get(f.get("species", ""), {})
+		var role_text: String = {"barbarian": "Barbarians: they raid and plunder, never negotiate and can't win. Their dens launch new raiders; clearing one pays loot.",
+				"minor": "Minor power: neutral traders who don't compete for victory."}.get(f.get("role", "major"), "Major power")
+		box.add_child(_text("[b]%s[/b]   %s   ·   their opinion of you: %d   ·   score %d\n%s%s" % [
 				UiKit.color_tag(f["name"], color),
 				UiKit.color_tag("WAR", Palette.BAD) if war else UiKit.color_tag("PEACE", Palette.GOOD),
 				s.opinion(other, faction_id), EmpireRules.score(engine, other),
-				"\n" + UiKit.color_tag("They never negotiate.", Palette.TEXT_DIM) if f.get("always_hostile", false) else ""]))
+				UiKit.color_tag(role_text, Palette.TEXT_DIM),
+				("\n" + UiKit.color_tag("%s: %s" % [sp["name"], sp.get("bonus_text", "")], Palette.TEXT_DIM)) if not sp.is_empty() else ""]))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		var peace := UiKit.button("Propose peace", func() -> void:

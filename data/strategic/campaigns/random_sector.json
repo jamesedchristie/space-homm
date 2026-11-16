@@ -1,7 +1,7 @@
 {
   "id": "random_sector",
   "name": "Random Sector",
-  "description": "A new frontier sector every game: the raiders hold the far side, the Free Traders are neutral, and nobody has charted the rest.",
+  "description": "The main game: a new sector every time. Three powers compete for the stars: you, the Vel'tari Concord and the Kesh Dominion. Raiders prey on everyone; the Free Traders deal with anyone who treats them well.",
   "max_turns": 150,
   "random": {
     "planet_traits": 0.7,
@@ -31,16 +31,24 @@
     },
     {
       "factions": [
-        "raiders",
+        "veltari",
         "traders"
       ],
-      "status": "war",
-      "opinion": -40
+      "status": "peace",
+      "opinion": 20
     },
     {
       "factions": [
-        "patrol",
-        "raiders"
+        "kesh",
+        "traders"
+      ],
+      "status": "peace",
+      "opinion": 10
+    },
+    {
+      "factions": [
+        "raiders",
+        "traders"
       ],
       "status": "war",
       "opinion": -40
@@ -51,34 +59,76 @@
       "credits": 120,
       "alloys": 100
     },
-    "raiders": {
-      "credits": 200,
-      "alloys": 160
+    "veltari": {
+      "credits": 120,
+      "alloys": 100
+    },
+    "kesh": {
+      "credits": 120,
+      "alloys": 100
     },
     "traders": {
-      "credits": 160,
-      "alloys": 60
+      "credits": 120,
+      "alloys": 100
+    },
+    "raiders": {
+      "credits": 100,
+      "alloys": 80
     }
   },
   "factions": [
     {
       "id": "patrol",
-      "name": "Patrol Group",
-      "controller": "player"
+      "name": "Terran Alliance",
+      "controller": "player",
+      "species": "human"
+    },
+    {
+      "id": "veltari",
+      "name": "Vel'tari Concord",
+      "controller": "ai",
+      "species": "veltari",
+      "ai": {
+        "attack_ratio": 1.1
+      }
+    },
+    {
+      "id": "kesh",
+      "name": "Kesh Dominion",
+      "controller": "ai",
+      "species": "kesh",
+      "ai": {
+        "attack_ratio": 0.85
+      }
     },
     {
       "id": "raiders",
       "name": "Drift Raiders",
       "controller": "ai",
-      "always_hostile": true,
+      "role": "barbarian",
+      "species": "",
       "ai": {
         "attack_ratio": 1.0
+      },
+      "barbarian": {
+        "spawn_every": 5,
+        "max_fleets": 4,
+        "fleet": [
+          "interceptor",
+          "interceptor"
+        ],
+        "den_loot": {
+          "credits": 80,
+          "alloys": 40
+        }
       }
     },
     {
       "id": "traders",
       "name": "Ceres Free Traders",
       "controller": "ai",
+      "role": "minor",
+      "species": "sorn",
       "ai": {
         "attack_ratio": 1.4,
         "hunt_range": 3
@@ -86,9 +136,9 @@
     }
   ],
   "generate": {
-    "width": 18,
-    "height": 12,
-    "neutral_planets": 7,
+    "width": 22,
+    "height": 14,
+    "neutral_planets": 10,
     "terrain": {
       "nebula": [
         3,
@@ -120,7 +170,6 @@
         "description": "Raider stronghold carved into a dead moon.",
         "buildings": [
           "shipyard",
-          "trade_hub",
           "defense_platform"
         ]
       },
@@ -134,6 +183,22 @@
           "defense_platform"
         ],
         "description": "Free Trader port. Neutral to the Patrol, hated by the raiders."
+      },
+      "veltari": {
+        "id": "lumen",
+        "name": "Lumen",
+        "sensor": 3,
+        "buildings": [
+          "shipyard"
+        ]
+      },
+      "kesh": {
+        "id": "khorrak",
+        "name": "Khorrak",
+        "sensor": 3,
+        "buildings": [
+          "shipyard"
+        ]
       }
     },
     "fleets": [
@@ -188,20 +253,6 @@
         ]
       },
       {
-        "name": "Lurkers",
-        "owner": "raiders",
-        "ships": [
-          {
-            "unit": "interceptor",
-            "name": "Hyena"
-          },
-          {
-            "unit": "interceptor",
-            "name": "Shrike"
-          }
-        ]
-      },
-      {
         "name": "Merchant Guard",
         "owner": "traders",
         "ships": [
@@ -216,6 +267,70 @@
           {
             "unit": "interceptor",
             "name": "Courier"
+          }
+        ]
+      },
+      {
+        "name": "Concord Vanguard",
+        "owner": "veltari",
+        "ships": [
+          {
+            "unit": "frigate",
+            "name": "Serene Light"
+          },
+          {
+            "unit": "frigate",
+            "name": "Patient Dawn"
+          },
+          {
+            "unit": "interceptor",
+            "name": "Whisper"
+          }
+        ]
+      },
+      {
+        "name": "Concord Scouts",
+        "owner": "veltari",
+        "ships": [
+          {
+            "unit": "interceptor",
+            "name": "Far Sight"
+          },
+          {
+            "unit": "interceptor",
+            "name": "Quiet Step"
+          }
+        ]
+      },
+      {
+        "name": "Dominion Warband",
+        "owner": "kesh",
+        "ships": [
+          {
+            "unit": "frigate",
+            "name": "Skullbreaker"
+          },
+          {
+            "unit": "frigate",
+            "name": "Iron Oath"
+          },
+          {
+            "unit": "interceptor",
+            "name": "Bloodhound"
+          }
+        ]
+      },
+      {
+        "name": "Dominion Hunters",
+        "owner": "kesh",
+        "ships": [
+          {
+            "unit": "interceptor",
+            "name": "Fang"
+          },
+          {
+            "unit": "interceptor",
+            "name": "Talon"
           }
         ]
       }
@@ -276,6 +391,30 @@
           "weapon": "assault_rifle"
         },
         "loyalty": 80
+      },
+      {
+        "id": "ithrenne",
+        "name": "Sael Ithrenne",
+        "class": "technician",
+        "owner": "veltari",
+        "fleet": "Concord Vanguard",
+        "gear": {
+          "weapon": "assault_rifle",
+          "gadget": "medkit"
+        },
+        "loyalty": 60
+      },
+      {
+        "id": "drakh",
+        "name": "Warlord Drakh",
+        "class": "vanguard",
+        "owner": "kesh",
+        "fleet": "Dominion Warband",
+        "gear": {
+          "weapon": "shotgun",
+          "armor": "heavy_plating"
+        },
+        "loyalty": 60
       }
     ],
     "anomalies": [
@@ -306,7 +445,15 @@
       "Sable",
       "Corvane",
       "Elara",
-      "Thule"
+      "Thule",
+      "Selune",
+      "Arvath",
+      "Kaldris",
+      "Mirethe",
+      "Ostrava",
+      "Pell",
+      "Quorra",
+      "Riven"
     ],
     "backdrops": [
       {

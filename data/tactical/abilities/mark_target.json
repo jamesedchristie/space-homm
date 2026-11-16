@@ -1,0 +1,1 @@
+{"id": "mark_target", "name": "Mark Target", "description": "Human squad tactics: paint an enemy for the squad. It takes 25% more damage for 2 turns.", "ap_cost": 1, "cooldown": 3, "target": "enemy", "range": [1, 8], "requires_los": true, "effects": [{"type": "apply_status", "status": "marked", "duration": 2}], "fx": "beam"}

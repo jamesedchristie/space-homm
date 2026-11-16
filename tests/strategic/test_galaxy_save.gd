@@ -80,10 +80,10 @@ func test_generated_sector_is_seeded_and_saves() -> void:
 	assert_eq(var_to_str(a.campaign["planets"]), var_to_str(b.campaign["planets"]), "same seed, same sector")
 	assert_ne(var_to_str(a.campaign["planets"]), var_to_str(c.campaign["planets"]), "different seed, different sector")
 	var homes := a.state.planets.values().filter(func(p: Planet) -> bool: return not p.owner.is_empty())
-	assert_eq(homes.size(), 3)
+	assert_eq(homes.size(), 5, "three majors, the raiders' den and the traders' port")
 	for i in homes.size():
 		for j in range(i + 1, homes.size()):
-			assert_true(a.state.grid.distance(homes[i].cell, homes[j].cell) >= 6, "homes spread apart")
+			assert_true(a.state.grid.distance(homes[i].cell, homes[j].cell) >= 5, "homes spread apart")
 	a.start()
 	var loaded := GalaxySave.from_dict(data, GalaxySave.to_dict(a, "random_sector"))
 	assert_true(loaded.has("engine"), str(loaded.get("error", "")))

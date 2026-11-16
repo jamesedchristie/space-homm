@@ -25,8 +25,12 @@ var _t := 0.0
 var _trail: CPUParticles3D
 
 
-func setup(fleet: Fleet, team: int, data: DataRegistry, owned_by_player: bool) -> void:
+var _style := ""
+
+
+func setup(fleet: Fleet, team: int, data: DataRegistry, owned_by_player: bool, style: String = "") -> void:
 	fleet_id = fleet.id
+	_style = style
 	_data = data
 	color = Palette.team_color(team)
 	show_moves = owned_by_player
@@ -103,7 +107,7 @@ func _build_models(fleet: Fleet) -> void:
 	var slots := [Vector3(0.08, 0, 0), Vector3(-0.3, -0.04, -0.3), Vector3(-0.3, -0.04, 0.3)]
 	for i in mini(defs.size(), slots.size()):
 		var visual: Dictionary = defs[i].get("visual", {})
-		var model := ModelFactory.build(_data, visual.get("model", "frigate"), color)
+		var model := ModelFactory.build(_data, visual.get("model", "frigate"), color, _style)
 		var s := float(visual.get("size", 1.0)) * (0.65 if i == 0 else 0.4)
 		model.scale = Vector3(s, s, s)
 		model.position = slots[i]

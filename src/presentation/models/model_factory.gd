@@ -36,14 +36,18 @@ static var _center := Vector3.ZERO
 
 
 ## A Node3D with one MeshInstance3D per material, ready to add to a scene.
-static func build(data: DataRegistry, model_id: String, team_color: Color) -> Node3D:
+## style: a species id (data/strategic/species.json "style"): its colours
+## repaint hull / dark / glass, and its "extra" parts are added to the model
+## (and to every model built on the same base, e.g. "humanoid").
+static func build(data: DataRegistry, model_id: String, team_color: Color, style: String = "") -> Node3D:
 	var root := Node3D.new()
 	root.name = model_id
-	var meshes := _meshes_for(data, model_id)
+	var style_def: Dictionary = data.species.get(style, {}).get("style", {})
+	var meshes := _meshes_for(data, model_id, style if not style_def.is_empty() else "")
 	for material_name: String in meshes:
 		var mi := MeshInstance3D.new()
 		mi.mesh = meshes[material_name]
-		mi.material_override = material(material_name, team_color)
+		mi.material_override = _styled_material(material_name, team_color, style_def)
 		root.add_child(mi)
 	_add_plumes(root, data, model_id, team_color)
 	return root
@@ -185,15 +189,23 @@ static func material(material_name: String, team_color: Color = Color.WHITE) -> 
 
 
 ## Meshes per material for a model (geometry is shared by every team).
-static func _meshes_for(data: DataRegistry, model_id: String) -> Dictionary:
-	if _mesh_cache.has(model_id):
-		return _mesh_cache[model_id]
+static func _meshes_for(data: DataRegistry, model_id: String, style: String = "") -> Dictionary:
+	var cache_key := model_id + "@" + style
+	if _mesh_cache.has(cache_key):
+		return _mesh_cache[cache_key]
 	var tools := {}  # material name -> SurfaceTool
 	var def: Dictionary = data.models.get(model_id, {})
 	if def.is_empty():
 		push_warning("ModelFactory: unknown model '%s'" % model_id)
 		def = {"parts": [{"type": "box", "size": [0.6, 0.3, 0.4], "material": "accent"}]}
-	for part: Dictionary in _parts_of(data, def, 0):
+	var parts := _parts_of(data, def, 0)
+	if not style.is_empty():
+		var extra: Dictionary = data.species.get(style, {}).get("style", {}).get("extra", {})
+		parts.append_array(extra.get(model_id, []))
+		var base: String = def.get("base", "")
+		if not base.is_empty():
+			parts.append_array(extra.get(base, []))
+	for part: Dictionary in parts:
 		var copies: Array = [1.0, -1.0] if part.get("mirror", false) else [1.0]
 		for zsign in copies:
 			var st: SurfaceTool = tools.get(part.get("material", "hull"))
@@ -206,8 +218,23 @@ static func _meshes_for(data: DataRegistry, model_id: String) -> Dictionary:
 	for material_name: String in tools:
 		var st: SurfaceTool = tools[material_name]
 		meshes[material_name] = st.commit()
-	_mesh_cache[model_id] = meshes
+	_mesh_cache[cache_key] = meshes
 	return meshes
+
+
+## A material recoloured by a species style (hull / dark / glass colours).
+static func _styled_material(material_name: String, team_color: Color, style_def: Dictionary) -> Material:
+	if not style_def.has(material_name):
+		return material(material_name, team_color)
+	var key := "%s:%s:%s" % [material_name, team_color.to_html(), style_def[material_name]]
+	if _material_cache.has(key):
+		return _material_cache[key]
+	var m: StandardMaterial3D = (material(material_name, team_color) as StandardMaterial3D).duplicate()
+	m.albedo_color = Color(style_def[material_name])
+	if m.emission_enabled:
+		m.emission = Color(style_def[material_name])
+	_material_cache[key] = m
+	return m
 
 
 ## A model's parts, after those of its "base" model (if any).

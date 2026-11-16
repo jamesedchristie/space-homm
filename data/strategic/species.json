@@ -1,0 +1,74 @@
+{
+  "human": {
+    "name": "Human",
+    "description": "Adaptable and stubborn. Humans trade well and fight in disciplined, coordinated squads.",
+    "empire_name": "Terran Alliance",
+    "bonus_text": "+10% credits. Ships: +1 sensor range. Squads: Mark Target.",
+    "effects": [
+      {"type": "yield", "resource": "credits", "mul": 1.1},
+      {"type": "empire_modifier", "stat": "sensor", "add": 1}
+    ],
+    "squad_ability": "mark_target",
+    "style": {}
+  },
+  "veltari": {
+    "name": "Vel'tari",
+    "description": "Tall, serene and long-lived, robed even in armour. A contemplative people whose ships glide on crystal-tuned shields.",
+    "empire_name": "Vel'tari Concord",
+    "bonus_text": "+20% research. Ships: +15% shields. Squads: Mind Ward.",
+    "effects": [
+      {"type": "yield", "resource": "research", "mul": 1.2},
+      {"type": "ship_status", "status": "species_veltari"}
+    ],
+    "squad_ability": "mind_ward",
+    "style": {
+      "hull": "#d9d3e6", "dark": "#3c3054", "glass": "#b48cff",
+      "extra": {
+        "frigate": [{"type": "hull", "outline": [[0.1, 0.2], [-0.35, 0.62], [-0.55, 0.6], [-0.3, 0.22]], "height": 0.03, "bevel": 0.2, "at": [0, 0.26, 0], "material": "glass", "mirror": true}],
+        "interceptor": [{"type": "cone", "radius": 0.04, "length": 0.35, "axis": "x", "at": [0.6, 0.08, 0.15], "material": "glass", "mirror": true}],
+        "destroyer": [{"type": "hull", "outline": [[0.3, 0.1], [-0.4, 0.75], [-0.7, 0.7], [-0.3, 0.12]], "height": 0.03, "bevel": 0.2, "at": [0, 0.3, 0], "material": "glass", "mirror": true}],
+        "humanoid": [{"type": "cone", "radius": 0.05, "length": 0.22, "axis": "y", "at": [-0.04, 1.0, 0], "material": "accent"}, {"type": "box", "size": [0.04, 0.42, 0.34], "at": [-0.2, 0.44, 0], "material": "glass"}]
+      }
+    }
+  },
+  "kesh": {
+    "name": "Kesh",
+    "description": "Broad, heavy-browed warrior clans who forge their ships like armour. Honour is paid in battle.",
+    "empire_name": "Kesh Dominion",
+    "bonus_text": "+15% alloys. Ships: +10% damage. Squads: Blood Oath.",
+    "effects": [
+      {"type": "yield", "resource": "alloys", "mul": 1.15},
+      {"type": "ship_status", "status": "species_kesh"}
+    ],
+    "squad_ability": "blood_oath",
+    "style": {
+      "hull": "#8f6a48", "dark": "#2e2420", "glass": "#ff6a4a",
+      "extra": {
+        "frigate": [{"type": "cone", "radius": 0.06, "length": 0.3, "axis": "x", "at": [0.9, 0.1, 0], "material": "dark"}, {"type": "box", "size": [0.5, 0.06, 0.08], "at": [-0.1, 0.25, 0.22], "material": "dark", "mirror": true}],
+        "interceptor": [{"type": "cone", "radius": 0.04, "length": 0.22, "axis": "x", "at": [0.8, 0.07, 0], "material": "dark"}],
+        "destroyer": [{"type": "cone", "radius": 0.08, "length": 0.36, "axis": "x", "at": [1.12, 0.12, 0], "material": "dark"}, {"type": "box", "size": [0.8, 0.08, 0.1], "at": [-0.05, 0.3, 0.3], "material": "dark", "mirror": true}],
+        "humanoid": [{"type": "box", "size": [0.16, 0.05, 0.26], "at": [0.06, 0.93, 0], "material": "dark"}, {"type": "box", "size": [0.12, 0.1, 0.36], "at": [0, 0.68, 0], "material": "dark"}]
+      }
+    }
+  },
+  "sorn": {
+    "name": "Sorn",
+    "description": "Gaunt, grey-skinned and soft-spoken, with ridged necks and long memories. Their fleets see far and are hard to pin down.",
+    "empire_name": "Sorn Directorate",
+    "bonus_text": "+1 fleet speed. Ships: take 8% less damage. Squads: Shadow Veil.",
+    "effects": [
+      {"type": "empire_modifier", "stat": "fleet_speed", "add": 1},
+      {"type": "ship_status", "status": "species_sorn"}
+    ],
+    "squad_ability": "shadow_veil",
+    "style": {
+      "hull": "#5c6c64", "dark": "#1c2622", "glass": "#4affd0",
+      "extra": {
+        "frigate": [{"type": "box", "size": [0.06, 0.12, 0.04], "at": [-0.35, 0.3, 0], "material": "dark"}, {"type": "box", "size": [0.06, 0.1, 0.04], "at": [-0.2, 0.3, 0], "material": "dark"}, {"type": "box", "size": [0.06, 0.08, 0.04], "at": [-0.05, 0.29, 0], "material": "dark"}],
+        "interceptor": [{"type": "box", "size": [0.2, 0.06, 0.02], "at": [-0.2, 0.2, 0], "material": "dark"}],
+        "destroyer": [{"type": "box", "size": [0.08, 0.16, 0.05], "at": [-0.55, 0.42, 0], "material": "dark"}, {"type": "box", "size": [0.08, 0.13, 0.05], "at": [-0.35, 0.42, 0], "material": "dark"}],
+        "humanoid": [{"type": "box", "size": [0.05, 0.12, 0.2], "at": [-0.1, 0.78, 0], "material": "dark"}, {"type": "sphere", "radius": 0.14, "detail": 1, "squash": [1.1, 0.5, 1.1], "at": [-0.03, 0.9, 0], "material": "dark"}]
+      }
+    }
+  }
+}

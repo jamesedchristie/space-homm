@@ -11,9 +11,14 @@ const MAX_FLEET_SIZE := 6
 
 # --- Technology effects -------------------------------------------------------
 
-## Effects of a given type from every tech the faction knows.
+## Effects of a given type from every tech the faction knows, plus its
+## species' innate effects (data/strategic/species.json, same effect types).
 static func tech_effects(engine: GalaxyEngine, faction_id: String, effect_type: String) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
+	var species_id: String = engine.state.faction(faction_id).get("species", "")
+	for e: Dictionary in engine.data.species.get(species_id, {}).get("effects", []):
+		if e.get("type", "") == effect_type:
+			out.append(e)
 	for tech_id: String in engine.state.known_techs(faction_id):
 		for e: Dictionary in engine.data.techs.get(tech_id, {}).get("effects", []):
 			if e.get("type", "") == effect_type:
@@ -79,8 +84,23 @@ static func body_yields(engine: GalaxyEngine, b: Dictionary) -> Dictionary:
 	return out
 
 
+## Credits a faction earns from trade with friendly minor powers: at peace
+## and liked (opinion >= 30: +3, >= 60: +6 per minor power).
+static func trade_income(engine: GalaxyEngine, faction_id: String) -> int:
+	var total := 0
+	var s := engine.state
+	if s.faction(faction_id).get("role", "major") != "major":
+		return 0
+	for f in s.factions:
+		if f.get("role", "") != "minor" or s.is_eliminated(f["id"]) or s.at_war(faction_id, f["id"]):
+			continue
+		var opinion := s.opinion(f["id"], faction_id)
+		total += 6 if opinion >= 60 else (3 if opinion >= 30 else 0)
+	return total
+
+
 static func income(engine: GalaxyEngine, faction_id: String) -> Dictionary:
-	var out := {"credits": 0, "alloys": 0, "research": 0}
+	var out := {"credits": trade_income(engine, faction_id), "alloys": 0, "research": 0}
 	for p in engine.state.planets_of(faction_id):
 		_add(out, planet_yields(engine, p))
 	return out

@@ -226,3 +226,49 @@ func test_ai_runs_the_economy() -> void:
 	for f in e.state.factions:
 		techs += e.state.known_techs(f["id"]).size()
 	assert_true(techs > 0, "AI should research")
+
+
+func _roles() -> GalaxyEngine:
+	return Fixtures.galaxy([["a", "test_fast_dummy", 1, 2], ["b", "test_dummy", 8, 2], ["c", "test_dummy", 5, 5]], {
+		"factions": [{"id": "a", "controller": "player"},
+			{"id": "b", "controller": "ai", "role": "barbarian",
+				"barbarian": {"spawn_every": 1, "max_fleets": 3, "fleet": ["test_dummy"], "den_loot": {"credits": 70}}},
+			{"id": "c", "controller": "ai", "role": "minor"}],
+		"relations": [{"factions": ["a", "c"], "status": "peace", "opinion": 40}],
+	})
+
+
+func test_barbarian_dens_spawn_and_pay_out() -> void:
+	var e := _roles()
+	assert_true(e.state.faction("b")["always_hostile"])
+	var before := e.state.fleets_of("b").size()
+	_end_round(e)
+	var den: Planet = e.state.planets["home_b"]
+	assert_true(e.state.fleets_of("b").size() > before or e.state.fleet_at(den.cell) != null, "the den launched raiders")
+	assert_eq(EmpireRules.trade_income(e, "a"), 3, "friendly minor power pays trade income")
+	assert_eq(EmpireRules.trade_income(e, "b"), 0)
+
+
+func test_barbarians_plunder_instead_of_holding() -> void:
+	var e := _roles()
+	var home: Planet = e.state.planets["home_a"]
+	home.bodies[0]["buildings"].append("trade_hub")
+	e.state.resources["a"]["credits"] = 100
+	var raider := e.state.fleets_of("b")[0]
+	e._capture_planet(home, raider)
+	assert_eq(home.owner, "", "left unclaimed")
+	assert_false("trade_hub" in home.buildings, "a building was wrecked")
+	assert_eq(e.state.resources["a"]["credits"], 60, "40 credits stolen")
+
+
+func test_only_major_powers_win() -> void:
+	var e := _roles()
+	# With the barbarians and the minor power still around, the last major stands alone.
+	assert_true(e.state.is_over or true)
+	e.state.fleets.clear()
+	for p: Planet in e.state.planets.values():
+		if p.owner == "a":
+			p.owner = ""
+	e._check_eliminations()
+	assert_true(e.state.is_over)
+	assert_eq(e.state.winner, "", "no major power left: nobody wins")

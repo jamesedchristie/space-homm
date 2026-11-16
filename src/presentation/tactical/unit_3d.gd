@@ -27,7 +27,7 @@ var _t := 0.0
 var _trail: CPUParticles3D
 
 
-func setup(u: BattleUnit, data: DataRegistry, color: Color) -> void:
+func setup(u: BattleUnit, data: DataRegistry, color: Color, style: String = "") -> void:
 	unit_id = u.id
 	display_name = u.name
 	team_color = color
@@ -35,7 +35,7 @@ func setup(u: BattleUnit, data: DataRegistry, color: Color) -> void:
 	_is_ship = "ship" in u.tags or "station" in u.tags
 	_spins = "immobile" in u.tags
 	var model_id: String = visual.get("model", visual.get("placeholder", "frigate"))
-	_model = ModelFactory.build(data, model_id, color)
+	_model = ModelFactory.build(data, model_id, color, style)
 	var s := float(visual.get("size", 1.0)) * (1.45 if _is_ship else 1.6)
 	_model.scale = Vector3(s, s, s)
 	add_child(_model)

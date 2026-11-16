@@ -66,9 +66,27 @@ The 3D map opens on the area you've explored; zoom out with the wheel to see the
 Battle and mission offers show the **auto-resolve odds** (from a dozen simulated runs) so you
 can decide whether to fight it yourself.
 
-Two campaigns: **The Drift** (a hand-made sector) and **Random Sector** (a new generated
-sector every game: home worlds, planets and names, nebulae, asteroid belts and rifts, mission
-sites; enter a seed on the New Campaign screen to replay one).
+Two campaigns:
+- **Random Sector** (the main game): a new generated sector every game. You and two AI empires
+  (the Vel'tari Concord and the Kesh Dominion) compete for the stars; raiders prey on everyone;
+  the Free Traders deal with whoever treats them well. Enter a seed to replay a sector.
+- **The Drift (scenario)**: a short hand-made scenario: clear the raider dens out of the Drift.
+
+**Species.** Pick who you play on the New Campaign screen. All are humanoid; the differences
+are deliberately subtle:
+
+| Species | Empire | Bonus | Ships | Squad ability |
+| --- | --- | --- | --- | --- |
+| Human | Terran Alliance | +10% credits, +1 sensor range | standard | Mark Target (enemy takes +25% damage) |
+| Vel'tari | Vel'tari Concord | +20% research | +15% shields; pearl hulls, crystal fins | Mind Ward (you and adjacent allies: shields and -25% damage) |
+| Kesh | Kesh Dominion | +15% alloys | +10% damage; bronze hulls, rams | Blood Oath (heal and +20% damage) |
+| Sorn | Sorn Directorate | +1 fleet speed | 8% less damage; slate hulls, dorsal ridges | Shadow Veil (-50% damage for a turn) |
+
+**Other powers.** The raiders are **barbarians**: their dens launch new raider fleets every few
+turns; they plunder systems (stealing credits and wrecking a building) rather than holding
+them, never negotiate and can't win, and clearing a den pays loot. The Free Traders are a
+**minor power**: they stay near home and don't compete for victory, and pay trade income
+(+3 credits at opinion 30, +6 at 60) to empires at peace with them. Only the major powers win.
 
 **Every game is different:** the seed scatters one-time **discoveries** across the sector
 (derelict hulks to salvage, strange signals, smugglers' caches, escape pods). Fly a fleet in to

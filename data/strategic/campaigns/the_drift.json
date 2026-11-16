@@ -1,7 +1,7 @@
 {
   "id": "the_drift",
-  "name": "The Drift",
-  "description": "Raiders have moved into the Drift. Destroy them and take their planets. The Free Traders are neutral for now.",
+  "name": "The Drift (scenario)",
+  "description": "A short scenario: clear the raider dens out of the Drift. The Free Traders are a neutral minor power: keep them sweet for trade income.",
   "max_turns": 150,
   "random": {
     "planet_traits": 0.7,
@@ -10,7 +10,7 @@
       "min_distance": 2
     }
   },
-  "briefing": "The Drift is lawless space at the edge of the Patrol's reach. Raiders run it from [b]Rustholm[/b] in the east and prey on anything that moves. The Ceres Free Traders hold [b]Ardent[/b] in the north-east: at peace with you, at war with the raiders.\n\n[b]Goal:[/b] destroy the raiders and take their planets. The campaign ends when one faction stands alone, or when nobody is left at war (then the highest empire score wins).\n\n[b]Getting started[/b]\n- Click a fleet, then a blue hex to move. Move into an enemy fleet to start a battle: fight it yourself or auto-resolve.\n- Move onto unclaimed planets to capture them. Planets produce credits, alloys and research.\n- [b]E[/b] Empire: build queues, research, diplomacy.  [b]H[/b] Heroes.  [b]Space[/b] end turn.  [b]Esc[/b] menu.\n- The Derelict Station (purple crystal) is a mission for a fleet with a ready commander.",
+  "briefing": "A short scenario to learn the ropes. Raiders have made the Drift their hunting ground, and their dens keep launching new raider packs. The Ceres Free Traders are a neutral minor power: stay at peace and on good terms (gifts help) and they pay you trade income.\n\n[b]Goal:[/b] destroy the raiders: take their den at [b]Rustholm[/b] and hunt down their fleets.\n\n[b]Getting started[/b]\n- Click a fleet, then a blue hex to move. Move into an enemy fleet to start a battle: fight it yourself or auto-resolve.\n- Move into an unclaimed star system to claim it, then click it to open the [b]system view[/b] and develop its worlds: colonies on habitable planets, mining bases on rocks and belts, research stations on ice moons and gas giants.\n- [b]E[/b] Empire: research and diplomacy.  [b]H[/b] Heroes.  [b]Space[/b] end turn.  [b]Esc[/b] menu.\n- The purple crystals are missions for a fleet with a ready commander.",
   "battle_max_rounds": 30,
   "default_battle_map": "open_space",
   "map": {
@@ -87,15 +87,29 @@
     {
       "id": "patrol",
       "name": "Patrol Group",
-      "controller": "player"
+      "controller": "player",
+      "species": "human"
     },
     {
       "id": "raiders",
       "name": "Drift Raiders",
       "controller": "ai",
-      "always_hostile": true,
       "ai": {
         "attack_ratio": 1.0
+      },
+      "role": "barbarian",
+      "species": "kesh",
+      "barbarian": {
+        "spawn_every": 5,
+        "max_fleets": 3,
+        "fleet": [
+          "interceptor",
+          "interceptor"
+        ],
+        "den_loot": {
+          "credits": 80,
+          "alloys": 40
+        }
       }
     },
     {
@@ -105,7 +119,9 @@
       "ai": {
         "attack_ratio": 1.4,
         "hunt_range": 3
-      }
+      },
+      "role": "minor",
+      "species": "sorn"
     }
   ],
   "planets": [
@@ -524,5 +540,8 @@
     "a": "#183c6e",
     "b": "#5a1f6b",
     "density": 0.6
+  },
+  "victory": {
+    "eliminate": "raiders"
   }
 }

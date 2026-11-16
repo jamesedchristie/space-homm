@@ -29,6 +29,7 @@ var scenarios: Dictionary = {}
 var galaxy_terrain: Dictionary = {}
 var body_types: Dictionary = {}
 var star_types: Dictionary = {}
+var species: Dictionary = {}
 var discoveries: Dictionary = {}
 var planet_traits: Dictionary = {}
 var campaigns: Dictionary = {}
@@ -74,6 +75,7 @@ func load_from(root: String) -> bool:
 	_load_keyed_file(root.path_join("strategic/terrain.json"), galaxy_terrain)
 	_load_keyed_file(root.path_join("strategic/body_types.json"), body_types)
 	_load_keyed_file(root.path_join("strategic/star_types.json"), star_types)
+	_load_keyed_file(root.path_join("strategic/species.json"), species)
 	_load_keyed_file(root.path_join("strategic/discoveries.json"), discoveries)
 	_load_keyed_file(root.path_join("strategic/planet_traits.json"), planet_traits)
 	_load_dir(root.path_join("strategic/campaigns"), campaigns)
@@ -174,6 +176,13 @@ func validate() -> PackedStringArray:
 		var model: String = units[id].get("visual", {}).get("model", "")
 		if not model.is_empty() and not models.has(model):
 			_err("unit '%s': unknown model '%s'" % [id, model])
+	for id: String in species:
+		var ability: String = species[id].get("squad_ability", "")
+		if not ability.is_empty() and not abilities.has(ability):
+			_err("species '%s': unknown squad ability '%s'" % [id, ability])
+		for e: Dictionary in species[id].get("effects", []):
+			if e.get("type", "") == "ship_status" and not statuses.has(e.get("status", "")):
+				_err("species '%s': unknown status '%s'" % [id, e.get("status", "")])
 	for id: String in models:
 		var base: String = models[id].get("base", "")
 		if not base.is_empty() and not models.has(base):
@@ -286,6 +295,10 @@ func _validate_campaign(id: String, def: Dictionary) -> void:
 	var faction_ids: Array = []
 	for f: Dictionary in def.get("factions", []):
 		faction_ids.append(f.get("id", ""))
+		if not f.get("species", "").is_empty() and not species.has(f["species"]):
+			_err("%s: faction '%s' has unknown species '%s'" % [owner, f.get("id", ""), f["species"]])
+		if f.get("role", "major") not in ["major", "barbarian", "minor"]:
+			_err("%s: faction '%s' has unknown role '%s'" % [owner, f.get("id", ""), f["role"]])
 	for p: Dictionary in def.get("planets", []):
 		if p.has("star") and not star_types.has(p["star"]):
 			_err("%s: system '%s' has unknown star '%s'" % [owner, p.get("name", ""), p["star"]])

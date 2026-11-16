@@ -127,6 +127,26 @@ mission with `AutoResolver` (12 seeds) to show auto-resolve odds in the offer di
 `WorkerThreadPool` on desktop (engines are independent RefCounted objects; the shared effect
 table is built before threads start) and one run per frame on the single-threaded Web build.
 
+### Species and faction roles
+
+`data/strategic/species.json`: each species has `effects` in the tech effect format (`yield`,
+`empire_modifier`, `ship_status`), which `EmpireRules.tech_effects` adds to the faction's tech
+effects, so species bonuses flow through the same code as research. `squad_ability` is added to
+every hero and marine of that species on missions (`MissionFactory.squad_for`). `style` repaints
+models (`hull` / `dark` / `glass` colours) and adds `extra` parts per model id or base
+(`humanoid`), so the four species share ship classes but look distinct (`ModelFactory.build(...,
+style)`; battle teams carry `species`). Campaign factions set `species` and `role`:
+- `major` (default) plays to win. Victory and the "everyone at peace" ending consider majors
+  only; a campaign can instead set `"victory": {"eliminate": faction}` (The Drift).
+- `barbarian`: always hostile; `barbarian: {spawn_every, max_fleets, fleet, den_loot}`: each den
+  (system they hold) launches a raider fleet every `spawn_every` turns; captures become
+  `_plunder` (credits stolen, a building wrecked, system left unclaimed); taking a den pays
+  `den_loot`. The AI only targets systems others hold.
+- `minor`: stays near home (AI expands within 4 of its capital); `EmpireRules.trade_income`
+  pays friendly majors at peace.
+The New Campaign screen's species choice rewrites the player's faction (and swaps an AI major
+of that species to the player's original one).
+
 ### Randomness: discoveries and planet traits
 
 A campaign's `"random"` entry adds seeded variety (`GalaxyEngine._roll_random_features`, using
