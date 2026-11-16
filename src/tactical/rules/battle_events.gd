@@ -10,7 +10,7 @@ const TURN_STARTED := "turn_started"          # {unit, ap}
 const TURN_SKIPPED := "turn_skipped"          # {unit, reason}
 const TURN_ENDED := "turn_ended"              # {unit}
 const UNIT_MOVED := "unit_moved"              # {unit, path: [Vector2i], cost, ap}
-const ABILITY_USED := "ability_used"          # {unit, ability, target: Vector2i, affected: [unit ids]}
+const ABILITY_USED := "ability_used"          # {unit, ability, target: Vector2i, affected: [unit ids], reaction?: true}
 const DAMAGE_DEALT := "damage_dealt"          # {source, target, damage_type, shield_damage, hull_damage, shields, hull}
 const HEALED := "healed"                      # {target, stat, amount, value}
 const STATUS_APPLIED := "status_applied"      # {target, status, duration, source}
@@ -22,6 +22,6 @@ const BATTLE_ENDED := "battle_ended"          # {winner, reason}
 # Missions
 const UNIT_ALERTED := "unit_alerted"          # {unit}
 const UNIT_SPAWNED := "unit_spawned"          # {unit}
-const TRIGGER_FIRED := "trigger_fired"        # {trigger, unit, title, text, choices: [labels]}
-const CHOICE_MADE := "choice_made"            # {trigger, option, label, text}
+const TRIGGER_FIRED := "trigger_fired"        # {trigger, unit, title, text, choices: [labels], checks: [{} or {skill, chance, by}]}
+const CHOICE_MADE := "choice_made"            # {trigger, option, label, text, check: {} or {skill, chance, by, success}}
 const REWARD_GAINED := "reward_gained"        # {reward}

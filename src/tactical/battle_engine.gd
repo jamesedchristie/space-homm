@@ -15,6 +15,13 @@ extends RefCounted
 
 var state: BattleState
 var _spawned_this_round := false
+## The ability being resolved or previewed (effects read e.g. its radius).
+var current_ability: Dictionary = {}
+## While previewing: where the attacker would stand (cover is measured from there).
+var preview_from_cell: Variant = null
+## Damage scale for the attack being resolved (reaction shots hit softer).
+var damage_scale := 1.0
+const REACTION_DAMAGE := 0.75
 var data: DataRegistry
 var _events: Array[Dictionary] = []
 
@@ -198,9 +205,12 @@ func ability_error(unit_id: String, ability_id: String) -> String:
 
 ## Expected outcome of an ability, one entry per affected unit:
 ## {unit, shield_damage, hull_damage, heal, statuses: [{status, chance}], lethal}
-func preview_ability(unit_id: String, ability_id: String, target_cell: Vector2i) -> Array[Dictionary]:
+## from_cell: preview as if the unit stood there (the AI weighing positions).
+func preview_ability(unit_id: String, ability_id: String, target_cell: Vector2i, from_cell: Variant = null) -> Array[Dictionary]:
 	var unit := state.get_unit(unit_id)
 	var ability: Dictionary = data.abilities[ability_id]
+	current_ability = ability
+	preview_from_cell = from_cell
 	var affected := AbilityRules.affected_units(state, unit, ability, target_cell)
 	var by_unit := {}
 	var order: Array[Dictionary] = []
@@ -218,8 +228,14 @@ func preview_ability(unit_id: String, ability_id: String, target_cell: Vector2i)
 				by_unit[r.id] = p
 				order.append(p)
 			effect.preview(self, unit, r, effect_def, by_unit[r.id])
+	current_ability = {}
+	preview_from_cell = null
+	var origin: Vector2i = unit.cell if from_cell == null else from_cell
 	for p in order:
 		p["lethal"] = p["hull_damage"] >= state.get_unit(p["unit"]).hull
+		var target := state.get_unit(p["unit"])
+		p["cover"] = CoverRules.evaluate(state, origin, target.cell) \
+				if int(ability.get("radius", 0)) == 0 and target.team != unit.team else {"cover": "", "flanked": false}
 	return order
 
 
@@ -311,18 +327,80 @@ func add_status(target: BattleUnit, status_id: String, duration: int, source: Ba
 # Internals
 # =============================================================================
 
+## Walks the path a cell at a time: enemies on overwatch may interrupt with
+## a reaction shot (the move is then reported in segments, and stops if the
+## unit is destroyed).
 func _do_move(cmd: MoveCommand) -> void:
 	var unit := state.get_unit(cmd.unit_id)
 	var reach := reachable_cells(unit.id)
 	var path := Pathfinding.path_to(reach, cmd.to)
-	var cost: int = reach[cmd.to]["cost"]
-	unit.ap -= cost
-	unit.cell = cmd.to
-	state.version += 1
-	_update_explored()
-	emit({"type": BattleEvents.UNIT_MOVED, "unit": unit.id, "path": path, "cost": cost, "ap": unit.ap})
+	var segment: Array[Vector2i] = [path[0]]
+	var spent := 0
+	var walked: Array[Vector2i] = [path[0]]
+	for i in range(1, path.size()):
+		var step: int = reach[path[i]]["cost"] - reach[path[i - 1]]["cost"]
+		unit.cell = path[i]
+		unit.ap -= step
+		spent += step
+		segment.append(path[i])
+		walked.append(path[i])
+		state.version += 1
+		var watcher := _overwatch_reaction(unit)
+		if watcher == null:
+			continue
+		_update_explored()
+		emit({"type": BattleEvents.UNIT_MOVED, "unit": unit.id, "path": segment, "cost": spent, "ap": unit.ap})
+		_reaction_shot(watcher, unit)
+		segment = [path[i]]
+		spent = 0
+		if not unit.alive or state.is_over:
+			return
+	if segment.size() > 1:
+		_update_explored()
+		emit({"type": BattleEvents.UNIT_MOVED, "unit": unit.id, "path": segment, "cost": spent, "ap": unit.ap})
 	_check_alerts()
-	_check_triggers(unit, path)
+	_check_triggers(unit, walked)
+
+
+## The first enemy on overwatch that can shoot the unit where it now stands.
+func _overwatch_reaction(mover: BattleUnit) -> BattleUnit:
+	for w in state.living_enemies_of(mover):
+		if w.find_status("overwatch") != null and not _reaction_ability(w, mover).is_empty():
+			return w
+	return null
+
+
+## The watcher's main weapon if it can hit the mover from where it stands.
+func _reaction_ability(watcher: BattleUnit, target: BattleUnit) -> String:
+	for ability_id in watcher.abilities:
+		var ability: Dictionary = data.abilities.get(ability_id, {})
+		if ability.get("target", "") != "enemy" or int(ability.get("radius", 0)) > 0:
+			continue
+		var damaging: bool = ability.get("effects", []).any(func(fx: Dictionary) -> bool: return fx.get("type", "") == "damage")
+		if not damaging:
+			continue
+		if target.cell in AbilityRules.target_cells(state, watcher, ability, watcher.cell):
+			return ability_id
+	return ""
+
+
+func _reaction_shot(watcher: BattleUnit, target: BattleUnit) -> void:
+	var ability_id := _reaction_ability(watcher, target)
+	var ability: Dictionary = data.abilities[ability_id]
+	var status := watcher.find_status("overwatch")
+	watcher.statuses.erase(status)
+	emit({"type": BattleEvents.STATUS_EXPIRED, "target": watcher.id, "status": "overwatch"})
+	_alert(watcher)
+	current_ability = ability
+	damage_scale = REACTION_DAMAGE
+	emit({"type": BattleEvents.ABILITY_USED, "unit": watcher.id, "ability": ability_id, "target": target.cell,
+			"affected": [target.id] as Array[String], "reaction": true})
+	for effect_def: Dictionary in ability.get("effects", []):
+		if effect_def.get("type", "") == "damage" and target.alive:
+			_apply_effect(effect_def, watcher, target)
+	damage_scale = 1.0
+	current_ability = {}
+	_check_objectives()
 
 
 func _do_ability(cmd: UseAbilityCommand) -> void:
@@ -333,6 +411,7 @@ func _do_ability(cmd: UseAbilityCommand) -> void:
 	if cooldown > 0:
 		unit.cooldowns[cmd.ability_id] = cooldown
 
+	current_ability = ability
 	var affected := AbilityRules.affected_units(state, unit, ability, cmd.target)
 	var affected_ids: Array[String] = []
 	for a in affected:
@@ -347,6 +426,9 @@ func _do_ability(cmd: UseAbilityCommand) -> void:
 		for r in recipients:
 			if r.alive:
 				_apply_effect(effect_def, unit, r)
+	current_ability = {}
+	if ability.get("ends_turn", false):
+		unit.ap = 0
 
 
 func _apply_effect(effect_def: Dictionary, source: BattleUnit, target: BattleUnit) -> void:
@@ -508,10 +590,12 @@ func _check_triggers(unit: BattleUnit, path: Array[Vector2i]) -> void:
 			continue
 		t["fired"] = true
 		var labels: Array[String] = []
+		var checks: Array[Dictionary] = []
 		for choice: Dictionary in t.get("choices", []):
 			labels.append(choice.get("label", "?"))
+			checks.append(check_odds(choice, unit.team))
 		emit({"type": BattleEvents.TRIGGER_FIRED, "trigger": t.get("id", str(i)), "unit": unit.id,
-				"title": t.get("title", ""), "text": t.get("text", ""), "choices": labels})
+				"title": t.get("title", ""), "text": t.get("text", ""), "choices": labels, "checks": checks})
 		_apply_trigger_effects(t.get("effects", []), unit)
 		if not labels.is_empty():
 			state.pending_choice = {"trigger": i, "unit": unit.id}
@@ -523,9 +607,36 @@ func _do_choice(cmd: ChooseOptionCommand) -> void:
 	var unit := state.get_unit(state.pending_choice["unit"])
 	state.pending_choice = {}
 	var choice: Dictionary = trigger["choices"][cmd.option]
+	var check := check_odds(choice, unit.team)
+	var success := true
+	if not check.is_empty():
+		success = state.rng.randf() < float(check["chance"])
+		check["success"] = success
 	emit({"type": BattleEvents.CHOICE_MADE, "trigger": trigger.get("id", ""), "option": cmd.option,
-			"label": choice.get("label", ""), "text": choice.get("text", "")})
-	_apply_trigger_effects(choice.get("effects", []), unit)
+			"label": choice.get("label", ""), "check": check,
+			"text": choice.get("text", "") if success else choice.get("fail_text", choice.get("text", ""))})
+	_apply_trigger_effects(choice.get("effects", []) if success else choice.get("fail_effects", []), unit)
+
+
+## Skill checks on story choices, D&D-style. A choice with
+## "check": {"skill": "tech" | "combat" | "command", "difficulty": n} succeeds
+## with a chance set by the best aptitude among the team's living units:
+## 50% at aptitude == difficulty, +/-15% per point, clamped to 5..95%.
+## Returns {} for no check, else {"skill", "difficulty", "chance", "by": unit name}.
+func check_odds(choice: Dictionary, team: int) -> Dictionary:
+	var check: Dictionary = choice.get("check", {})
+	if check.is_empty():
+		return {}
+	var skill: String = check.get("skill", "")
+	var best := -1
+	var by := ""
+	for u in state.living_units(team):
+		var value := int(u.def.get("aptitudes", {}).get(skill, 0))
+		if value > best:
+			best = value
+			by = u.name
+	var chance := clampf(0.5 + 0.15 * float(best - int(check.get("difficulty", 2))), 0.05, 0.95)
+	return {"skill": skill, "difficulty": int(check.get("difficulty", 2)), "chance": chance, "by": by}
 
 
 ## Trigger effect types:

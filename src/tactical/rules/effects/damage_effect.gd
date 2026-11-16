@@ -22,6 +22,10 @@ func preview(engine: BattleEngine, source: BattleUnit, target: BattleUnit, param
 
 func _scale(raw: float, source: BattleUnit, target: BattleUnit, engine: BattleEngine) -> float:
 	var dealt := source.get_stat("damage_dealt") if source != null else 1.0
-	# Cover: terrain like crates reduces damage to whoever stands in it.
+	# Standing in terrain like crates reduces damage from every direction.
 	var cover: float = engine.state.grid.terrain_def(target.cell).get("damage_taken", 1.0)
-	return raw * dealt * target.get_stat("damage_taken") * cover
+	# Directional cover / flanking (see CoverRules); area attacks ignore it.
+	if source != null and int(engine.current_ability.get("radius", 0)) == 0:
+		var from: Vector2i = source.cell if engine.preview_from_cell == null else engine.preview_from_cell
+		cover *= CoverRules.evaluate(engine.state, from, target.cell)["multiplier"]
+	return raw * dealt * target.get_stat("damage_taken") * cover * engine.damage_scale

@@ -84,11 +84,36 @@
         ]
       ],
       "title": "Maintenance Terminal",
-      "text": "A terminal still has power. The logs might tell you what happened here, but a download this size will be noticed.",
+      "text": "A terminal still has power. The logs might tell you what happened here, but the station's security daemon is still awake.",
       "choices": [
         {
-          "label": "Download the logs",
-          "text": "The logs show the raiders came looking for the core. Somewhere aft, an alarm starts to wail.",
+          "label": "Slice the logs quietly",
+          "check": {
+            "skill": "tech",
+            "difficulty": 3
+          },
+          "text": "You ghost past the daemon. The logs show the raiders came for the data core, and where they posted guards.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 45
+            }
+          ],
+          "fail_text": "The daemon catches the intrusion. Somewhere aft, an alarm starts to wail.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 15
+            },
+            {
+              "type": "alert",
+              "group": "aft"
+            }
+          ]
+        },
+        {
+          "label": "Rip the drive out",
+          "text": "Crude but quick. You get the logs; the whole station hears you do it.",
           "effects": [
             {
               "type": "reward",
@@ -147,6 +172,37 @@
               "type": "reward",
               "loyalty": 10,
               "xp": 20
+            }
+          ]
+        },
+        {
+          "label": "Talk him into walking out",
+          "check": {
+            "skill": "command",
+            "difficulty": 3
+          },
+          "text": "Your voice steadies him. He limps to the shuttle on his own, and the squad notices how you handled it.",
+          "effects": [
+            {
+              "type": "reward",
+              "loyalty": 10,
+              "xp": 25
+            }
+          ],
+          "fail_text": "He panics and bolts into the dark. You drag him back, which costs time.",
+          "fail_effects": [
+            {
+              "type": "effect",
+              "to": "unit",
+              "effect": {
+                "type": "apply_status",
+                "status": "disabled",
+                "duration": 1
+              }
+            },
+            {
+              "type": "reward",
+              "loyalty": 5
             }
           ]
         },

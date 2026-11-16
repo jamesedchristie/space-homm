@@ -99,7 +99,19 @@ afterwards, and the fleet loses its doctrine bonus meanwhile.
 
 Hover over targets to see the expected damage before you commit. In missions, the green ★
 marks the objective, yellow **?** marks something to investigate, and enemies stay hidden
-(and mostly asleep) until your squad can see them. Crates are cover (30% less damage).
+(and mostly asleep) until your squad can see them.
+
+Squad missions play like XCOM with story beats like a tabletop RPG:
+- **Cover is directional.** Walls next to you are full cover (-50% damage) and crates half
+  cover (-30%) against attacks from that side; get hit from an open side while hugging cover
+  and you're **flanked** (+25%). Hovering a move shows the cover you'd have against each
+  visible enemy; the attack preview shows the target's. Grenades and other area attacks ignore
+  cover.
+- **Overwatch** (1 AP, ends your turn): the first enemy that moves within range and sight
+  takes a reaction shot (75% damage). Raiders use it too.
+- **Skill checks.** Some story choices test Combat, Tech or Command. The button shows the odds,
+  from your squad's best aptitude (hero class + level; marines have a little Combat and Tech);
+  failure has its own consequences. Bring the right hero for the job.
 
 ## Art and credits
 

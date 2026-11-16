@@ -13,7 +13,8 @@ static func describe(e: Dictionary, engine: BattleEngine) -> String:
 		BattleEvents.UNIT_MOVED:
 			return "%s moves (%d AP)" % [unit_name(engine, e["unit"]), e["cost"]]
 		BattleEvents.ABILITY_USED:
-			return "%s: [b]%s[/b]" % [unit_name(engine, e["unit"]), data.abilities[e["ability"]].get("name", e["ability"])]
+			return "%s: [b]%s[/b]%s" % [unit_name(engine, e["unit"]), data.abilities[e["ability"]].get("name", e["ability"]),
+					" (overwatch reaction)" if e.get("reaction", false) else ""]
 		BattleEvents.DAMAGE_DEALT:
 			var parts := PackedStringArray()
 			if e["shield_damage"] > 0:
@@ -43,7 +44,10 @@ static func describe(e: Dictionary, engine: BattleEngine) -> String:
 			var title: String = e["title"]
 			return "[b]%s[/b] %s" % [title + ":" if not title.is_empty() else "", e["text"]]
 		BattleEvents.CHOICE_MADE:
-			return "   → %s. %s" % [e["label"], e["text"]]
+			var check: Dictionary = e.get("check", {})
+			var roll := "" if check.is_empty() else " [%s %s]" % [String(check["skill"]).capitalize(),
+					"success" if check["success"] else "failed"]
+			return "   → %s%s. %s" % [e["label"], roll, e["text"]]
 		BattleEvents.REWARD_GAINED:
 			return UiKit.color_tag("   Reward recorded for the campaign", Palette.ACTIVE)
 		BattleEvents.BATTLE_ENDED:

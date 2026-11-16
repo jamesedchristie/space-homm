@@ -25,6 +25,9 @@ static func unit_def(hero: Hero, data: DataRegistry) -> Dictionary:
 	for ability_id in skills_at(cls, hero.level):
 		if ability_id not in abilities:
 			abilities.append(ability_id)
+	# Every hero can stand watch (after weapon and class skills, so the hotkeys don't shift).
+	if "overwatch" not in abilities and data.abilities.has("overwatch"):
+		abilities.append("overwatch")
 	for trait_id in hero.traits:
 		_apply_modifiers(stats, data.traits.get(trait_id, {}).get("modifiers", {}))
 
@@ -35,6 +38,7 @@ static func unit_def(hero: Hero, data: DataRegistry) -> Dictionary:
 		"tags": ["infantry", "hero"],
 		"stats": stats,
 		"abilities": abilities,
+		"aptitudes": aptitudes(hero, data),
 		"visual": {"placeholder": "hero", "sprite": "", "size": 1.0, "model": "hero"},
 		"stat_names": {"hull": "Health", "shields": "Shields"},
 	}
@@ -62,3 +66,14 @@ static func _apply_modifiers(stats: Dictionary, modifiers: Dictionary) -> void:
 		var m: Dictionary = modifiers[stat]
 		var base: float = stats.get(stat, BattleUnit.DEFAULT_STATS.get(stat, 0.0))
 		stats[stat] = (base + float(m.get("add", 0.0))) * float(m.get("mul", 1.0))
+
+
+## Combat / tech / command for mission skill checks: the class's values, +1 to
+## each the class has at all for every two levels past the first.
+static func aptitudes(hero: Hero, data: DataRegistry) -> Dictionary:
+	var out := {}
+	var base: Dictionary = data.hero_classes.get(hero.class_id, {}).get("aptitudes", {})
+	for skill: String in base:
+		var value := int(base[skill])
+		out[skill] = value + ((hero.level - 1) / 2 if value > 0 else 0)
+	return out

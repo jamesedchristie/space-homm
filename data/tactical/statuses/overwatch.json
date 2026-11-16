@@ -1,0 +1,7 @@
+{
+  "id": "overwatch",
+  "name": "Overwatch",
+  "description": "Will fire at the first enemy that moves within range and sight.",
+  "modifiers": {},
+  "ai_value": 6
+}

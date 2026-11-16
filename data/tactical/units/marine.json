@@ -15,7 +15,8 @@
   },
   "abilities": [
     "rifle_burst",
-    "throw_grenade"
+    "throw_grenade",
+    "overwatch"
   ],
   "visual": {
     "placeholder": "trooper",
@@ -26,5 +27,10 @@
   "stat_names": {
     "hull": "Health",
     "shields": "Shields"
+  },
+  "aptitudes": {
+    "combat": 2,
+    "command": 0,
+    "tech": 1
   }
 }

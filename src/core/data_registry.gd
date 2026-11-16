@@ -12,6 +12,8 @@ const DEFAULT_ROOT := "res://data"
 const VALID_TARGETS := ["self", "enemy", "ally", "friendly", "any_unit", "cell"]
 const ITEM_SLOTS := ["weapon", "armor", "gadget"]
 const TRIGGER_EFFECTS := ["effect", "spawn", "alert", "reward"]
+## Aptitudes used by mission skill checks.
+const SKILLS := ["combat", "tech", "command"]
 const VALID_AFFECTS := ["enemies", "allies", "all"]
 const REQUIRED_UNIT_STATS := ["max_hull", "max_shields", "armor", "initiative", "max_ap"]
 
@@ -234,6 +236,10 @@ func _validate_mission(id: String, def: Dictionary) -> void:
 		var all_effects: Array = trigger.get("effects", []).duplicate()
 		for choice: Dictionary in trigger.get("choices", []):
 			all_effects.append_array(choice.get("effects", []))
+			all_effects.append_array(choice.get("fail_effects", []))
+			if choice.has("check") and choice["check"].get("skill", "") not in SKILLS:
+				_err("%s: trigger '%s' checks unknown skill '%s' (use %s)" % [owner, trigger.get("id", ""),
+						choice["check"].get("skill", ""), ", ".join(SKILLS)])
 		for fx: Dictionary in all_effects:
 			var kind: String = fx.get("type", "")
 			if kind not in TRIGGER_EFFECTS:

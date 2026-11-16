@@ -25,7 +25,12 @@
         "rally"
       ]
     },
-    "command_status": "cmd_vanguard"
+    "command_status": "cmd_vanguard",
+    "aptitudes": {
+      "combat": 3,
+      "command": 2,
+      "tech": 0
+    }
   },
   "marksman": {
     "name": "Marksman",
@@ -53,7 +58,12 @@
         "headshot"
       ]
     },
-    "command_status": "cmd_marksman"
+    "command_status": "cmd_marksman",
+    "aptitudes": {
+      "combat": 2,
+      "command": 1,
+      "tech": 2
+    }
   },
   "technician": {
     "name": "Technician",
@@ -81,6 +91,11 @@
         "barrier"
       ]
     },
-    "command_status": "cmd_technician"
+    "command_status": "cmd_technician",
+    "aptitudes": {
+      "combat": 1,
+      "command": 1,
+      "tech": 4
+    }
   }
 }

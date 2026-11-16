@@ -1,0 +1,13 @@
+{
+  "id": "overwatch",
+  "name": "Overwatch",
+  "description": "End your turn on watch: the first enemy that moves within range and sight takes a reaction shot from your main weapon (75% damage).",
+  "ap_cost": 1,
+  "cooldown": 0,
+  "target": "self",
+  "ends_turn": true,
+  "effects": [
+    {"type": "apply_status", "status": "overwatch", "duration": 1}
+  ],
+  "fx": "self"
+}

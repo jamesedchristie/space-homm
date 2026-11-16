@@ -237,13 +237,19 @@ func _play(events: Array[Dictionary], token: int) -> void:
 				await _play_trigger(e, token)
 			BattleEvents.CHOICE_MADE:
 				if not e["text"].is_empty() and not autoplay:
-					hud.ask(e["label"], e["text"], [{"id": "ok", "label": "Continue"}])
+					var title: String = e["label"]
+					var check: Dictionary = e.get("check", {})
+					if not check.is_empty():
+						title = "%s: %s" % [String(check["skill"]).capitalize(), "success" if check["success"] else "failed"]
+					hud.ask(title, e["text"], [{"id": "ok", "label": "Continue"}])
 					await hud.dialog_choice
 			BattleEvents.REWARD_GAINED:
 				var actor := engine.state.active_unit()
 				if actor != null:
 					board.float_text(actor.id, _reward_text(e["reward"]), Palette.ACTIVE, 30.0)
 			BattleEvents.ABILITY_USED:
+				if e.get("reaction", false):
+					board.float_text(e["unit"], "Overwatch!", Palette.ACTIVE, 26.0)
 				await _play_ability(e)
 			BattleEvents.DAMAGE_DEALT:
 				board.set_unit_values(e["target"], e["hull"], e["shields"])
@@ -281,11 +287,21 @@ func _play_trigger(e: Dictionary, token: int) -> void:
 	elif not _human_controls(e["unit"]):
 		return
 	var buttons: Array[Dictionary] = []
+	var checks: Array = e.get("checks", [])
+	var notes := PackedStringArray()
 	for i in choices.size():
-		buttons.append({"id": str(i), "label": choices[i]})
+		var label: String = choices[i]
+		if i < checks.size() and not checks[i].is_empty():
+			var c: Dictionary = checks[i]
+			label += "  [%s %d%%]" % [String(c["skill"]).capitalize(), roundi(c["chance"] * 100.0)]
+			notes.append("%s: %s rolls %s (%d%%)" % [choices[i], c["by"], String(c["skill"]).capitalize(), roundi(c["chance"] * 100.0)])
+		buttons.append({"id": str(i), "label": label})
 	if buttons.is_empty():
 		buttons.append({"id": "ok", "label": "Continue"})
-	hud.ask(e["title"] if not e["title"].is_empty() else "Event", e["text"], buttons)
+	var body: String = e["text"]
+	if not notes.is_empty():
+		body += "\n\n" + UiKit.color_tag("\n".join(notes), Palette.TEXT_DIM)
+	hud.ask(e["title"] if not e["title"].is_empty() else "Event", body, buttons)
 	var answer: String = await hud.dialog_choice
 	if token != _battle_token or choices.is_empty():
 		return
@@ -402,6 +418,7 @@ func _refresh() -> void:
 		if _hover != null and _reach.has(_hover) and _hover != active.cell:
 			path = Pathfinding.path_to(_reach, _hover)
 			hint = "Move here: %d AP (%d left)" % [_reach[_hover]["cost"], active.ap - _reach[_hover]["cost"]]
+			hint += _cover_hint(active, _hover)
 		if _hover != null:
 			hint += _terrain_hint(_hover)
 		hud.set_hint(hint)
@@ -463,8 +480,29 @@ func _preview_text(active: BattleUnit, target: Vector2i) -> String:
 			var chance := "" if st["chance"] >= 1.0 else " %d%%" % roundi(st["chance"] * 100)
 			parts.append(EventFormatter.status_name(data, st["status"]) + chance)
 		var friendly := " (FRIENDLY!)" if u.team == active.team and u != active else ""
+		var cover: Dictionary = p.get("cover", {})
+		if cover.get("cover", "") == CoverRules.FULL:
+			parts.append("full cover -50%")
+		elif cover.get("cover", "") == CoverRules.HALF:
+			parts.append("half cover -30%")
+		elif cover.get("flanked", false):
+			parts.append("FLANKED +25%")
 		lines.append("%s%s: %s%s" % [u.name, friendly, ", ".join(parts), "  DESTROYED" if p["lethal"] else ""])
 	return "Expected: " + ("; ".join(lines) if not lines.is_empty() else "nothing in the blast")
+
+
+## "  ·  cover: full vs Boarder, flanked by Drone" for a cell the unit could move to.
+func _cover_hint(unit: BattleUnit, cell: Vector2i) -> String:
+	var parts := PackedStringArray()
+	for e in engine.state.living_enemies_of(unit):
+		if engine.state.fog_enabled and not engine.state.is_visible(unit.team, e.cell):
+			continue
+		var c := CoverRules.evaluate(engine.state, e.cell, cell)
+		if c["cover"] != "":
+			parts.append("%s cover vs %s" % [c["cover"], e.name])
+		elif c["flanked"]:
+			parts.append("FLANKED by %s" % e.name)
+	return "" if parts.is_empty() else "  ·  " + ", ".join(parts)
 
 
 func _terrain_hint(cell: Vector2i) -> String:

@@ -17,11 +17,12 @@
   },
   "wall": {
     "name": "Bulkhead Wall",
-    "description": "Impassable. Blocks line of sight.",
+    "description": "Impassable. Blocks line of sight. Full cover (-50% damage) from attacks on this side.",
     "passable": false,
     "blocks_sight": true,
     "color": "#323a47",
-    "decoration": "bulkhead"
+    "decoration": "bulkhead",
+    "cover": "full"
   },
   "door": {
     "name": "Door",
@@ -33,11 +34,12 @@
   },
   "crates": {
     "name": "Cargo Crates",
-    "description": "Cover: take 30% less damage here. Costs 2 AP to enter.",
+    "description": "Half cover (-30% damage) from attacks on this side; standing in them also cuts damage 30%. Costs 2 AP to enter.",
     "passable": true,
     "move_cost": 2,
     "damage_taken": 0.7,
     "color": "#3d4a3a",
-    "decoration": "crates"
+    "decoration": "crates",
+    "cover": "half"
   }
 }

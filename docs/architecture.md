@@ -183,6 +183,31 @@ extruded tiles, overlay buffers for highlights and fog, rocks and nebula puffs, 
 trails, and `space_scenery()`: a deep MultiMesh starfield under the board for parallax,
 drifting dust and a distant planet; station interiors only get the stars).
 
+## The mission layer: tactics and story
+
+Reference points: XCOM for the fighting (cover, flanking, overwatch; no hit-chance rolls,
+damage stays predictable like the rest of the engine), and tabletop RPGs / Mass Effect for the
+story beats (choices with skill checks that depend on who you brought).
+
+- **Cover** (`CoverRules`): terrain with `"cover": "half" | "full"` protects a unit next to it
+  from attacks coming from that side (square grids: the orthogonal neighbours toward the
+  attacker, both when it's roughly diagonal; hex grids: the first cell on the line). Unit in
+  reach of cover but none facing the attacker: flanked. `DamageEffect` applies the multiplier
+  unless the ability has a radius. `preview_ability()` reports it (`p["cover"]`) and can preview
+  from a hypothetical cell, which the AI uses to find flanks; the AI also prefers firing
+  positions with cover (`cover_safety()`). Only deck terrain (walls, crates) has cover, so fleet
+  battles are unchanged.
+- **Overwatch**: an ability with `"ends_turn": true` applying the `overwatch` status. Moves are
+  walked cell by cell; when an enemy on overwatch can hit the mover (first enemy-targeted
+  damaging, non-area ability in range and sight), it fires at `REACTION_DAMAGE` and the move is
+  reported in segments around the shot (`ABILITY_USED` with `reaction: true`). The AI only
+  takes turn-ending abilities as a last resort, when an enemy is near.
+- **Skill checks**: a choice may have `"check": {"skill": "combat" | "tech" | "command",
+  "difficulty": n}` plus `fail_text` / `fail_effects`. Chance = 50% + 15% per point of the
+  team's best aptitude over the difficulty (5..95%). Units get `aptitudes` from their JSON;
+  heroes from the class (`classes.json`), +1 per two levels. `TRIGGER_FIRED` carries the odds
+  per choice and `CHOICE_MADE` the roll. The AI avoids checks it'll probably fail.
+
 ## Heroes and missions (step 3)
 
 **Heroes** (`src/heroes/`) are persistent `Hero` records in `GalaxyState.heroes`: class, level/XP,

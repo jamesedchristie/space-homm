@@ -32,15 +32,6 @@
       "alert": true
     },
     {
-      "unit": "boarder",
-      "name": "Raider",
-      "at": [
-        13,
-        1
-      ],
-      "alert": true
-    },
-    {
       "unit": "sentry_drone",
       "name": "Hijacked Drone",
       "at": [
@@ -132,7 +123,7 @@
       "id": "last_push",
       "round": 7,
       "title": "Last Push",
-      "text": "“We know you’re wiping it!” The raider captain leads the final rush from the north.",
+      "text": "“We know you’re wiping it!” The raider captain makes a last rush from the north.",
       "effects": [
         {
           "type": "spawn",
@@ -142,14 +133,6 @@
               "name": "Raider Captain",
               "at": [
                 6,
-                0
-              ]
-            },
-            {
-              "unit": "boarder",
-              "name": "Raider",
-              "at": [
-                9,
                 0
               ]
             }
@@ -174,11 +157,15 @@
         ]
       ],
       "title": "Armory Locker",
-      "text": "A mining-crew locker, half open. Demolition charges inside.",
+      "text": "A mining-crew locker, chained shut. Demolition charges inside, if you can get it open in a hurry.",
       "choices": [
         {
-          "label": "Take the charges",
-          "text": "Heavy, unstable, very useful.",
+          "label": "Force the locker",
+          "check": {
+            "skill": "combat",
+            "difficulty": 2
+          },
+          "text": "The chain gives on the second heave. Heavy, unstable, very useful.",
           "effects": [
             {
               "type": "reward",
@@ -186,10 +173,22 @@
                 "frag_grenade"
               ]
             }
+          ],
+          "fail_text": "The locker was rigged. The blast throws you against the wall.",
+          "fail_effects": [
+            {
+              "type": "effect",
+              "to": "unit",
+              "effect": {
+                "type": "damage",
+                "amount": 14,
+                "damage_type": "explosive"
+              }
+            }
           ]
         },
         {
-          "label": "Leave them",
+          "label": "Leave it",
           "text": "Not worth the risk out here.",
           "effects": []
         }
@@ -212,7 +211,11 @@
       "choices": [
         {
           "label": "Overload the emitters",
-          "text": "The air crackles. Everyone in the room feels it.",
+          "check": {
+            "skill": "tech",
+            "difficulty": 3
+          },
+          "text": "The air crackles. Everyone in the room feels the shield field settle around them.",
           "effects": [
             {
               "type": "effect",
@@ -221,6 +224,18 @@
                 "type": "apply_status",
                 "status": "braced",
                 "duration": 3
+              }
+            }
+          ],
+          "fail_text": "The emitters arc. Everyone in the room takes a jolt before the breakers trip.",
+          "fail_effects": [
+            {
+              "type": "effect",
+              "to": "squad",
+              "effect": {
+                "type": "damage",
+                "amount": 6,
+                "damage_type": "energy"
               }
             }
           ]

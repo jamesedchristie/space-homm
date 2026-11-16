@@ -202,3 +202,103 @@ func test_pending_waves_keep_a_cleared_battle_going() -> void:
 		guard += 1
 		e.submit(EndTurnCommand.new(e.state.active_unit_id))
 	assert_eq(e.state.living_units(1).size(), 1, "the wave spawned")
+
+
+func test_directional_cover() -> void:
+	var e := _engine(_scenario([{"unit": "test_fast_dummy", "at": [0, 5]}], [{"unit": "test_dummy", "at": [7, 0]}]))
+	var s := e.state
+	assert_eq(CoverRules.evaluate(s, Vector2i(0, 1), Vector2i(4, 1))["cover"], CoverRules.FULL, "wall between")
+	var flank := CoverRules.evaluate(s, Vector2i(4, 5), Vector2i(4, 1))
+	assert_eq(flank["cover"], "")
+	assert_true(flank["flanked"], "wall beside but attacked from below")
+	assert_eq(CoverRules.evaluate(s, Vector2i(7, 4), Vector2i(5, 5))["cover"], CoverRules.HALF, "crates toward a roughly diagonal attacker")
+	var open := CoverRules.evaluate(s, Vector2i(1, 2), Vector2i(1, 5))
+	assert_eq(open["cover"], "")
+	assert_false(open["flanked"], "nothing nearby: neither covered nor flanked")
+
+
+func test_cover_changes_damage_and_preview() -> void:
+	# Zap does a flat 10. Target next to the crates at (6, 5), shot from the crates' side.
+	var e := _engine(_scenario([{"unit": "test_fast_dummy", "at": [7, 3]}], [{"unit": "test_dummy", "at": [5, 5]}]))
+	var me := e.state.active_unit()
+	var target := e.state.living_enemies_of(me)[0]
+	var preview := e.preview_ability(me.id, "test_zap", target.cell)
+	assert_eq(preview[0]["cover"]["cover"], CoverRules.HALF)
+	assert_eq(preview[0]["shield_damage"] + preview[0]["hull_damage"], 7, "half cover: 30% less")
+	# Same shot from the open side flanks it (crates beside, not between).
+	var e2 := _engine(_scenario([{"unit": "test_fast_dummy", "at": [3, 5]}], [{"unit": "test_dummy", "at": [5, 5]}]))
+	var me2 := e2.state.active_unit()
+	var p2 := e2.preview_ability(me2.id, "test_zap", Vector2i(5, 5))
+	assert_true(p2[0]["cover"]["flanked"])
+	assert_eq(p2[0]["shield_damage"] + p2[0]["hull_damage"], 13, "flanked: 25% more (12.5 rounds up)")
+
+
+func test_overwatch_reaction_shot() -> void:
+	var data := Fixtures.registry()
+	data.abilities["test_watch"] = {"id": "test_watch", "name": "Watch", "ap_cost": 1, "target": "self", "ends_turn": true,
+		"effects": [{"type": "apply_status", "status": "overwatch", "duration": 1}]}
+	data.units["test_watcher"] = data.units["test_dummy"].duplicate(true)
+	data.units["test_watcher"]["id"] = "test_watcher"
+	data.units["test_watcher"]["abilities"] = ["test_zap", "test_watch"]
+	data.units["test_watcher"]["stats"]["initiative"] = 99
+	var def := _scenario([{"unit": "test_watcher", "at": [0, 5]}], [{"unit": "test_fast_dummy", "at": [7, 5]}])
+	var e := BattleEngine.from_scenario(data, def, 42)
+	e.start()
+	var watcher := e.state.active_unit()
+	assert_eq(watcher.def_id, "test_watcher")
+	var result := e.submit(UseAbilityCommand.new(watcher.id, "test_watch", watcher.cell))
+	assert_true(result.ok, result.error)
+	assert_eq(watcher.ap, 0, "overwatch ends the turn")
+	assert_true(watcher.find_status("overwatch") != null)
+	e.submit(EndTurnCommand.new(watcher.id))
+	var mover := e.state.active_unit()
+	var before := mover.shields + mover.hull
+	# Walk into zap range (3): the watcher fires once, mid-move, at 75% damage.
+	result = e.submit(MoveCommand.new(mover.id, Vector2i(3, 5)))
+	assert_true(result.ok, result.error)
+	var reactions := result.events.filter(func(ev: Dictionary) -> bool:
+		return ev["type"] == BattleEvents.ABILITY_USED and ev.get("reaction", false))
+	assert_eq(reactions.size(), 1)
+	assert_eq(before - (mover.shields + mover.hull), 8, "10 * 0.75 rounds to 8")
+	assert_true(watcher.find_status("overwatch") == null, "used up")
+	assert_eq(mover.cell, Vector2i(3, 5), "the move finishes")
+	var moves := result.events.filter(func(ev: Dictionary) -> bool: return ev["type"] == BattleEvents.UNIT_MOVED)
+	assert_true(moves.size() >= 1, "the move is reported")
+
+
+func test_skill_check_choices() -> void:
+	var data := Fixtures.registry()
+	data.units["test_techie"] = data.units["test_fast_dummy"].duplicate(true)
+	data.units["test_techie"]["id"] = "test_techie"
+	data.units["test_techie"]["aptitudes"] = {"tech": 4}
+	var trigger := {"id": "lock", "team": 0, "cells": [[1, 4]], "text": "A lock.",
+		"choices": [
+			{"label": "Hack", "check": {"skill": "tech", "difficulty": 3},
+				"effects": [{"type": "reward", "xp": 50}], "fail_effects": [{"type": "reward", "xp": 1}]},
+			{"label": "Smash", "check": {"skill": "combat", "difficulty": 9}, "effects": [{"type": "reward", "xp": 50}]},
+		]}
+	var def := _scenario([{"unit": "test_techie", "at": [0, 4]}], [{"unit": "test_dummy", "at": [7, 0]}], {"triggers": [trigger]})
+	var e := BattleEngine.from_scenario(data, def, 42)
+	e.start()
+	var me := e.state.active_unit()
+	var result := e.submit(MoveCommand.new(me.id, Vector2i(1, 4)))
+	var fired: Dictionary = result.events.filter(func(ev: Dictionary) -> bool: return ev["type"] == BattleEvents.TRIGGER_FIRED)[0]
+	assert_near(fired["checks"][0]["chance"], 0.65, 0.001, "aptitude 4 vs difficulty 3")
+	assert_near(fired["checks"][1]["chance"], 0.05, 0.001, "floor at 5%")
+	assert_eq(fired["checks"][0]["by"], me.name)
+	# Roll it: whichever way it goes, the matching effects apply.
+	result = e.submit(ChooseOptionCommand.new(me.id, 0))
+	var made: Dictionary = result.events.filter(func(ev: Dictionary) -> bool: return ev["type"] == BattleEvents.CHOICE_MADE)[0]
+	assert_true(made["check"].has("success"))
+	assert_eq(e.state.rewards[0]["xp"], 50 if made["check"]["success"] else 1)
+
+
+func test_hero_aptitudes_grow_with_level() -> void:
+	var data := DataRegistry.get_default()
+	var h := Hero.new()
+	h.class_id = "technician"
+	h.level = 1
+	assert_eq(HeroBuilder.aptitudes(h, data)["tech"], 4)
+	h.level = 5
+	assert_eq(HeroBuilder.aptitudes(h, data)["tech"], 6)
+	assert_eq(HeroBuilder.unit_def(h, data)["aptitudes"]["tech"], 6)
