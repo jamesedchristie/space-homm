@@ -13,8 +13,11 @@ extends RefCounted
 ##   4. Otherwise head for the nearest planet it can take (unowned or an enemy's),
 ##      skipping planets whose defenses are too strong for it.
 ## One move per fleet per turn, then it ends the turn.
+##
+## Personality: a campaign faction's "ai" entry can override attack_ratio,
+## hunt_range and retreat_hull_ratio (e.g. cautious traders, reckless raiders).
 
-## Attack only if our strength is at least this multiple of theirs.
+## Attack only if our strength is at least this multiple of theirs (default).
 const ATTACK_RATIO := 0.9
 const RETREAT_HULL_RATIO := 0.5
 ## Only hunt enemy fleets this close; further away, go take planets instead.
@@ -64,13 +67,20 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 	# 1. Attack something we can beat.
 	var best := 1 << 30
 	var my_strength := fleet.strength(data)
+	var attack_ratio := personality(engine, fleet.owner, "attack_ratio", ATTACK_RATIO)
+	var hunt_range := int(personality(engine, fleet.owner, "hunt_range", HUNT_RANGE))
 	for other: Fleet in s.fleets.values():
 		if not s.at_war(fleet.owner, other.owner) or not vis.has(other.cell):
 			continue
-		if my_strength < other.strength(data) * ATTACK_RATIO:
+		# A fleet parked at its own planet fights alongside the planet's platforms.
+		var their_strength := other.strength(data)
+		var at := s.planet_at(other.cell)
+		if at != null and at.owner == other.owner:
+			their_strength += defense_strength(engine, at)
+		if my_strength < their_strength * attack_ratio:
 			continue
 		var d := s.grid.distance(fleet.cell, other.cell)
-		if d < best and d <= HUNT_RANGE:
+		if d < best and d <= hunt_range:
 			best = d
 			target = other.cell
 
@@ -81,7 +91,7 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 		return fleet.cell
 
 	# 2. Retreat to repair.
-	if target == null and fleet.hull_ratio(data) < RETREAT_HULL_RATIO:
+	if target == null and fleet.hull_ratio(data) < personality(engine, fleet.owner, "retreat_hull_ratio", RETREAT_HULL_RATIO):
 		var home := _nearest(s, fleet.cell, s.planets_of(fleet.owner))
 		if home != null:
 			if home.cell == fleet.cell:
@@ -111,7 +121,7 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 		for p: Planet in s.planets.values():
 			if p.owner == fleet.owner or not (p.owner.is_empty() or s.at_war(fleet.owner, p.owner)):
 				continue
-			if defense_strength(engine, p) > my_strength * ATTACK_RATIO:
+			if defense_strength(engine, p) > my_strength * attack_ratio:
 				continue
 			candidates.append(p)
 		var planet := _nearest(s, fleet.cell, candidates)
@@ -152,6 +162,11 @@ func _step_towards(engine: GalaxyEngine, fleet: Fleet, target: Vector2i) -> Vect
 			best_dist = d
 			best_cell = c
 	return best_cell
+
+
+## A faction's AI setting from its campaign "ai" entry, or the default.
+static func personality(engine: GalaxyEngine, faction_id: String, key: String, default: float) -> float:
+	return float(engine.state.faction(faction_id).get("ai", {}).get(key, default))
 
 
 ## Effective hit points of a planet's defense platforms.

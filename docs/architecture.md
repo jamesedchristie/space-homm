@@ -95,8 +95,10 @@ It reuses `HexGrid` and `Pathfinding`. A galaxy is just a hex map with galaxy te
   the location: planet type, then galaxy terrain (`battle_map`), then the campaign default.
 - **Planets** are captured by ending a move on them. A faction with no fleets and no planets
   is eliminated, and the last faction standing wins.
-- **AI** (`GalaxyAI`): per fleet, attack a visible fleet it can beat, otherwise retreat to
-  repair when below 50% hull, otherwise head for the nearest planet it doesn't own.
+- **AI** (`GalaxyAI`): per fleet, attack a visible fleet it can beat (counting the defense
+  platforms of a planet the target sits on), otherwise retreat to repair when below 50% hull,
+  otherwise head for the nearest planet it doesn't own. Factions can have a personality
+  (campaign `ai` entry, see the content schema).
   `CampaignAutoRunner` plays whole campaigns headlessly, for tests and `tools/simulate_campaign.gd`.
 
 ### Screens
@@ -385,7 +387,10 @@ shifted right on hex maps). The engine converts them internally.
 Planet types gain `yields` and `slots`. Units gain `strategic.cost`, `build_turns` and `requires_tech`.
 Campaigns gain `resources: {faction: {credits, alloys}}`,
 `relations: [{factions: [a, b], status: "peace"|"war", opinion}]`, `techs: {faction: [ids]}`,
-planet `buildings`, and faction `always_hostile`.
+planet `buildings`, faction `always_hostile`, and faction `ai` (personality overrides for
+`GalaxyAI`: `attack_ratio`, how much stronger than the target a fleet must be to attack,
+default 0.9; `hunt_range`, default 5; `retreat_hull_ratio`, default 0.5). In *The Drift* the
+traders are cautious (1.4, range 3) and the raiders only take even-or-better fights (1.0).
 
 **Galaxy terrain** (`data/strategic/terrain.json`): `passable`, `move_cost`, `color`,
 `decoration` ("rocks"), `battle_map`.

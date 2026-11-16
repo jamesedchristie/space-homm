@@ -85,12 +85,19 @@
       "id": "raiders",
       "name": "Drift Raiders",
       "controller": "ai",
-      "always_hostile": true
+      "always_hostile": true,
+      "ai": {
+        "attack_ratio": 1.0
+      }
     },
     {
       "id": "traders",
       "name": "Ceres Free Traders",
-      "controller": "ai"
+      "controller": "ai",
+      "ai": {
+        "attack_ratio": 1.4,
+        "hunt_range": 3
+      }
     }
   ],
   "planets": [
@@ -123,7 +130,8 @@
       "buildings": [
         "shipyard",
         "trade_hub",
-        "research_lab"
+        "research_lab",
+        "defense_platform"
       ]
     },
     {
@@ -165,7 +173,8 @@
       "sensor": 3,
       "buildings": [
         "shipyard",
-        "trade_hub"
+        "trade_hub",
+        "defense_platform"
       ],
       "description": "Free Trader port. Neutral to the Patrol, hated by the raiders."
     },
@@ -233,7 +242,7 @@
           "name": "Marauder"
         },
         {
-          "unit": "frigate",
+          "unit": "destroyer",
           "name": "Cutthroat"
         },
         {
@@ -264,13 +273,17 @@
       "name": "Merchant Guard",
       "owner": "traders",
       "at": [
-        11,
-        2
+        10,
+        1
       ],
       "ships": [
         {
           "unit": "frigate",
           "name": "Ledger"
+        },
+        {
+          "unit": "frigate",
+          "name": "Tariff"
         },
         {
           "unit": "interceptor",

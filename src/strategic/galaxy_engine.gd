@@ -46,6 +46,7 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 			"controller": f.get("controller", "ai"),
 			"team": team,
 			"always_hostile": f.get("always_hostile", false),
+			"ai": f.get("ai", {}),
 		})
 		s.explored[f["id"]] = {}
 		var stock: Dictionary = def.get("resources", {}).get(f["id"], {})
