@@ -14,6 +14,7 @@ extends RefCounted
 ## an event.
 
 var state: BattleState
+var _spawned_this_round := false
 var data: DataRegistry
 var _events: Array[Dictionary] = []
 
@@ -401,6 +402,10 @@ func _begin_round() -> void:
 		return
 	state.turn_queue = TurnOrder.build_queue(state)
 	emit({"type": BattleEvents.ROUND_STARTED, "round": state.round_number, "order": state.turn_queue.duplicate()})
+	_check_round_triggers()
+	# Reinforcements join this round's turn order.
+	state.turn_queue = TurnOrder.build_queue(state) if _spawned_this_round else state.turn_queue
+	_spawned_this_round = false
 
 
 ## Start-of-turn upkeep. Returns false if the unit cannot act this turn.
@@ -474,6 +479,19 @@ func _alert(unit: BattleUnit) -> void:
 			emit({"type": BattleEvents.UNIT_ALERTED, "unit": u.id})
 
 
+## Fires unfired timed triggers ({"round": n}) at the start of round n. They
+## can't offer choices; "effect" entries with "to": "squad" hit the trigger's team.
+func _check_round_triggers() -> void:
+	for i in state.triggers.size():
+		var t: Dictionary = state.triggers[i]
+		if t["fired"] or not t.has("round") or int(t["round"]) != state.round_number:
+			continue
+		t["fired"] = true
+		emit({"type": BattleEvents.TRIGGER_FIRED, "trigger": t.get("id", str(i)), "unit": "", "team": int(t.get("team", 0)),
+				"title": t.get("title", ""), "text": t.get("text", ""), "choices": []})
+		_apply_trigger_effects(t.get("effects", []), null, int(t.get("team", 0)))
+
+
 ## Fires unfired triggers on cells the unit just entered. A trigger may apply
 ## effects immediately and/or wait for a choice (state.pending_choice).
 func _check_triggers(unit: BattleUnit, path: Array[Vector2i]) -> void:
@@ -515,13 +533,17 @@ func _do_choice(cmd: ChooseOptionCommand) -> void:
 ##   {"type": "spawn", "units": [{"unit", "at": [c, r], "team", "name"?, "dormant"?, "group"?}]}
 ##   {"type": "alert", "group": "a"} or {"type": "alert", "team": 1}
 ##   {"type": "reward", "xp"?, "items"?, "trait"?, "loyalty"?}  (applied by the campaign)
-func _apply_trigger_effects(effects: Array, unit: BattleUnit) -> void:
+func _apply_trigger_effects(effects: Array, unit: BattleUnit, team: int = -1) -> void:
+	if unit != null:
+		team = unit.team
 	for fx: Dictionary in effects:
 		match fx.get("type", ""):
 			"effect":
-				var recipients: Array[BattleUnit] = [unit]
+				var recipients: Array[BattleUnit] = []
 				if fx.get("to", "unit") == "squad":
-					recipients = state.living_units(unit.team)
+					recipients = state.living_units(team)
+				elif unit != null:
+					recipients = [unit]
 				for r in recipients:
 					if r.alive:
 						_apply_effect(fx.get("effect", {}), null, r)
@@ -559,6 +581,7 @@ func _spawn(entry: Dictionary) -> void:
 	u.group = entry.get("group", "")
 	state.units[unit_id] = u
 	state.version += 1
+	_spawned_this_round = true
 	_update_explored()
 	emit({"type": BattleEvents.UNIT_SPAWNED, "unit": unit_id})
 
@@ -585,10 +608,18 @@ func _check_objectives() -> void:
 		if result != BattleState.NO_WINNER:
 			_finish(result, "objective")
 			return
-	# Safety net: a battle with no opponents left always ends.
-	if state.teams_alive().size() <= 1:
+	# Safety net: a battle with no opponents left always ends, unless timed
+	# reinforcements are still to come.
+	if state.teams_alive().size() == 0 or (state.teams_alive().size() == 1 and not _timed_triggers_pending()):
 		var alive := state.teams_alive()
 		_finish(alive[0] if alive.size() == 1 else BattleState.DRAW, "elimination")
+
+
+func _timed_triggers_pending() -> bool:
+	for t in state.triggers:
+		if t.has("round") and not t["fired"]:
+			return true
+	return false
 
 
 func _finish(winner: int, reason: String) -> void:

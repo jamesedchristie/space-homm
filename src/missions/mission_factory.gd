@@ -42,8 +42,10 @@ static func scenario(data: DataRegistry, mission: Dictionary, squad: Array[Dicti
 		if not objective.has("team"):
 			objective["team"] = squad_team
 		objectives.append(objective)
-	# Wiping out the hostiles also wins; losing the squad loses.
-	objectives.append({"type": "eliminate_all", "description": "or eliminate all hostiles"})
+	# Wiping out the hostiles also wins (unless the mission says otherwise,
+	# e.g. a hold-out with waves still to come); losing the squad loses.
+	if mission.get("eliminate_all_wins", true):
+		objectives.append({"type": "eliminate_all", "description": "or eliminate all hostiles"})
 
 	return {
 		"id": "mission_" + mission["id"],

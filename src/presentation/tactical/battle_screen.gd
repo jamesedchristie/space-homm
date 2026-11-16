@@ -274,7 +274,11 @@ func _play(events: Array[Dictionary], token: int) -> void:
 ## (the AI picks for its own units through RuleBasedAI).
 func _play_trigger(e: Dictionary, token: int) -> void:
 	var choices: Array = e["choices"]
-	if not _human_controls(e["unit"]):
+	if e["unit"] == "":
+		# Timed trigger: show it if the human plays the team it's for.
+		if autoplay or engine.state.team_info(int(e.get("team", 0))).get("controller", "") != "player":
+			return
+	elif not _human_controls(e["unit"]):
 		return
 	var buttons: Array[Dictionary] = []
 	for i in choices.size():

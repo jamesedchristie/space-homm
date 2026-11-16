@@ -196,7 +196,7 @@ engine features, all available to fleet battles too:
 | Square grid | `SquareGrid` (8-way moves, Chebyshev distance, no cutting wall corners) behind `TacticalGrid` |
 | Fog of war | scenario `"fog": true`. `BattleState.visible_cells(team)` uses each unit's `sight` stat plus LOS, cached by `state.version`. You can't target what your side can't see |
 | Dormant groups | unit entry `"dormant": true, "group": "aft"`. Skips its turns until it sees an enemy, is damaged or is alerted, and then wakes its whole group |
-| Triggers | scenario `"triggers"`: entering one of the cells fires text, immediate `effects` and optional `choices`. While a choice is pending, only `ChooseOptionCommand` is accepted (the AI picks option 0) |
+| Triggers | scenario `"triggers"`: entering one of the cells (or reaching `"round": n`) fires text, immediate `effects` and optional `choices`. While a choice is pending, only `ChooseOptionCommand` is accepted (the AI picks option 0) |
 | Trigger effects | `effect` (any BattleEffect on the unit or squad), `spawn` (reinforcements), `alert` (a group or team), `reward` (xp/items/trait/loyalty, recorded in `state.rewards` for the campaign) |
 | Objectives | `reach_cells` (stand on a cell) alongside `eliminate_all` |
 | Cover | terrain `"damage_taken": 0.7` multiplies damage to whoever stands in it |
@@ -372,6 +372,12 @@ shifted right on hex maps). The engine converts them internally.
   "on_failure": { "mission": "derelict_rescue", "name": "Distress Beacon" }
 }
 ```
+
+Timed triggers use `"round": n` instead of `cells` and fire at the start of that round (no
+choices; `"effect"` entries need `"to": "squad"`). They're how hold-out missions send waves:
+*Silent Relay* is `{"type": "survive_rounds", "rounds": 8}` with skiffs and drones arriving on
+rounds 3, 5 and 7, and `"eliminate_all_wins": false` so clearing the first wave doesn't end it
+(a battle also doesn't end by elimination while timed triggers are still pending).
 
 **Campaign additions:** `"permadeath": false`,
 `"heroes": [{ "id", "name", "class", "owner", "fleet": "<fleet name>" | "planet": "<planet id>", "level"?, "traits"?, "gear"?, "loyalty"? }]`,

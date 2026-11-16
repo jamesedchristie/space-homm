@@ -1,0 +1,251 @@
+{
+  "id": "silent_relay",
+  "name": "Silent Relay",
+  "type": "ground",
+  "description": "A Patrol listening relay on a mining rock has gone quiet, and raider skiffs are circling it. Land a team in the relay room and hold it while the codes are wiped: if the raiders get them, they'll hear every order you send.",
+  "map": "mining_outpost",
+  "squad_size": 3,
+  "marine_unit": "marine",
+  "duration": 2,
+  "max_rounds": 20,
+  "requires_hero": true,
+  "recommended_level": 2,
+  "enemy_name": "Relay Raiders",
+  "eliminate_all_wins": false,
+  "enemies": [
+    {
+      "unit": "boarder",
+      "name": "Raider",
+      "at": [
+        0,
+        1
+      ],
+      "alert": true
+    },
+    {
+      "unit": "boarder",
+      "name": "Raider",
+      "at": [
+        13,
+        8
+      ],
+      "alert": true
+    },
+    {
+      "unit": "boarder",
+      "name": "Raider",
+      "at": [
+        13,
+        1
+      ],
+      "alert": true
+    },
+    {
+      "unit": "sentry_drone",
+      "name": "Hijacked Drone",
+      "at": [
+        12,
+        0
+      ],
+      "group": "drones"
+    }
+  ],
+  "objectives": [
+    {
+      "type": "survive_rounds",
+      "rounds": 8,
+      "description": "Hold the relay room for 8 rounds"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "skiff",
+      "round": 3,
+      "title": "Raider Skiff",
+      "text": "A skiff clamps onto the west airlock. Three more raiders cut their way in.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "boarder",
+              "name": "Raider",
+              "at": [
+                0,
+                5
+              ]
+            },
+            {
+              "unit": "boarder",
+              "name": "Raider",
+              "at": [
+                0,
+                9
+              ]
+            },
+            {
+              "unit": "boarder",
+              "name": "Raider",
+              "at": [
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drones",
+      "round": 5,
+      "title": "Drone Override",
+      "text": "The raiders seize the outpost's drone bay. Everything mechanical on the rock turns on you.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "sentry_drone",
+              "name": "Hijacked Drone",
+              "at": [
+                13,
+                4
+              ]
+            },
+            {
+              "unit": "sentry_drone",
+              "name": "Hijacked Drone",
+              "at": [
+                13,
+                6
+              ]
+            }
+          ]
+        },
+        {
+          "type": "alert",
+          "group": "drones"
+        }
+      ]
+    },
+    {
+      "id": "last_push",
+      "round": 7,
+      "title": "Last Push",
+      "text": "“We know you’re wiping it!” The raider captain leads the final rush from the north.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "boarder",
+              "name": "Raider Captain",
+              "at": [
+                6,
+                0
+              ]
+            },
+            {
+              "unit": "boarder",
+              "name": "Raider",
+              "at": [
+                9,
+                0
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "armory",
+      "cells": [
+        [
+          13,
+          9
+        ],
+        [
+          12,
+          9
+        ],
+        [
+          13,
+          8
+        ]
+      ],
+      "title": "Armory Locker",
+      "text": "A mining-crew locker, half open. Demolition charges inside.",
+      "choices": [
+        {
+          "label": "Take the charges",
+          "text": "Heavy, unstable, very useful.",
+          "effects": [
+            {
+              "type": "reward",
+              "items": [
+                "frag_grenade"
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Leave them",
+          "text": "Not worth the risk out here.",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "console",
+      "cells": [
+        [
+          5,
+          4
+        ],
+        [
+          8,
+          5
+        ]
+      ],
+      "title": "Relay Console",
+      "text": "The relay's power is still routed to the room's shield emitters. Overload them for a burst of protection, or leave the power for the wipe?",
+      "choices": [
+        {
+          "label": "Overload the emitters",
+          "text": "The air crackles. Everyone in the room feels it.",
+          "effects": [
+            {
+              "type": "effect",
+              "to": "squad",
+              "effect": {
+                "type": "apply_status",
+                "status": "braced",
+                "duration": 3
+              }
+            }
+          ]
+        },
+        {
+          "label": "Leave the power alone",
+          "text": "The wipe runs a little faster for it.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 25
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "rewards": {
+    "xp": 110,
+    "items": [
+      "barrier_harness"
+    ]
+  },
+  "on_failure": {
+    "mission": "relay_rescue",
+    "name": "Raider Holding Pen"
+  }
+}

@@ -164,3 +164,41 @@ func test_real_mission_auto_resolves() -> void:
 	assert_eq(e.state.triggers.size(), 3)
 	var result := AutoResolver.resolve(e)
 	assert_true(e.state.is_over, "mission should finish (round %d)" % result["rounds"])
+
+
+func test_timed_trigger_spawns_reinforcements() -> void:
+	var trigger := {"id": "wave", "team": 0, "round": 2, "title": "Contact", "text": "More of them.",
+		"effects": [{"type": "spawn", "units": [{"unit": "test_dummy", "at": [7, 5], "team": 1}]},
+			{"type": "effect", "to": "squad", "effect": {"type": "heal", "amount": 5}}]}
+	var e := _engine(_scenario([{"unit": "test_fast_dummy", "at": [0, 4]}],
+			[{"unit": "test_dummy", "at": [7, 0]}], {"triggers": [trigger]}))
+	assert_eq(e.state.units.size(), 2)
+	var fired := false
+	for i in 6:
+		if e.state.round_number >= 2:
+			break
+		var result := e.submit(EndTurnCommand.new(e.state.active_unit_id))
+		fired = fired or BattleEvents.TRIGGER_FIRED in _types(result.events)
+	assert_eq(e.state.round_number, 2)
+	assert_true(fired, "fires when round 2 starts")
+	assert_eq(e.state.units.size(), 3, "the wave arrived")
+	assert_true(e.state.active_unit() != null)
+
+
+func test_pending_waves_keep_a_cleared_battle_going() -> void:
+	var trigger := {"id": "wave", "team": 0, "round": 3,
+		"effects": [{"type": "spawn", "units": [{"unit": "test_dummy", "at": [7, 5], "team": 1}]}]}
+	var e := _engine(_scenario([{"unit": "test_fast_dummy", "at": [0, 4]}],
+			[{"unit": "test_dummy", "at": [7, 0]}],
+			{"triggers": [trigger], "objectives": [{"type": "survive_rounds", "team": 0, "rounds": 4}]}))
+	for u in e.state.living_units(1):
+		u.hull = 0
+		u.alive = false
+	e.state.version += 1
+	e.submit(EndTurnCommand.new(e.state.active_unit_id))
+	assert_false(e.state.is_over, "a wave is still coming")
+	var guard := 0
+	while e.state.round_number < 3 and guard < 20:
+		guard += 1
+		e.submit(EndTurnCommand.new(e.state.active_unit_id))
+	assert_eq(e.state.living_units(1).size(), 1, "the wave spawned")

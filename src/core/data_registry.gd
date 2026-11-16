@@ -227,6 +227,10 @@ func _validate_mission(id: String, def: Dictionary) -> void:
 	if not follow_up.is_empty() and not missions.has(follow_up):
 		_err("%s: unknown follow-up mission '%s'" % [owner, follow_up])
 	for trigger: Dictionary in def.get("triggers", []):
+		if trigger.has("round") == trigger.has("cells"):
+			_err("%s: trigger '%s' needs either cells or a round" % [owner, trigger.get("id", "")])
+		if trigger.has("round") and trigger.has("choices"):
+			_err("%s: timed trigger '%s' can't offer choices" % [owner, trigger.get("id", "")])
 		var all_effects: Array = trigger.get("effects", []).duplicate()
 		for choice: Dictionary in trigger.get("choices", []):
 			all_effects.append_array(choice.get("effects", []))

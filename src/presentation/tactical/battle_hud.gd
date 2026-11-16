@@ -215,7 +215,7 @@ func _build() -> void:
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	actions.add_child(_hint_label)
-	actions.add_child(_label("Click: move/target · 1-3: abilities · Esc: cancel/menu · A: autoplay · V: 2D/3D · 3D: wheel zoom, Q/E rotate, arrows pan",
+	actions.add_child(_label("Click: move/target · 1-3: abilities · Esc: cancel/menu · A: autoplay · V: 2D/3D · Camera: wheel, Q/E, arrows",
 			11, Palette.TEXT_DIM))
 
 	# Combat log.

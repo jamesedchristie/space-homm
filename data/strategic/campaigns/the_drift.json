@@ -367,6 +367,15 @@
         2
       ],
       "mission": "derelict_station"
+    },
+    {
+      "id": "relay",
+      "name": "Silent Relay",
+      "at": [
+        8,
+        8
+      ],
+      "mission": "silent_relay"
     }
   ],
   "relations": [

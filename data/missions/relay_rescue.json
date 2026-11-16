@@ -1,0 +1,64 @@
+{
+  "id": "relay_rescue",
+  "name": "Raider Holding Pen",
+  "type": "ground",
+  "description": "The raiders took your people from the relay and are holding them in the outpost's ore lockers until a buyer arrives. Get in and get them out.",
+  "map": "mining_outpost",
+  "squad_size": 3,
+  "marine_unit": "marine",
+  "duration": 2,
+  "max_rounds": 25,
+  "requires_hero": false,
+  "recommended_level": 1,
+  "enemy_name": "Raider Guards",
+  "enemies": [
+    {
+      "unit": "boarder",
+      "name": "Guard",
+      "at": [
+        2,
+        1
+      ],
+      "group": "west"
+    },
+    {
+      "unit": "boarder",
+      "name": "Guard",
+      "at": [
+        11,
+        8
+      ],
+      "group": "east"
+    },
+    {
+      "unit": "sentry_drone",
+      "name": "Locker Drone",
+      "at": [
+        12,
+        1
+      ],
+      "group": "east"
+    }
+  ],
+  "objectives": [
+    {
+      "type": "reach_cells",
+      "cells": [
+        [
+          13,
+          0
+        ],
+        [
+          13,
+          1
+        ]
+      ],
+      "description": "Reach the ore lockers"
+    }
+  ],
+  "triggers": [],
+  "rewards": {
+    "xp": 80,
+    "free_captives": true
+  }
+}

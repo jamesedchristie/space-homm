@@ -15,6 +15,8 @@ and Mass Effect-style hero missions, all built on **one shared tactical engine**
   bonus in fleet battles) and lead away teams. Anomalies on the galaxy map launch missions:
   ground missions on a square grid with fog of war, dormant enemy groups, story choices,
   reinforcements and objectives. A failed mission turns into a rescue mission for captured heroes.
+  *The Drift* has two: the **Derelict Station** (reach the data core) and the **Silent Relay**
+  (hold the relay room for 8 rounds against raider waves), each with its own rescue follow-up.
 - **Step 4 (done):** empire systems. Credits, alloys and research from planets and buildings;
   build queues for buildings and ships; a tech tree (ship upgrades, faster fleets, sensors,
   yields, defense platforms, the Destroyer); a third faction, the Ceres Free Traders, with
