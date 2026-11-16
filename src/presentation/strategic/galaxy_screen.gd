@@ -68,6 +68,11 @@ func _ready() -> void:
 	hud.roster.command_requested.connect(_on_roster_command)
 	hud.roster.closed.connect(_refresh)
 	hud.menu_pressed.connect(_open_menu)
+	hud.settings_closed.connect(func() -> void:
+		# Apply a changed map view right away.
+		if engine != null and (board is GalaxyBoard3D) != (GameSettings.galaxy_view == "3d"):
+			_build_board()
+		_refresh())
 	get_viewport().size_changed.connect(_fit_map)
 	if auto_start:
 		start_campaign()

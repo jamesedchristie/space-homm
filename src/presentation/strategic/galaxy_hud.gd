@@ -7,6 +7,7 @@ signal end_turn_pressed
 signal heroes_pressed
 signal empire_pressed
 signal menu_pressed
+signal settings_closed
 ## Emitted when the player clicks one of the dialog's buttons.
 signal dialog_choice(choice_id: String)
 
@@ -89,13 +90,15 @@ func is_dialog_open() -> bool:
 	return _dialog.is_open()
 
 
-## Settings overlay (from the in-game menu); closing it reopens nothing.
+## Settings overlay (from the in-game menu). Emits settings_closed when done.
 func show_settings() -> void:
 	var frame := UiKit.panel(Palette.PANEL_BG, Palette.ACTIVE, 2)
 	frame.custom_minimum_size = Vector2(440, 0)
 	UiKit.anchor(frame, 0.5, 0.5, 0.5, 0.5, -220, -170, 220, 170)
 	var settings := SettingsPanel.new()
-	settings.closed.connect(frame.queue_free)
+	settings.closed.connect(func() -> void:
+		frame.queue_free()
+		settings_closed.emit())
 	frame.add_child(settings)
 	add_child(frame)
 
