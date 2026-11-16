@@ -30,11 +30,13 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 		return null
 	var engine := GalaxyEngine.new()
 	engine.data = p_data
-	engine.campaign = def
 	var s := GalaxyState.new()
 	engine.state = s
 	s.seed_value = p_seed if p_seed != 0 else randi()
 	s.rng.seed = s.seed_value
+	if def.has("generate"):
+		def = GalaxyGenerator.generate(p_data, def, s.seed_value)
+	engine.campaign = def
 	s.max_turns = int(def.get("max_turns", 200))
 	s.grid = HexGrid.from_map(def.get("map", {}), p_data.galaxy_terrain)
 

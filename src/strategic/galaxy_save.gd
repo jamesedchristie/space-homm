@@ -47,6 +47,8 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 		"format": FORMAT,
 		"version": VERSION,
 		"campaign": campaign_id,
+		# Generated sectors aren't in the data files: keep the generated definition.
+		"campaign_def": engine.campaign if engine.campaign.get("generated", false) else {},
 		"meta": {
 			"campaign_name": engine.campaign.get("name", campaign_id),
 			"turn": s.turn_number,
@@ -93,7 +95,8 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 	var d: Dictionary = save.get("state", {})
 	var engine := GalaxyEngine.new()
 	engine.data = data
-	engine.campaign = data.campaigns[campaign_id]
+	engine.campaign = save.get("campaign_def", {}) if not save.get("campaign_def", {}).is_empty() \
+			else data.campaigns[campaign_id]
 	var s := GalaxyState.new()
 	engine.state = s
 	s.grid = HexGrid.from_map(engine.campaign.get("map", {}), data.galaxy_terrain)

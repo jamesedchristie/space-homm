@@ -66,6 +66,10 @@ The 3D map opens on the area you've explored; zoom out with the wheel to see the
 Battle and mission offers show the **auto-resolve odds** (from a dozen simulated runs) so you
 can decide whether to fight it yourself.
 
+Two campaigns: **The Drift** (a hand-made sector) and **Random Sector** (a new generated
+sector every game: home worlds, planets and names, nebulae, asteroid belts and rifts, mission
+sites; enter a seed on the New Campaign screen to replay one).
+
 **Every game is different:** the seed scatters one-time **discoveries** across the sector
 (derelict hulks to salvage, strange signals, smugglers' caches, escape pods). Fly a fleet in to
 find out what's there: resources, research, a free ship, star charts, an item, or now and then

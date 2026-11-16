@@ -143,7 +143,12 @@ func validate() -> PackedStringArray:
 			if r.has("item") and not items.has(r["item"]):
 				_err("discovery '%s': unknown item '%s'" % [id, r["item"]])
 	for id: String in campaigns:
-		_validate_campaign(id, campaigns[id])
+		# Generated sectors: check what the generator makes from a couple of seeds.
+		if campaigns[id].has("generate"):
+			for test_seed in [1, 2]:
+				_validate_campaign("%s (seed %d)" % [id, test_seed], GalaxyGenerator.generate(self, campaigns[id], test_seed))
+		else:
+			_validate_campaign(id, campaigns[id])
 
 	for id: String in hero_classes:
 		var def: Dictionary = hero_classes[id]

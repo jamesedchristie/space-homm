@@ -141,6 +141,14 @@ the campaign RNG so a seed always gives the same sector):
   reported as `DISCOVERY_FOUND`. The AI grabs known finds within 4 systems unless a stronger
   enemy is near them.
 
+**Generated sectors** (`GalaxyGenerator`): a campaign with a `"generate"` block (see
+`random_sector.json`) is turned into an ordinary campaign definition from the seed before the
+engine reads it: homes spread apart by farthest-point picks (the player's on the west side),
+neutral planets with random types and names, terrain blobs (rifts are dropped if they'd cut a
+planet, fleet or mission site off from the player's home), starting fleets beside their homes
+and mission sites in the contested middle. Saves of generated campaigns store the generated
+definition (`campaign_def`). Content validation runs the generator for two seeds.
+
 Missions get their own randomness: `"caches": {"count", "loot": [...]}` places that many
 supply lockers (one-cell reward triggers, marker `"loot"`) on random free cells away from the
 squad, rolled from the battle seed in `BattleEngine._place_caches`; `"loot": [...]` is a

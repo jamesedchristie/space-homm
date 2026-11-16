@@ -70,3 +70,22 @@ func test_file_slots() -> void:
 	assert_eq(_state_text(loaded["engine"]), _state_text(e))
 	GalaxySave.delete(slot)
 	assert_true(GalaxySave.load_slot(e.data, slot).has("error"))
+
+
+func test_generated_sector_is_seeded_and_saves() -> void:
+	var data := DataRegistry.get_default()
+	var a := GalaxyEngine.from_campaign(data, "random_sector", 4)
+	var b := GalaxyEngine.from_campaign(data, "random_sector", 4)
+	var c := GalaxyEngine.from_campaign(data, "random_sector", 5)
+	assert_eq(var_to_str(a.campaign["planets"]), var_to_str(b.campaign["planets"]), "same seed, same sector")
+	assert_ne(var_to_str(a.campaign["planets"]), var_to_str(c.campaign["planets"]), "different seed, different sector")
+	var homes := a.state.planets.values().filter(func(p: Planet) -> bool: return not p.owner.is_empty())
+	assert_eq(homes.size(), 3)
+	for i in homes.size():
+		for j in range(i + 1, homes.size()):
+			assert_true(a.state.grid.distance(homes[i].cell, homes[j].cell) >= 6, "homes spread apart")
+	a.start()
+	var loaded := GalaxySave.from_dict(data, GalaxySave.to_dict(a, "random_sector"))
+	assert_true(loaded.has("engine"), str(loaded.get("error", "")))
+	assert_eq(_state_text(loaded["engine"]), _state_text(a))
+	assert_eq(loaded["engine"].state.grid.cells().size(), a.state.grid.cells().size())
