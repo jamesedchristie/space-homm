@@ -30,6 +30,7 @@
   "visual": {
     "placeholder": "interceptor",
     "sprite": "res://assets/kenney_space_shooter/ships/playerShip1_{team}.png",
-    "size": 0.8
+    "size": 0.8,
+    "model": "interceptor"
   }
 }

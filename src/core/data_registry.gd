@@ -40,6 +40,9 @@ var resources: Dictionary = {}
 var buildings: Dictionary = {}
 var techs: Dictionary = {}
 
+# 3D model recipes (presentation only)
+var models: Dictionary = {}
+
 ## Human-readable problems found while loading. Empty means all good.
 var errors: PackedStringArray = []
 
@@ -75,6 +78,7 @@ func load_from(root: String) -> bool:
 	_load_keyed_file(root.path_join("empire/resources.json"), resources)
 	_load_keyed_file(root.path_join("empire/buildings.json"), buildings)
 	_load_keyed_file(root.path_join("empire/techs.json"), techs)
+	_load_keyed_file(root.path_join("models/models.json"), models)
 	validate()
 	return errors.is_empty()
 
@@ -148,6 +152,10 @@ func validate() -> PackedStringArray:
 	for id: String in missions:
 		_validate_mission(id, missions[id])
 	_validate_empire()
+	for id: String in units:
+		var model: String = units[id].get("visual", {}).get("model", "")
+		if not model.is_empty() and not models.has(model):
+			_err("unit '%s': unknown model '%s'" % [id, model])
 	return errors
 
 

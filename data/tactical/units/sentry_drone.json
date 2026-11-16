@@ -19,7 +19,8 @@
   "visual": {
     "placeholder": "drone",
     "sprite": "",
-    "size": 0.65
+    "size": 0.65,
+    "model": "drone"
   },
   "stat_names": {
     "hull": "Chassis",

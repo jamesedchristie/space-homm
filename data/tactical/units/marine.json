@@ -20,7 +20,8 @@
   "visual": {
     "placeholder": "trooper",
     "sprite": "",
-    "size": 0.95
+    "size": 0.95,
+    "model": "trooper"
   },
   "stat_names": {
     "hull": "Health",

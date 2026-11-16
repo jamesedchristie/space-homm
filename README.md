@@ -73,6 +73,8 @@ afterwards, and the fleet loses its doctrine bonus meanwhile.
 | `Space` / `Enter` | End turn |
 | `A` | Toggle autoplay |
 | `R` | Restart (standalone battles only) |
+| `V` | Switch between the 2.5D (3D) and top-down (2D) battle view |
+| Mouse wheel / `Q` `E` / arrows / middle-drag | 3D view: zoom / rotate / pan |
 
 Hover over targets to see the expected damage before you commit. In missions, the green ★
 marks the objective, yellow **?** marks something to investigate, and enemies stay hidden
@@ -83,6 +85,10 @@ marks the objective, yellow **?** marks something to investigate, and enemies st
 - Ships, lasers, meteors, effect sprites, the Kenvector fonts and sound effects:
   **Kenney** "Space Shooter Redux" (CC0, `assets/kenney_space_shooter/`, see its README/LICENSE).
 - Planets and the space backdrop are procedural shaders (`src/presentation/shaders/`).
+- 3D models are procedural: each is a recipe of parts (bevelled hulls, boxes, cylinders, cones,
+  spheres, rocks) in `data/models/models.json`, built at load time by
+  `src/presentation/models/model_factory.gd`. Units pick one with `visual.model`; the `accent`
+  material takes the team color. Add or reshape a ship by editing JSON.
 - The UI theme is built in code (`src/presentation/shared/game_theme.gd`); colors live in `palette.gd`.
 - Ship sprites are set per unit in JSON (`visual.sprite`, with `{team}` replaced by the team's
   color variant). Battle maps can set `backdrop` colors and `floor: "deck"` for interiors.

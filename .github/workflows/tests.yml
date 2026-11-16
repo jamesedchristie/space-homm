@@ -23,10 +23,17 @@ jobs:
         run: ./godot --headless --path . --import
 
       - name: Run tests
-        run: ./godot --headless --path . -s res://tests/run_tests.gd
+        run: |
+          set -o pipefail
+          ./godot --headless --path . -s res://tests/run_tests.gd 2>&1 | tee tests.log
+          ! grep -q "SCRIPT ERROR" tests.log
 
       - name: Smoke-test battle screen
-        run: ./godot --headless --path . -s res://tools/smoke_battle_screen.gd
+        run: |
+          ./godot --headless --path . -s res://tools/smoke_battle_screen.gd 2>&1 | tee battle.log
+          ! grep -q "SCRIPT ERROR" battle.log
 
       - name: Smoke-test campaign (galaxy and battle screens)
-        run: ./godot --headless --path . -s res://tools/smoke_campaign.gd
+        run: |
+          ./godot --headless --path . -s res://tools/smoke_campaign.gd 2>&1 | tee campaign.log
+          ! grep -q "SCRIPT ERROR" campaign.log

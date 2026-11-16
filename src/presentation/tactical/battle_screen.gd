@@ -3,6 +3,9 @@ extends Node2D
 ## No game rules live here: clicks become commands, engine events become
 ## animations. The same screen will host ground and exploration missions.
 ##
+## Drawing goes through a BattleBoard: BattleBoard3D (2.5D, default) or
+## BattleBoard2D (top-down). Press V to switch views mid-battle.
+##
 ## Standalone (F6 on this scene): plays `scenario_id`, "Play again" restarts.
 ## Embedded (from the galaxy): call configure() before adding it to the tree;
 ## "Continue" emits battle_finished with the finished engine.
@@ -11,6 +14,9 @@ extends Node2D
 signal battle_finished(engine: BattleEngine)
 
 enum Mode { MOVE, TARGET }
+
+## "3d" or "2d"; remembered across battles.
+static var view_mode := "3d"
 
 @export var scenario_id := "first_skirmish"
 ## 0 picks a random seed each battle (shown in the log for reproducing bugs).
@@ -23,10 +29,12 @@ enum Mode { MOVE, TARGET }
 @onready var fx: FxLayer = $MapView/Fx
 @onready var hud: BattleHud = $HUD/Hud
 
+## The current view of the battlefield (2D or 3D).
+var board: BattleBoard
+
 var data: DataRegistry
 var engine: BattleEngine
 var ai := RuleBasedAI.new()
-var unit_views: Dictionary = {}  # unit id -> UnitView
 var mode := Mode.MOVE
 var selected_ability := ""
 var autoplay := false
@@ -75,9 +83,6 @@ func _on_result_button() -> void:
 func start_battle() -> void:
 	_battle_token += 1
 	var token := _battle_token
-	for v: UnitView in unit_views.values():
-		v.queue_free()
-	unit_views.clear()
 	hud.hide_result()
 	hud.clear_log()
 	mode = Mode.MOVE
@@ -90,14 +95,8 @@ func start_battle() -> void:
 		if t["controller"] == "player":
 			_viewer_team = t["team"]
 			break
-	map_view.setup(engine.state.grid, data.maps[scenario["map"]].get("floor", ""))
 	$Background/Backdrop.configure(data.maps[scenario["map"]].get("backdrop", {}), float(engine.state.seed_value % 97))
-	if not engine.state.fog_enabled:
-		map_view.clear_fog()
-	for u: BattleUnit in engine.state.units.values():
-		_add_unit_view(u)
-	_fit_map()
-	_refresh_views()
+	_build_board()
 	hud.set_objective(engine.objective_text())
 	hud.log_line("[color=#%s]%s  (seed %d)[/color]" % [Palette.hex(Palette.TEXT_DIM),
 			scenario.get("name", "Battle"), engine.state.seed_value])
@@ -108,12 +107,30 @@ func start_battle() -> void:
 		await _run_ai_turns(token)
 
 
-func _add_unit_view(u: BattleUnit) -> void:
-	var view := UnitView.new()
-	units_layer.add_child(view)
-	view.setup(u, u.def, GridMapView.CELL_SIZE)
-	view.position = map_view.cell_center(u.cell)
-	unit_views[u.id] = view
+## (Re)creates the board for the current view mode from engine state.
+func _build_board() -> void:
+	if board != null:
+		board.teardown()
+		board.queue_free()
+	map_view.visible = false
+	board = BattleBoard3D.new() if view_mode == "3d" else BattleBoard2D.new(map_view, units_layer, fx)
+	add_child(board)
+	var map_def: Dictionary = data.maps[_embedded_scenario.get("map", "") if is_embedded() else data.scenarios[scenario_id]["map"]]
+	board.setup(engine, data, map_def.get("floor", ""))
+	for u: BattleUnit in engine.state.units.values():
+		if u.alive:
+			board.add_unit(u)
+	_fit_map()
+	_refresh_views()
+
+
+func _switch_view() -> void:
+	if _busy:
+		hud.set_hint("Switch views between actions")
+		return
+	view_mode = "2d" if view_mode == "3d" else "3d"
+	_build_board()
+	_refresh()
 
 
 ## True if the human's side can see this unit (always, without fog).
@@ -197,28 +214,20 @@ func _play(events: Array[Dictionary], token: int) -> void:
 			BattleEvents.TURN_STARTED:
 				_refresh()
 			BattleEvents.UNIT_MOVED:
-				var points: Array[Vector2] = []
 				var path: Array = e["path"]
 				var seen := engine.state.get_unit(e["unit"]).team == _viewer_team
 				for i in range(1, path.size()):
-					points.append(map_view.cell_center(path[i]))
 					seen = seen or engine.state.is_visible(_viewer_team, path[i])
-				var mover: UnitView = unit_views[e["unit"]]
-				if seen:
-					mover.visible = true
-					await mover.move_along(points)
-				else:
-					mover.position = points[points.size() - 1]
+				await board.move_unit(e["unit"], path, seen)
 				_refresh_views()
 			BattleEvents.UNIT_SPAWNED:
-				var spawned := engine.state.get_unit(e["unit"])
-				_add_unit_view(spawned)
+				board.add_unit(engine.state.get_unit(e["unit"]))
 				_refresh_views()
-				fx.float_text(unit_views[e["unit"]].position, "Contact!", Palette.BAD)
+				board.float_text(e["unit"], "Contact!", Palette.BAD)
 			BattleEvents.UNIT_ALERTED:
 				var alerted := engine.state.get_unit(e["unit"])
 				if _can_see(alerted):
-					fx.float_text(unit_views[e["unit"]].position, "!", Palette.BAD)
+					board.float_text(e["unit"], "!", Palette.BAD)
 			BattleEvents.TRIGGER_FIRED:
 				await _play_trigger(e, token)
 			BattleEvents.CHOICE_MADE:
@@ -228,39 +237,29 @@ func _play(events: Array[Dictionary], token: int) -> void:
 			BattleEvents.REWARD_GAINED:
 				var actor := engine.state.active_unit()
 				if actor != null:
-					fx.float_text(unit_views[actor.id].position + Vector2(0, -30), _reward_text(e["reward"]), Palette.ACTIVE)
+					board.float_text(actor.id, _reward_text(e["reward"]), Palette.ACTIVE, 30.0)
 			BattleEvents.ABILITY_USED:
 				await _play_ability(e)
 			BattleEvents.DAMAGE_DEALT:
-				var view: UnitView = unit_views[e["target"]]
-				view.set_values(e["hull"], e["shields"])
-				view.play_hit()
-				if e["shield_damage"] > 0 and unit_views.has(e["source"]):
-					view.play_shield_hit((unit_views[e["source"]].position - view.position).angle())
+				board.set_unit_values(e["target"], e["hull"], e["shields"])
+				board.unit_hit(e["target"], e["source"], e["shield_damage"] > 0)
 				var text := "-%d" % (e["shield_damage"] + e["hull_damage"])
-				fx.float_text(view.position, text, Palette.HULL if e["hull_damage"] > 0 else Palette.SHIELDS)
+				board.float_text(e["target"], text, Palette.HULL if e["hull_damage"] > 0 else Palette.SHIELDS)
 				await _wait(0.15)
 			BattleEvents.HEALED:
-				var view: UnitView = unit_views[e["target"]]
-				fx.float_text(view.position, "+%d %s" % [e["amount"], e["stat"]], Palette.GOOD)
-				view.refresh(engine.state.get_unit(e["target"]))
+				board.float_text(e["target"], "+%d %s" % [e["amount"], e["stat"]], Palette.GOOD)
+				board.refresh_unit(engine.state.get_unit(e["target"]), _can_see(engine.state.get_unit(e["target"])))
 			BattleEvents.STATUS_APPLIED, BattleEvents.STATUS_RESISTED:
-				var view: UnitView = unit_views[e["target"]]
 				var status_label := EventFormatter.status_name(data, e["status"])
 				var resisted: bool = e["type"] == BattleEvents.STATUS_RESISTED
-				fx.float_text(view.position + Vector2(0, -18), ("avoided " if resisted else "") + status_label, Palette.ACTIVE)
+				board.float_text(e["target"], ("avoided " if resisted else "") + status_label, Palette.ACTIVE, 18.0)
 				await _wait(0.1)
 			BattleEvents.TURN_SKIPPED:
-				fx.float_text(unit_views[e["unit"]].position, "Disabled", Palette.BAD)
+				board.float_text(e["unit"], "Disabled", Palette.BAD)
 				await _wait(0.4)
 			BattleEvents.UNIT_DESTROYED:
-				var wreck: UnitView = unit_views[e["unit"]]
-				var big := "ship" in engine.state.get_unit(e["unit"]).tags or "station" in engine.state.get_unit(e["unit"]).tags
-				fx.explode(wreck.position, 1.4 if big else 0.8)
-				fx.play_sound("explosion")
-				if big:
-					_shake(7.0)
-				await wreck.play_destroyed()
+				var dead := engine.state.get_unit(e["unit"])
+				await board.destroy_unit(e["unit"], "ship" in dead.tags or "station" in dead.tags)
 			BattleEvents.BATTLE_ENDED:
 				_show_result()
 	_refresh_views()
@@ -301,10 +300,6 @@ func _reward_text(reward: Dictionary) -> String:
 
 func _play_ability(e: Dictionary) -> void:
 	var ability: Dictionary = data.abilities[e["ability"]]
-	var source: UnitView = unit_views[e["unit"]]
-	var to := map_view.cell_center(e["target"])
-	if ability.get("target", "") != "self":
-		source.face_towards(to)
 	var color := Palette.ACTIVE
 	var laser := "Blue"
 	for effect: Dictionary in ability.get("effects", []):
@@ -312,18 +307,8 @@ func _play_ability(e: Dictionary) -> void:
 			color = Palette.damage_color(effect.get("damage_type", ""))
 			laser = Palette.DAMAGE_LASERS.get(effect.get("damage_type", ""), "Blue")
 			break
-	var blast := float(ability.get("radius", 0)) * GridMapView.CELL_SIZE * 1.8
-	await fx.play(ability.get("fx", "projectile"), source.position, to, color, blast, laser)
-
-
-## Brief camera-style shake of the battlefield.
-func _shake(strength: float) -> void:
-	var base := map_view.position
-	var tw := create_tween()
-	for i in 6:
-		var offset := Vector2(randf_range(-1, 1), randf_range(-1, 1)) * strength * (1.0 - i / 6.0)
-		tw.tween_property(map_view, "position", base + offset, 0.035)
-	tw.tween_property(map_view, "position", base, 0.04)
+	await board.play_ability(ability.get("fx", "projectile"), e["unit"], e["target"], color,
+			int(ability.get("radius", 0)), laser)
 
 
 func _wait(seconds: float) -> void:
@@ -356,12 +341,10 @@ func _show_result() -> void:
 func _refresh_views() -> void:
 	var s := engine.state
 	if s.fog_enabled:
-		map_view.set_fog(s.explored.get(_viewer_team, {}), s.visible_cells(_viewer_team))
-	for id: String in unit_views:
-		var u := s.get_unit(id)
+		board.set_fog(s.explored.get(_viewer_team, {}), s.visible_cells(_viewer_team))
+	for u: BattleUnit in s.units.values():
 		if u.alive:
-			unit_views[id].refresh(u)
-			unit_views[id].visible = _can_see(u)
+			board.refresh_unit(u, _can_see(u))
 	# Objective cells (green) and unfired story triggers (yellow).
 	var markers := {}
 	for t in s.triggers:
@@ -371,15 +354,14 @@ func _refresh_views() -> void:
 	for o in s.objectives:
 		for c in o.marked_cells():
 			markers[c] = {"color": Palette.GOOD, "label": "★", "always": true}
-	map_view.set_markers(markers)
+	board.set_markers(markers)
 
 
 ## Recomputes highlights and HUD from engine state + current input mode.
 func _refresh() -> void:
 	var s := engine.state
 	var active := s.active_unit()
-	for id: String in unit_views:
-		unit_views[id].set_active(id == s.active_unit_id)
+	board.set_active_unit(s.active_unit_id)
 	hud.set_round(s.round_number)
 	hud.set_turn_order(_turn_order_units(), s.active_unit_id)
 	var hovered: BattleUnit = s.unit_at(_hover) if _hover != null else null
@@ -424,9 +406,9 @@ func _refresh() -> void:
 		else:
 			hud.set_hint("%s: pick a red hex. Right-click to cancel.\n%s" % [ability.get("name", ""), ability.get("description", "")])
 
-	map_view.set_highlights(reach_cells, _targets, area, path)
-	map_view.set_active(active.cell if active != null else null)
-	map_view.set_hover(_hover)
+	board.set_highlights(reach_cells, _targets, area, path)
+	board.set_active_cell(active.cell if active != null else null)
+	board.set_hover(_hover)
 
 
 func _turn_order_units() -> Array[BattleUnit]:
@@ -482,13 +464,8 @@ func _terrain_hint(cell: Vector2i) -> String:
 
 
 func _fit_map() -> void:
-	if engine == null:
-		return
-	var area := hud.map_area()
-	var b := map_view.bounds()
-	var f := clampf(minf((area.size.x - 32.0) / b.size.x, (area.size.y - 32.0) / b.size.y), 0.4, 1.6)
-	map_view.scale = Vector2(f, f)
-	map_view.position = area.get_center() - b.get_center() * f
+	if engine != null and board != null:
+		board.fit(hud.map_area())
 
 
 # --- Input --------------------------------------------------------------------
@@ -496,8 +473,10 @@ func _fit_map() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if engine == null or hud.is_dialog_open():
 		return
+	if board.handle_input(event):
+		return
 	if event is InputEventMouseMotion:
-		var cell: Variant = map_view.cell_at_global(get_global_mouse_position())
+		var cell: Variant = board.cell_at_mouse()
 		if cell != _hover:
 			_hover = cell
 			_refresh()
@@ -514,6 +493,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_on_end_turn_pressed()
 			KEY_A:
 				_toggle_autoplay()
+			KEY_V:
+				_switch_view()
 			KEY_R:
 				if not is_embedded():
 					start_battle()

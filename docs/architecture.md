@@ -109,6 +109,24 @@ The galaxy screen's coroutine, which was waiting on that, then resolves the batt
 the campaign. Both screens share `GridMapView` (with fog support), `FxLayer`, `Starfield`,
 `Palette` and `UiKit`.
 
+### Battle views (2D and 2.5D)
+
+`battle_screen.gd` holds the turn, input and HUD logic and draws only through a `BattleBoard`
+(`src/presentation/tactical/battle_board.gd`). The interface is in terms of unit ids and cells:
+add, move or destroy units, play ability effects, highlights, fog, markers, cell under the mouse,
+and fitting the view to the HUD-free area. There are two implementations:
+
+- `BattleBoard2D`: the top-down view (`GridMapView`, `UnitView`, `FxLayer`).
+- `BattleBoard3D`: a lit 3D board seen through a tilted, zoomable and rotatable camera. Grid
+  pixel coordinates map onto the XZ plane, and mouse picking ray-casts to the floor plane.
+  Tiles, deck plates and bulkheads are generated meshes. Units are procedural models
+  (`Unit3D` + `ModelFactory`) and effects are 3D (`Fx3D`). Bars, names and floating text are
+  drawn in 2D on top (`BoardOverlay3D`). The nebula backdrop shows behind the scene via
+  `Environment.BG_CANVAS`.
+
+The view is chosen per screen (`BattleScreen.view_mode`, toggled with V, even mid-battle) and is
+rebuilt from engine state, so the views can never disagree about the game.
+
 ## Heroes and missions (step 3)
 
 **Heroes** (`src/heroes/`) are persistent `Hero` records in `GalaxyState.heroes`: class, level/XP,
