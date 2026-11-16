@@ -159,6 +159,8 @@ func submit(cmd: GalaxyCommand) -> CommandResult:
 		emit({"type": GalaxyEvents.RESEARCH_SET, "faction": cmd.faction_id, "tech": cmd.tech_id})
 	elif cmd is QueueBuildCommand:
 		_do_queue(cmd)
+	elif cmd is SplitFleetCommand:
+		_do_split(cmd)
 	elif cmd is DiplomacyCommand:
 		_do_diplomacy(cmd)
 	return CommandResult.success(_flush())
@@ -198,6 +200,19 @@ func validate(cmd: GalaxyCommand) -> String:
 		return "Can't build that here"
 	elif cmd is DiplomacyCommand:
 		return _validate_diplomacy(cmd)
+	elif cmd is SplitFleetCommand:
+		var fleet: Fleet = state.fleets.get(cmd.fleet_id)
+		if fleet == null or fleet.owner != cmd.faction_id:
+			return "Not your fleet"
+		if cmd.ship_uids.is_empty():
+			return "Pick ships to detach"
+		if cmd.ship_uids.size() >= fleet.ships.size():
+			return "At least one ship must stay"
+		for uid in cmd.ship_uids:
+			if fleet.ships.filter(func(s: Dictionary) -> bool: return s["uid"] == uid).is_empty():
+				return "That ship isn't in this fleet"
+		if cmd.to not in split_targets(fleet.id):
+			return "Detached ships need a free neighbouring system they can reach this turn"
 	elif not cmd is EndFactionTurnCommand:
 		return "Unknown command"
 	return ""
@@ -297,6 +312,29 @@ func can_see_fleet(faction_id: String, fleet: Fleet, visible: Dictionary = {}) -
 ## friendly (at peace) fleets block; visible enemy fleets and defended enemy
 ## planets can be attacked but not passed; hidden enemies are unknown (and
 ## will intercept the move). Returns {cell: {"cost", "from"}}.
+## Whether `fleet` may fly into `other` and join it: same owner, room for
+## every ship, and at most one commander between them.
+func can_merge(fleet: Fleet, other: Fleet) -> bool:
+	return fleet != other and fleet.owner == other.owner \
+			and fleet.ships.size() + other.ships.size() <= EmpireRules.MAX_FLEET_SIZE \
+			and (fleet.hero_id.is_empty() or other.hero_id.is_empty())
+
+
+## Free systems next to the fleet that detached ships could move to now.
+func split_targets(fleet_id: String) -> Array[Vector2i]:
+	var fleet: Fleet = state.fleets[fleet_id]
+	var out: Array[Vector2i] = []
+	if fleet.ships.size() < 2:
+		return out
+	for c in state.grid.neighbors(fleet.cell):
+		if state.grid.is_passable(c) and state.fleet_at(c) == null and state.grid.move_cost(c) <= fleet.moves_left \
+				and not is_defended_against(state.planet_at(c), fleet.owner):
+			var planet := state.planet_at(c)
+			if planet == null or planet.owner.is_empty() or planet.owner == fleet.owner:
+				out.append(c)
+	return out
+
+
 func reachable_for(fleet_id: String) -> Dictionary:
 	var fleet: Fleet = state.fleets[fleet_id]
 	var vis := visible_cells(fleet.owner)
@@ -305,9 +343,13 @@ func reachable_for(fleet_id: String) -> Dictionary:
 			var other := state.fleet_at(c)
 			if other == null or other == fleet:
 				return false
-			return other.owner == fleet.owner or (vis.has(c) and not state.at_war(fleet.owner, other.owner)),
+			if other.owner == fleet.owner:
+				return not can_merge(fleet, other)
+			return vis.has(c) and not state.at_war(fleet.owner, other.owner),
 		func(c: Vector2i) -> bool:
 			var other := state.fleet_at(c)
+			if other != null and other != fleet and other.owner == fleet.owner:
+				return true  # merging ends the move
 			if other != null and vis.has(c) and state.at_war(fleet.owner, other.owner):
 				return true
 			return is_defended_against(state.planet_at(c), fleet.owner))
@@ -727,6 +769,12 @@ func _do_move(cmd: MoveFleetCommand) -> void:
 	for i in range(1, planned.size()):
 		var next := planned[i]
 		var occupant := state.fleet_at(next)
+		if occupant != null and occupant.owner == fleet.owner and next == cmd.to and can_merge(fleet, occupant):
+			fleet.moves_left -= state.grid.move_cost(next)
+			walked.append(next)
+			emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": fleet.id, "path": walked, "moves_left": fleet.moves_left})
+			_merge(fleet, occupant)
+			return
 		if occupant != null and occupant.owner != fleet.owner:
 			if state.at_war(fleet.owner, occupant.owner):
 				enemy = occupant
@@ -771,6 +819,42 @@ func _do_move(cmd: MoveFleetCommand) -> void:
 			state.pending_mission = {"anomaly": anomaly["id"], "fleet": fleet.id}
 			emit({"type": GalaxyEvents.MISSION_OFFERED, "anomaly": anomaly["id"], "fleet": fleet.id,
 					"mission": anomaly["mission"]})
+
+
+## `fleet` joins `into` (which keeps its name and position) and disappears.
+func _merge(fleet: Fleet, into: Fleet) -> void:
+	into.ships.append_array(fleet.ships)
+	into.moves_left = mini(into.moves_left, fleet.moves_left)
+	if into.hero_id.is_empty() and not fleet.hero_id.is_empty():
+		into.hero_id = fleet.hero_id
+		state.heroes[fleet.hero_id].fleet_id = into.id
+	state.fleets.erase(fleet.id)
+	emit({"type": GalaxyEvents.FLEETS_MERGED, "fleet": fleet.id, "into": into.id, "name": fleet.name,
+			"into_name": into.name})
+
+
+func _do_split(cmd: SplitFleetCommand) -> void:
+	var fleet: Fleet = state.fleets[cmd.fleet_id]
+	var detached := Fleet.new()
+	detached.id = state.make_uid("fleet")
+	detached.owner = fleet.owner
+	detached.cell = cmd.to
+	detached.name = "Detachment %d" % state.next_uid
+	detached.moves_left = fleet.moves_left - state.grid.move_cost(cmd.to)
+	var names: Array[String] = []
+	for ship in fleet.ships.duplicate():
+		if ship["uid"] in cmd.ship_uids:
+			fleet.ships.erase(ship)
+			detached.ships.append(ship)
+			names.append(ship["name"])
+	state.fleets[detached.id] = detached
+	emit({"type": GalaxyEvents.FLEET_SPLIT, "fleet": fleet.id, "new_fleet": detached.id, "ships": names})
+	emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": detached.id, "path": [fleet.cell, cmd.to] as Array[Vector2i],
+			"moves_left": detached.moves_left})
+	_reveal_around(detached)
+	var planet := state.planet_at(detached.cell)
+	if planet != null and planet.owner.is_empty():
+		_capture_planet(planet, detached)
 
 
 func _capture_planet(planet: Planet, fleet: Fleet) -> void:

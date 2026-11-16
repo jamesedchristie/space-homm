@@ -48,6 +48,8 @@ var permadeath_override: Variant = null
 
 var _busy := false
 var _last_autosave_turn := -1
+## Ships picked for detaching (D); while non-empty, clicks place the new fleet.
+var _split_ships: Array[String] = []
 var _hover: Variant = null
 var _reach: Dictionary = {}
 var _attack_cells: Array[Vector2i] = []
@@ -421,17 +423,17 @@ func _play(events: Array[Dictionary], token: int) -> void:
 
 func _animate_move(e: Dictionary) -> void:
 	var fleet: Fleet = engine.state.fleets.get(e["fleet"])
-	if fleet == null:
-		return
+	if fleet == null and not board.is_fleet_shown(e["fleet"]):
+		return  # gone and never seen (a merged fleet we couldn't see)
 	var path: Array = e["path"]
-	var seen := fleet.owner == player_faction
+	var seen := fleet == null or fleet.owner == player_faction
 	var now_visible := engine.visible_cells(player_faction)
 	for c: Vector2i in path:
 		if _visible.has(c) or now_visible.has(c):
 			seen = true
 	if not seen or not is_inside_tree():
 		return
-	await board.move_fleet(fleet.id, path)
+	await board.move_fleet(e["fleet"], path)
 
 
 func _game_over() -> void:
@@ -482,7 +484,11 @@ func _refresh() -> void:
 	_attack_cells = []
 	var fleet: Fleet = s.fleets.get(selected_fleet)
 	var mine := fleet != null and fleet.owner == player_faction
-	if human and mine:
+	if not (human and mine):
+		_split_ships.clear()
+	if human and mine and not _split_ships.is_empty():
+		move_cells = engine.split_targets(fleet.id)
+	elif human and mine:
 		_reach = engine.reachable_for(fleet.id)
 		_attack_cells = engine.attack_targets(fleet.id, _reach)
 		for c: Vector2i in _reach:
@@ -516,12 +522,17 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 	var text := ""
 	if fleet == null:
 		text = "Click one of your fleets. Tab: next fleet with moves. Space: end turn. V: 2D/3D. 3D: wheel zoom, Q/R rotate, arrows pan."
+	elif not _split_ships.is_empty():
+		text = "Click a highlighted neighbouring system for the detached ships. Esc or right-click cancels."
+	elif _hover != null and _reach.has(_hover) and engine.state.fleet_at(_hover) != null \
+			and engine.state.fleet_at(_hover).owner == player_faction and _hover != fleet.cell:
+		text = "Join %s (merge fleets, %d moves)" % [engine.state.fleet_at(_hover).name, _reach[_hover]["cost"]]
 	elif _hover != null and _hover in _attack_cells:
 		text = "Attack %s here" % engine.state.fleet_at(_hover).name
 	elif _hover != null and _reach.has(_hover) and _hover != fleet.cell:
 		text = "Move here: %d of %d moves" % [_reach[_hover]["cost"], fleet.moves_left]
 	else:
-		text = "%s: blue = move, red = attack. Right-click to deselect." % fleet.name
+		text = "%s: blue = move, red = attack. Move onto your own fleet to merge, D to detach ships. Right-click to deselect." % fleet.name
 	if _hover != null:
 		var planet := engine.state.planet_at(_hover)
 		if planet != null:
@@ -769,6 +780,14 @@ func _describe(e: Dictionary) -> String:
 			return "   Battle won by %s (%d rounds)" % [s.faction(winner).get("name", "nobody"), e["rounds"]]
 		GalaxyEvents.FLEET_DESTROYED:
 			return UiKit.color_tag("   %s destroyed" % e["name"], Palette.BAD)
+		GalaxyEvents.FLEETS_MERGED:
+			if s.fleets.has(e["into"]) and s.fleets[e["into"]].owner == player_faction:
+				return "   %s joins %s" % [e["name"], e["into_name"]]
+			return ""
+		GalaxyEvents.FLEET_SPLIT:
+			if s.fleets.has(e["fleet"]) and s.fleets[e["fleet"]].owner == player_faction:
+				return "   %s detached from %s" % [", ".join(e["ships"]), s.fleets[e["fleet"]].name]
+			return ""
 		GalaxyEvents.FACTION_ELIMINATED:
 			return "[b]%s eliminated[/b]" % s.faction(e["faction"])["name"]
 		GalaxyEvents.CAMPAIGN_ENDED:
@@ -852,7 +871,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_ESCAPE:
-				if selected_fleet.is_empty() and selected_planet.is_empty() and selected_anomaly.is_empty():
+				if _split_ships.is_empty() and selected_fleet.is_empty() and selected_planet.is_empty() and selected_anomaly.is_empty():
 					_open_menu()
 				else:
 					_deselect()
@@ -863,6 +882,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_refresh()
 			KEY_A:
 				_toggle_autoplay()
+			KEY_D:
+				_start_split()
 			KEY_V:
 				_switch_view()
 
@@ -880,6 +901,16 @@ func _on_left_click() -> void:
 	var cell: Vector2i = _hover
 	var fleet: Fleet = engine.state.fleets.get(selected_fleet)
 	if not _busy and _is_human_turn() and fleet != null and fleet.owner == player_faction:
+		if not _split_ships.is_empty():
+			if cell in engine.split_targets(fleet.id):
+				var ships := _split_ships.duplicate()
+				_split_ships.clear()
+				_submit(SplitFleetCommand.new(player_faction, fleet.id, ships, cell))
+			return
+		var own := engine.state.fleet_at(cell)
+		if own != null and own != fleet and own.owner == player_faction and _reach.has(cell):
+			_ask_merge(fleet, own)
+			return
 		if cell in _attack_cells or (_reach.has(cell) and cell != fleet.cell):
 			_submit(MoveFleetCommand.new(player_faction, fleet.id, cell))
 			return
@@ -902,7 +933,68 @@ func _on_left_click() -> void:
 	_refresh()
 
 
+## Clicking another of your fleets that this one can reach: merge or just select?
+func _ask_merge(fleet: Fleet, other: Fleet) -> void:
+	hud.ask("Merge fleets?", "Move [b]%s[/b] (%d ships) into [b]%s[/b] (%d ships)? The merged fleet keeps the lower moves left." % [
+			fleet.name, fleet.ships.size(), other.name, other.ships.size()],
+			[{"id": "merge", "label": "Merge"}, {"id": "select", "label": "Select %s" % other.name}, {"id": "cancel", "label": "Cancel"}])
+	var token := _token
+	var choice: String = await hud.dialog_choice
+	if token != _token:
+		return
+	match choice:
+		"merge":
+			_submit(MoveFleetCommand.new(player_faction, fleet.id, other.cell))
+		"select":
+			selected_fleet = other.id
+			_refresh()
+		_:
+			_refresh()
+
+
+## D: pick ships to detach into a new fleet next to this one.
+func _start_split() -> void:
+	var fleet: Fleet = engine.state.fleets.get(selected_fleet)
+	if _busy or not _is_human_turn() or fleet == null or fleet.owner != player_faction:
+		return
+	if fleet.ships.size() < 2:
+		hud.set_hint("A one-ship fleet can't be split")
+		return
+	if engine.split_targets(fleet.id).is_empty():
+		hud.set_hint("No free neighbouring system to detach into (or no moves left)")
+		return
+	var choices: Array[Dictionary] = []
+	var lines := PackedStringArray()
+	for ship in fleet.ships:
+		var def: Dictionary = data.units[ship["unit"]]
+		choices.append({"id": ship["uid"], "label": ship["name"]})
+		lines.append("%s  %s  %d/%d hull" % [ship["name"], UiKit.color_tag(def.get("name", ""), Palette.TEXT_DIM),
+				ship["hull"], int(def["stats"]["max_hull"])])
+	if fleet.ships.size() > 2:
+		choices.append({"id": "half", "label": "Half the fleet"})
+	choices.append({"id": "cancel", "label": "Cancel"})
+	hud.ask("Detach ships from %s" % fleet.name, "\n".join(lines) + "\n\n" + UiKit.color_tag(
+			"Pick a ship (or half the fleet), then a neighbouring system for it. The commander stays.", Palette.TEXT_DIM),
+			choices, Vector2(620, 340))
+	var token := _token
+	var choice: String = await hud.dialog_choice
+	if token != _token or choice == "cancel":
+		_refresh()
+		return
+	_split_ships.clear()
+	if choice == "half":
+		for i in range(fleet.ships.size() / 2, fleet.ships.size()):
+			_split_ships.append(fleet.ships[i]["uid"])
+	else:
+		_split_ships.append(choice)
+	_refresh()
+
+
 func _deselect() -> void:
+	if not _split_ships.is_empty():
+		_split_ships.clear()
+		_refresh()
+		return
 	selected_fleet = ""
 	selected_planet = ""
 	selected_anomaly = ""

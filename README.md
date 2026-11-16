@@ -50,6 +50,8 @@ and press **F6** (run current scene).
 | Click a blue / red hex | Move there / attack the fleet there |
 | Click a planet or visible enemy | Show info |
 | `Tab` | Next fleet with moves left |
+| Click your other fleet | Merge into it (asks first; up to 6 ships, one commander) |
+| `D` | Detach ships into a new fleet on a neighbouring system |
 | Right-click / `Esc` | Deselect (`Esc` with nothing selected opens the menu) |
 | `F5` / `F9` | Quicksave / load the quicksave |
 | `Space` / `Enter` | End turn |

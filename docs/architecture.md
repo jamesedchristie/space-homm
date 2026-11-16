@@ -95,6 +95,11 @@ It reuses `HexGrid` and `Pathfinding`. A galaxy is just a hex map with galaxy te
   the location: planet type, then galaxy terrain (`battle_map`), then the campaign default.
 - **Planets** are captured by ending a move on them. A faction with no fleets and no planets
   is eliminated, and the last faction standing wins.
+- **Fleets merge and split.** A fleet can move into another of its owner's fleets if the ships
+  fit (`EmpireRules.MAX_FLEET_SIZE`) and there's at most one commander: it joins and is removed
+  (`FLEETS_MERGED`; the merged fleet keeps the lower moves left). `SplitFleetCommand` detaches
+  ships into a new fleet on a free neighbouring system, paying that move from the fleet's
+  moves left (`split_targets()`); the commander stays.
 - **AI** (`GalaxyAI`): per fleet, attack a visible fleet it can beat (counting the defense
   platforms of a planet the target sits on), otherwise retreat to repair when below 50% hull,
   otherwise head for the nearest planet it doesn't own. Factions can have a personality

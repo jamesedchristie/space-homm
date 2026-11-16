@@ -171,3 +171,48 @@ func test_ai_campaign_finishes_deterministically() -> void:
 	assert_ne(a["winner"], "", "campaign should end with a winner (turns: %d)" % a["turns"])
 	assert_true(a["battles"] > 0)
 	assert_eq(a, b, "same seed, same campaign")
+
+
+func test_moving_onto_own_fleet_merges() -> void:
+	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["a", "test_fast_dummy", 3, 2], ["b", "test_dummy", 9, 0]])
+	var fleets := e.state.fleets_of("a")
+	var mover := fleets[0]
+	var target := fleets[1]
+	assert_true(e.reachable_for(mover.id).has(target.cell), "own fleet is a valid destination")
+	var result := e.submit(MoveFleetCommand.new("a", mover.id, target.cell))
+	assert_true(result.ok, result.error)
+	assert_false(e.state.fleets.has(mover.id), "the mover is absorbed")
+	assert_eq(target.ships.size(), 2)
+	assert_true(GalaxyEvents.FLEETS_MERGED in result.events.map(func(ev: Dictionary) -> String: return ev["type"]))
+	assert_true(target.moves_left <= 1, "merged fleet keeps the lower moves left")
+
+
+func test_merge_limits() -> void:
+	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["a", "test_dummy", 2, 2], ["b", "test_dummy", 9, 0]])
+	var fleets := e.state.fleets_of("a")
+	for i in EmpireRules.MAX_FLEET_SIZE - 1:
+		fleets[1].ships.append(fleets[1].ships[0].duplicate())
+	assert_false(e.reachable_for(fleets[0].id).has(fleets[1].cell), "no room: the fleet blocks instead")
+	fleets[1].ships.resize(1)
+	fleets[0].hero_id = "x"
+	fleets[1].hero_id = "y"
+	assert_false(e.can_merge(fleets[0], fleets[1]), "two commanders can't share a fleet")
+
+
+func test_split_fleet() -> void:
+	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 9, 0]])
+	var fleet := _fleet_of(e, "a")
+	fleet.ships.append({"uid": "extra", "unit": "test_fast_dummy", "name": "Extra", "hull": 10})
+	var targets := e.split_targets(fleet.id)
+	assert_false(targets.is_empty())
+	var to: Vector2i = targets[0]
+	assert_false(e.submit(SplitFleetCommand.new("a", fleet.id, [fleet.ships[0]["uid"], "extra"] as Array[String], to)).ok,
+			"someone has to stay")
+	var result := e.submit(SplitFleetCommand.new("a", fleet.id, ["extra"] as Array[String], to))
+	assert_true(result.ok, result.error)
+	assert_eq(fleet.ships.size(), 1)
+	var detached := e.state.fleet_at(to)
+	assert_true(detached != null and detached != fleet)
+	assert_eq(detached.ships[0]["uid"], "extra")
+	assert_eq(detached.moves_left, fleet.moves_left - e.state.grid.move_cost(to))
+	assert_true(e.split_targets(fleet.id).is_empty(), "a one-ship fleet can't split")
