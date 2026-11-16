@@ -79,13 +79,32 @@ func clear_log() -> void:
 
 
 ## Shows a modal dialog. choices: [{"id": String, "label": String}].
-## Await `dialog_choice` for the answer.
-func ask(title: String, body_bbcode: String, choices: Array[Dictionary]) -> void:
+## Await `dialog_choice` for the answer. size: dialog size in pixels.
+func ask(title: String, body_bbcode: String, choices: Array[Dictionary], size := Vector2(520, 330)) -> void:
+	_dialog.place(size.x, size.y)
 	_dialog.ask(title, body_bbcode, choices)
 
 
 func is_dialog_open() -> bool:
 	return _dialog.is_open()
+
+
+## Settings overlay (from the in-game menu); closing it reopens nothing.
+func show_settings() -> void:
+	var frame := UiKit.panel(Palette.PANEL_BG, Palette.ACTIVE, 2)
+	frame.custom_minimum_size = Vector2(440, 0)
+	UiKit.anchor(frame, 0.5, 0.5, 0.5, 0.5, -220, -170, 220, 170)
+	var settings := SettingsPanel.new()
+	settings.closed.connect(frame.queue_free)
+	frame.add_child(settings)
+	add_child(frame)
+
+
+func is_settings_open() -> bool:
+	for c in get_children():
+		if c is PanelContainer and c.get_child_count() > 0 and c.get_child(0) is SettingsPanel:
+			return true
+	return false
 
 
 ## Hides the dialog without answering it (e.g. when a game is loaded).

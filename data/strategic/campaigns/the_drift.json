@@ -3,6 +3,7 @@
   "name": "The Drift",
   "description": "Raiders have moved into the Drift. Destroy them and take their planets. The Free Traders are neutral for now.",
   "max_turns": 150,
+  "briefing": "The Drift is lawless space at the edge of the Patrol's reach. Raiders run it from [b]Rustholm[/b] in the east and prey on anything that moves. The Ceres Free Traders hold [b]Ardent[/b] in the north-east: at peace with you, at war with the raiders.\n\n[b]Goal:[/b] destroy the raiders and take their planets. The campaign ends when one faction stands alone, or when nobody is left at war (then the highest empire score wins).\n\n[b]Getting started[/b]\n- Click a fleet, then a blue hex to move. Move into an enemy fleet to start a battle: fight it yourself or auto-resolve.\n- Move onto unclaimed planets to capture them. Planets produce credits, alloys and research.\n- [b]E[/b] Empire: build queues, research, diplomacy.  [b]H[/b] Heroes.  [b]Space[/b] end turn.  [b]Esc[/b] menu.\n- The Derelict Station (purple crystal) is a mission for a fleet with a ready commander.",
   "battle_max_rounds": 30,
   "default_battle_map": "open_space",
   "map": {

@@ -156,6 +156,10 @@ func validate() -> PackedStringArray:
 		var model: String = units[id].get("visual", {}).get("model", "")
 		if not model.is_empty() and not models.has(model):
 			_err("unit '%s': unknown model '%s'" % [id, model])
+	for id: String in models:
+		var base: String = models[id].get("base", "")
+		if not base.is_empty() and not models.has(base):
+			_err("model '%s': unknown base '%s'" % [id, base])
 	return errors
 
 

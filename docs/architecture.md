@@ -113,6 +113,10 @@ The galaxy screen's coroutine, which was waiting on that, then resolves the batt
 the campaign. Both screens share `GridMapView` (with fog support), `FxLayer`, `Starfield`,
 `Palette` and `UiKit`.
 
+Player preferences (fullscreen, volume, 2D/3D per screen) live in `GameSettings`
+(`user://settings.cfg`), edited through `SettingsPanel` on the title screen and in game.
+A campaign's optional `briefing` (BBCode) is shown when a new game starts.
+
 ### Saving and loading
 
 `GalaxySave` (`src/strategic/galaxy_save.gd`) snapshots the whole `GalaxyState` as plain data

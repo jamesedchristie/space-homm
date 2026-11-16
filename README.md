@@ -29,6 +29,9 @@ and Mass Effect-style hero missions, all built on **one shared tactical engine**
    permadeath, a fixed seed) to play *The Drift* as the Patrol Group (blue), or **Continue**
    the latest save.
 
+**Settings** (title screen, or the in-game menu): fullscreen (also `F11` / `Alt+Enter`),
+volume, and whether the galaxy map and battles open in 3D or 2D. They're remembered between runs.
+
 Saving: the game autosaves at the start of each of your turns. `Esc` (with nothing selected)
 or the **Menu** button opens the in-game menu with Save (three slots), Load, Main menu and
 Quit. `F5` quicksaves and `F9` loads the quicksave. Saves live in Godot's user data folder

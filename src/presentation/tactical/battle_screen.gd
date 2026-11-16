@@ -15,9 +15,6 @@ signal battle_finished(engine: BattleEngine)
 
 enum Mode { MOVE, TARGET }
 
-## "3d" or "2d"; remembered across battles.
-static var view_mode := "3d"
-
 @export var scenario_id := "first_skirmish"
 ## 0 picks a random seed each battle (shown in the log for reproducing bugs).
 @export var rng_seed := 0
@@ -113,7 +110,8 @@ func _build_board() -> void:
 		board.teardown()
 		board.queue_free()
 	map_view.visible = false
-	board = BattleBoard3D.new() if view_mode == "3d" else BattleBoard2D.new(map_view, units_layer, fx)
+	GameSettings.ensure_loaded()
+	board = BattleBoard3D.new() if GameSettings.battle_view == "3d" else BattleBoard2D.new(map_view, units_layer, fx)
 	add_child(board)
 	var map_def: Dictionary = data.maps[_embedded_scenario.get("map", "") if is_embedded() else data.scenarios[scenario_id]["map"]]
 	board.setup(engine, data, map_def.get("floor", ""))
@@ -128,7 +126,8 @@ func _switch_view() -> void:
 	if _busy:
 		hud.set_hint("Switch views between actions")
 		return
-	view_mode = "2d" if view_mode == "3d" else "3d"
+	GameSettings.battle_view = "2d" if GameSettings.battle_view == "3d" else "3d"
+	GameSettings.save()
 	_build_board()
 	_refresh()
 

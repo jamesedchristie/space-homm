@@ -16,8 +16,6 @@ signal main_menu_requested
 ## The player chose a save to load (the owner loads it via load_campaign()).
 signal load_requested(slot: String)
 
-## "3d" (tilted camera over a lit board) or "2d" (flat top-down). V toggles.
-static var view_mode := "3d"
 
 @export var campaign_id := "the_drift"
 ## 0 picks a random seed each campaign.
@@ -81,9 +79,17 @@ func start_campaign() -> void:
 		engine.state.permadeath = permadeath_override
 	_busy = true
 	await _play(engine.start(), token)
-	if token == _token:
-		_fit_map()  # now that the starting area is explored
-		await _continue(token)
+	if token != _token:
+		return
+	_fit_map()  # now that the starting area is explored
+	if not autoplay and engine.campaign.has("briefing"):
+		hud.set_hint("")
+		hud.ask(engine.campaign.get("name", campaign_id), engine.campaign["briefing"], [{"id": "begin", "label": "Begin"}],
+				Vector2(640, 470))
+		await hud.dialog_choice
+		if token != _token:
+			return
+	await _continue(token)
 
 
 ## Continues a saved campaign (see GalaxySave). Saves are made between turns,
@@ -131,7 +137,8 @@ func _build_board() -> void:
 		board.teardown()
 		board.queue_free()
 	map_view.visible = false
-	board = GalaxyBoard3D.new() if view_mode == "3d" \
+	GameSettings.ensure_loaded()
+	board = GalaxyBoard3D.new() if GameSettings.galaxy_view == "3d" \
 			else GalaxyBoard2D.new(map_view, planets_layer, fleets_layer, anomalies_layer, fx)
 	add_child(board)
 	board.setup(engine, data, player_faction)
@@ -143,7 +150,8 @@ func _switch_view() -> void:
 	if _busy:
 		hud.set_hint("Switch views between turns")
 		return
-	view_mode = "2d" if view_mode == "3d" else "3d"
+	GameSettings.galaxy_view = "2d" if GameSettings.galaxy_view == "3d" else "3d"
+	GameSettings.save()
 	_build_board()
 	_refresh()
 
@@ -772,7 +780,7 @@ func _describe(e: Dictionary) -> String:
 # --- Input --------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	if engine == null or hud.is_dialog_open():
+	if engine == null or hud.is_dialog_open() or hud.is_settings_open():
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
@@ -916,6 +924,7 @@ func _open_menu() -> void:
 		choices.append({"id": "save", "label": "Save"})
 	if not GalaxySave.list().is_empty():
 		choices.append({"id": "load", "label": "Load"})
+	choices.append({"id": "settings", "label": "Settings"})
 	if not main_menu_requested.get_connections().is_empty():
 		choices.append({"id": "menu", "label": "Main menu"})
 	if OS.get_name() != "Web":
@@ -932,6 +941,8 @@ func _open_menu() -> void:
 			_save_menu()
 		"load":
 			_load_menu()
+		"settings":
+			hud.show_settings()
 		"menu":
 			main_menu_requested.emit()
 		"quit":

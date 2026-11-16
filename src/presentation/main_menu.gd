@@ -68,6 +68,7 @@ func show_main() -> void:
 	var load_button := _big_button("Load game", show_load)
 	load_button.disabled = saves.is_empty()
 	box.add_child(load_button)
+	box.add_child(_big_button("Settings", show_settings))
 	if OS.get_name() != "Web":
 		box.add_child(_big_button("Quit", func() -> void: quit_requested.emit()))
 
@@ -106,6 +107,13 @@ func show_new_campaign() -> void:
 				"seed": int(seed_edit.text) if seed_edit.text.strip_edges().is_valid_int() else 0})))
 	row.add_child(UiKit.button("Back", show_main))
 	box.add_child(row)
+
+
+func show_settings() -> void:
+	var box := _page()
+	var panel := SettingsPanel.new()
+	panel.closed.connect(show_main)
+	box.add_child(panel)
 
 
 func show_load() -> void:

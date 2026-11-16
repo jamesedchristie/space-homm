@@ -14,10 +14,18 @@ var battle: Node
 
 
 func _ready() -> void:
+	GameSettings.apply()
 	if skip_menu or "--new-campaign" in OS.get_cmdline_user_args():
 		new_campaign({})
 	else:
 		show_menu()
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_F11
+			or (event.keycode == KEY_ENTER and event.alt_pressed)):
+		GameSettings.toggle_fullscreen()
+		get_viewport().set_input_as_handled()
 
 
 func show_menu(error: String = "") -> void:
