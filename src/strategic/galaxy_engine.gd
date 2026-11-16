@@ -671,9 +671,18 @@ func resolve_pending_mission(battle: BattleEngine) -> Array[Dictionary]:
 	var items: Array[String] = []
 	var new_traits: Array[String] = []
 	var rewards: Array[Dictionary] = battle.state.rewards.duplicate()
+	var loot_text := ""
 	if success:
 		rewards.append(mission.get("rewards", {}))
+		# Random bonus loot on success (a weighted table, rolled from the campaign seed).
+		if not mission.get("loot", []).is_empty():
+			var roll := BattleEngine.roll_weighted(mission["loot"], state.rng)
+			rewards.append(roll.get("rewards", {}))
+			loot_text = roll.get("text", "")
+	var gains := {"credits": 0, "alloys": 0, "research": 0, "intel": 0}
 	for r in rewards:
+		for k: String in gains:
+			gains[k] += int(r.get(k, 0))
 		xp += int(r.get("xp", 0))
 		loyalty += int(r.get("loyalty", 0))
 		for item_id: String in r.get("items", []):
@@ -710,11 +719,17 @@ func resolve_pending_mission(battle: BattleEngine) -> Array[Dictionary]:
 
 	for item_id in items:
 		state.inventory[faction_id].append(item_id)
+	var stock: Dictionary = state.resources[faction_id]
+	stock["credits"] = int(stock["credits"]) + gains["credits"]
+	stock["alloys"] = int(stock["alloys"]) + gains["alloys"]
+	state.research[faction_id]["progress"] = int(state.research[faction_id]["progress"]) + gains["research"]
+	var revealed := _reveal_enemy_planets(faction_id, gains["intel"])
 	fleet.moves_left = 0
 
 	emit({"type": GalaxyEvents.MISSION_RESOLVED, "anomaly": anomaly["id"], "mission": mission["id"],
 			"fleet": fleet.id, "success": success, "heroes": outcomes, "xp": xp, "items": items,
-			"loyalty": loyalty, "traits": new_traits})
+			"loyalty": loyalty, "traits": new_traits, "credits": gains["credits"], "alloys": gains["alloys"],
+			"research": gains["research"], "intel": revealed, "loot_text": loot_text})
 
 	if success:
 		if mission.get("rewards", {}).get("free_captives", false):
@@ -889,6 +904,28 @@ func _merge(fleet: Fleet, into: Fleet) -> void:
 	state.fleets.erase(fleet.id)
 	emit({"type": GalaxyEvents.FLEETS_MERGED, "fleet": fleet.id, "into": into.id, "name": fleet.name,
 			"into_name": into.name})
+
+
+## Intel: charts the surroundings of up to `count` enemy planets the faction
+## hasn't explored yet (nearest first). Returns the planet names.
+func _reveal_enemy_planets(faction_id: String, count: int) -> Array[String]:
+	var names: Array[String] = []
+	if count <= 0:
+		return names
+	var explored: Dictionary = state.explored[faction_id]
+	var home := state.home_planet(faction_id)
+	var targets: Array[Planet] = []
+	for p: Planet in state.planets.values():
+		if not p.owner.is_empty() and p.owner != faction_id and not explored.has(p.cell):
+			targets.append(p)
+	if home != null:
+		targets.sort_custom(func(a: Planet, b: Planet) -> bool:
+			return state.grid.distance(home.cell, a.cell) < state.grid.distance(home.cell, b.cell))
+	for p in targets.slice(0, count):
+		for c in state.grid.cells_within(p.cell, 2):
+			explored[c] = true
+		names.append(p.name)
+	return names
 
 
 ## The first fleet into a discovery rolls on its outcome table and gets the rewards:

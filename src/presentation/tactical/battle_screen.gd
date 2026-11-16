@@ -314,6 +314,13 @@ func _reward_text(reward: Dictionary) -> String:
 	var parts := PackedStringArray()
 	if reward.has("xp"):
 		parts.append("+%d XP" % reward["xp"])
+	for k in ["credits", "alloys"]:
+		if reward.has(k):
+			parts.append("+%d %s" % [reward[k], k])
+	if reward.has("research"):
+		parts.append("+%d research" % reward["research"])
+	if reward.has("intel"):
+		parts.append("intel")
 	if reward.has("loyalty"):
 		parts.append("%+d loyalty" % reward["loyalty"])
 	for item_id: String in reward.get("items", []):
@@ -375,7 +382,8 @@ func _refresh_views() -> void:
 	for t in s.triggers:
 		if not t["fired"] and int(t.get("team", 0)) == _viewer_team:
 			for c: Vector2i in t["_cells"]:
-				markers[c] = {"color": Palette.ACTIVE, "label": "?"}
+				markers[c] = {"color": Color("ffd166"), "label": "$"} if t.get("marker", "") == "loot" \
+						else {"color": Palette.ACTIVE, "label": "?"}
 	for o in s.objectives:
 		for c in o.marked_cells():
 			markers[c] = {"color": Palette.GOOD, "label": "★", "always": true}

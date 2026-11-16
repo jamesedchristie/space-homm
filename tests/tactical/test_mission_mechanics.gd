@@ -161,7 +161,9 @@ func test_real_mission_auto_resolves() -> void:
 	assert_eq(squad.size(), 3, "filled with marines")
 	var e := BattleEngine.from_scenario(data, MissionFactory.scenario(data, mission, squad, 0), 9)
 	assert_true(e.state.fog_enabled)
-	assert_eq(e.state.triggers.size(), 3)
+	var lockers := e.state.triggers.filter(func(t: Dictionary) -> bool: return t.get("marker", "") == "loot")
+	assert_eq(e.state.triggers.size() - lockers.size(), 3, "story triggers")
+	assert_eq(lockers.size(), 2, "random supply lockers")
 	var result := AutoResolver.resolve(e)
 	assert_true(e.state.is_over, "mission should finish (round %d)" % result["rounds"])
 
@@ -302,3 +304,29 @@ func test_hero_aptitudes_grow_with_level() -> void:
 	h.level = 5
 	assert_eq(HeroBuilder.aptitudes(h, data)["tech"], 6)
 	assert_eq(HeroBuilder.unit_def(h, data)["aptitudes"]["tech"], 6)
+
+
+func test_random_caches_are_placed_and_pay_out() -> void:
+	var loot := [{"weight": 1, "text": "Crates.", "rewards": {"credits": 30}}]
+	var def := _scenario([{"unit": "test_fast_dummy", "at": [0, 5]}], [{"unit": "test_dummy", "at": [7, 0]}],
+			{"caches": {"count": 2, "team": 0, "loot": loot}})
+	var a := BattleEngine.from_scenario(Fixtures.registry(), def, 7)
+	var b := BattleEngine.from_scenario(Fixtures.registry(), def, 7)
+	var cache_cells := func(e: BattleEngine) -> Array:
+		return e.state.triggers.filter(func(t: Dictionary) -> bool: return t.get("marker", "") == "loot").map(
+				func(t: Dictionary) -> Vector2i: return t["_cells"][0])
+	var cells: Array = cache_cells.call(a)
+	assert_eq(cells.size(), 2)
+	assert_eq(cells, cache_cells.call(b), "seeded")
+	for c: Vector2i in cells:
+		assert_true(a.state.grid.distance(c, Vector2i(0, 5)) >= 3, "not on top of the squad")
+	# Walk onto one: the reward is recorded for the campaign.
+	a.start()
+	var me := a.state.active_unit()
+	if me.team != 0:
+		return
+	me.cell = cells[0] + Vector2i(1, 0) if a.state.grid.has_cell(cells[0] + Vector2i(1, 0)) and a.state.grid.is_passable(cells[0] + Vector2i(1, 0)) else cells[0] - Vector2i(1, 0)
+	a.state.version += 1
+	a.submit(MoveCommand.new(me.id, cells[0]))
+	assert_eq(a.state.rewards.size(), 1)
+	assert_eq(a.state.rewards[0]["credits"], 30)

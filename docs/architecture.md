@@ -141,6 +141,13 @@ the campaign RNG so a seed always gives the same sector):
   reported as `DISCOVERY_FOUND`. The AI grabs known finds within 4 systems unless a stronger
   enemy is near them.
 
+Missions get their own randomness: `"caches": {"count", "loot": [...]}` places that many
+supply lockers (one-cell reward triggers, marker `"loot"`) on random free cells away from the
+squad, rolled from the battle seed in `BattleEngine._place_caches`; `"loot": [...]` is a
+weighted table rolled once on success by `resolve_pending_mission`. Mission rewards may hold
+`credits`, `alloys`, `research` (progress) and `intel` (chart the surroundings of that many
+unexplored enemy planets, nearest first) as well as `xp`, `items`, `loyalty`, `trait`.
+
 ### Saving and loading
 
 `GalaxySave` (`src/strategic/galaxy_save.gd`) snapshots the whole `GalaxyState` as plain data

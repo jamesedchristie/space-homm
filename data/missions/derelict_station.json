@@ -259,5 +259,89 @@
   "on_failure": {
     "mission": "derelict_rescue",
     "name": "Distress Beacon"
-  }
+  },
+  "caches": {
+    "count": 2,
+    "title": "Supply Locker",
+    "loot": [
+      {
+        "weight": 3,
+        "text": "A crew locker: someone's savings, in credit chips.",
+        "rewards": {
+          "credits": 35
+        }
+      },
+      {
+        "weight": 3,
+        "text": "Spare parts, neatly crated.",
+        "rewards": {
+          "alloys": 30
+        }
+      },
+      {
+        "weight": 2,
+        "text": "A data slate full of engineering notes.",
+        "rewards": {
+          "research": 25
+        }
+      },
+      {
+        "weight": 1,
+        "text": "A sealed case of grenades.",
+        "rewards": {
+          "items": [
+            "frag_grenade"
+          ]
+        }
+      },
+      {
+        "weight": 1,
+        "text": "A field medic's kit, still stocked.",
+        "rewards": {
+          "items": [
+            "medkit"
+          ]
+        }
+      },
+      {
+        "weight": 2,
+        "text": "Raider nav logs: patrol routes and the systems they come from.",
+        "rewards": {
+          "intel": 1
+        }
+      }
+    ]
+  },
+  "loot": [
+    {
+      "weight": 3,
+      "text": "The data core also holds raider fleet movements.",
+      "rewards": {
+        "intel": 2
+      }
+    },
+    {
+      "weight": 2,
+      "text": "The salvage teams strip what's left.",
+      "rewards": {
+        "alloys": 40
+      }
+    },
+    {
+      "weight": 2,
+      "text": "Research archives, partially intact.",
+      "rewards": {
+        "research": 35
+      }
+    },
+    {
+      "weight": 1,
+      "text": "An armoury the raiders never found.",
+      "rewards": {
+        "items": [
+          "barrier_harness"
+        ]
+      }
+    }
+  ]
 }

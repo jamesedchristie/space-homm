@@ -91,6 +91,7 @@ static func from_scenario(p_data: DataRegistry, scenario: Variant, p_seed: int =
 		trigger["_cells"] = cells
 		trigger["fired"] = false
 		s.triggers.append(trigger)
+	engine._place_caches(def.get("caches", {}))
 	s.objectives = ObjectiveFactory.build(def.get("objectives", [{"type": "eliminate_all"}]))
 	for o in s.objectives:
 		o.setup(s)
@@ -559,6 +560,58 @@ func _alert(unit: BattleUnit) -> void:
 		if u == unit or (not unit.group.is_empty() and u.group == unit.group and u.team == unit.team):
 			u.alert = true
 			emit({"type": BattleEvents.UNIT_ALERTED, "unit": u.id})
+
+
+## Random loot lockers for missions: {"count", "team", "loot": [{"weight", "text", "rewards"}]}.
+## Each becomes a one-cell trigger on a random free floor cell away from the
+## team's start, rolled from the battle seed.
+func _place_caches(spec: Dictionary) -> void:
+	var count := int(spec.get("count", 0))
+	var loot: Array = spec.get("loot", [])
+	if count <= 0 or loot.is_empty():
+		return
+	var team := int(spec.get("team", 0))
+	var taken := {}
+	for t in state.triggers:
+		for c: Vector2i in t["_cells"]:
+			taken[c] = true
+	var free: Array[Vector2i] = []
+	for c in state.grid.cells():
+		if not state.grid.is_passable(c) or state.is_occupied(c) or taken.has(c):
+			continue
+		if state.grid.terrain_def(c).get("blocks_sight", false):
+			continue  # not in doorways
+		var far := true
+		for u in state.living_units(team):
+			if state.grid.distance(u.cell, c) < 3:
+				far = false
+				break
+		if far:
+			free.append(c)
+	for i in count:
+		if free.is_empty():
+			break
+		var cell: Vector2i = free[state.rng.randi() % free.size()]
+		free = free.filter(func(c: Vector2i) -> bool: return state.grid.distance(c, cell) >= 3)
+		var entry := roll_weighted(loot, state.rng)
+		var reward: Dictionary = entry.get("rewards", {}).duplicate(true)
+		reward["type"] = "reward"
+		state.triggers.append({"id": "cache_%d" % i, "team": team, "title": spec.get("title", "Supply Locker"),
+				"text": entry.get("text", ""), "effects": [reward], "marker": "loot",
+				"_cells": [cell] as Array[Vector2i], "fired": false})
+
+
+## Picks one entry of a [{"weight": n, ...}] table.
+static func roll_weighted(table: Array, rng: RandomNumberGenerator) -> Dictionary:
+	var total := 0
+	for e: Dictionary in table:
+		total += int(e.get("weight", 1))
+	var roll := rng.randi_range(1, maxi(total, 1))
+	for e: Dictionary in table:
+		roll -= int(e.get("weight", 1))
+		if roll <= 0:
+			return e
+	return table[0] if not table.is_empty() else {}
 
 
 ## Fires unfired timed triggers ({"round": n}) at the start of round n. They

@@ -662,6 +662,15 @@ func _mission_report(events: Array[Dictionary]) -> String:
 					lines.append("+%d XP" % e["xp"])
 				if e["loyalty"] != 0:
 					lines.append("Loyalty %+d" % e["loyalty"])
+				if not e.get("loot_text", "").is_empty():
+					lines.append(UiKit.color_tag(e["loot_text"], Palette.TEXT_DIM))
+				for k in ["credits", "alloys"]:
+					if e.get(k, 0) != 0:
+						lines.append(UiKit.color_tag("+%d %s" % [e[k], k], Color(data.resources[k]["color"])))
+				if e.get("research", 0) != 0:
+					lines.append(UiKit.color_tag("+%d research progress" % e["research"], Color(data.resources["research"]["color"])))
+				if not e.get("intel", []).is_empty():
+					lines.append("Intel: star charts around %s" % ", ".join(e["intel"]))
 				for item_id: String in e["items"]:
 					lines.append("Recovered: [b]%s[/b] (equip it in the Heroes panel)" % data.items[item_id]["name"])
 				for t: String in e["traits"]:

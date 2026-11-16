@@ -26,7 +26,7 @@ const HERO_KILLED := "hero_killed"              # {hero}
 const HERO_FREED := "hero_freed"                # {hero}
 const MISSION_OFFERED := "mission_offered"      # {anomaly, fleet, mission}
 const MISSION_DECLINED := "mission_declined"    # {anomaly, fleet}
-const MISSION_RESOLVED := "mission_resolved"    # {anomaly, mission, fleet, success, heroes: {id: outcome}, xp, items, loyalty, traits}
+const MISSION_RESOLVED := "mission_resolved"    # {anomaly, mission, fleet, success, heroes: {id: outcome}, xp, items, loyalty, traits, credits, alloys, research, intel: [planet names], loot_text}
 const ANOMALY_CHANGED := "anomaly_changed"      # {anomaly, mission, name}
 const ANOMALY_REMOVED := "anomaly_removed"      # {anomaly}
 

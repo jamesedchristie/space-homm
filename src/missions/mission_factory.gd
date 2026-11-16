@@ -60,7 +60,16 @@ static func scenario(data: DataRegistry, mission: Dictionary, squad: Array[Dicti
 		],
 		"triggers": triggers,
 		"objectives": objectives,
+		"caches": _caches(mission, squad_team),
 	}
+
+
+## The mission's random lockers, if any, for the squad's team.
+static func _caches(mission: Dictionary, squad_team: int) -> Dictionary:
+	var spec: Dictionary = mission.get("caches", {}).duplicate(true)
+	if not spec.is_empty():
+		spec["team"] = squad_team
+	return spec
 
 
 ## Away team: the given heroes plus marines up to the mission's squad size.

@@ -118,6 +118,9 @@ Squad missions play like XCOM with story beats like a tabletop RPG:
 - **Skill checks.** Some story choices test Combat, Tech or Command. The button shows the odds,
   from your squad's best aptitude (hero class + level; marines have a little Combat and Tech);
   failure has its own consequences. Bring the right hero for the job.
+- **Loot.** Each mission hides a couple of random supply lockers (gold **$**): credits, parts,
+  research data, gear or raider intel. Completing a mission also rolls a bonus. Intel charts
+  the systems around enemy planets on the galaxy map.
 
 ## Art and credits
 
