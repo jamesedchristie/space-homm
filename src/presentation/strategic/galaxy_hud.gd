@@ -92,22 +92,11 @@ func is_dialog_open() -> bool:
 
 ## Settings overlay (from the in-game menu). Emits settings_closed when done.
 func show_settings() -> void:
-	var frame := UiKit.panel(Palette.PANEL_BG, Palette.ACTIVE, 2)
-	frame.custom_minimum_size = Vector2(440, 0)
-	UiKit.anchor(frame, 0.5, 0.5, 0.5, 0.5, -220, -170, 220, 170)
-	var settings := SettingsPanel.new()
-	settings.closed.connect(func() -> void:
-		frame.queue_free()
-		settings_closed.emit())
-	frame.add_child(settings)
-	add_child(frame)
+	SettingsPanel.open_overlay(self, func() -> void: settings_closed.emit())
 
 
 func is_settings_open() -> bool:
-	for c in get_children():
-		if c is PanelContainer and c.get_child_count() > 0 and c.get_child(0) is SettingsPanel:
-			return true
-	return false
+	return SettingsPanel.is_open_in(self)
 
 
 ## Hides the dialog without answering it (e.g. when a game is loaded).

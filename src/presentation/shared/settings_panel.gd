@@ -6,6 +6,28 @@ extends VBoxContainer
 signal closed
 
 
+## Shows the settings in a framed box centred over `parent`. `on_closed` runs
+## after it closes.
+static func open_overlay(parent: Control, on_closed: Callable = Callable()) -> void:
+	var frame := UiKit.panel(Palette.PANEL_BG, Palette.ACTIVE, 2)
+	UiKit.anchor(frame, 0.5, 0.5, 0.5, 0.5, -220, -170, 220, 170)
+	var settings := SettingsPanel.new()
+	settings.closed.connect(func() -> void:
+		frame.queue_free()
+		if on_closed.is_valid():
+			on_closed.call())
+	frame.add_child(settings)
+	parent.add_child(frame)
+
+
+## Whether a settings overlay is open over `parent`.
+static func is_open_in(parent: Control) -> bool:
+	for c in parent.get_children():
+		if c is PanelContainer and not c.is_queued_for_deletion() and c.get_child_count() > 0 and c.get_child(0) is SettingsPanel:
+			return true
+	return false
+
+
 func _ready() -> void:
 	GameSettings.ensure_loaded()
 	add_theme_constant_override("separation", 12)

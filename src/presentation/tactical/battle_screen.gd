@@ -56,6 +56,12 @@ func _ready() -> void:
 	hud.ability_pressed.connect(_on_ability_pressed)
 	hud.end_turn_pressed.connect(_on_end_turn_pressed)
 	hud.restart_pressed.connect(_on_result_button)
+	hud.menu_pressed.connect(_open_menu)
+	hud.settings_closed.connect(func() -> void:
+		# Apply a changed battle view now if nothing is animating.
+		if engine != null and not _busy and (board is BattleBoard3D) != (GameSettings.battle_view == "3d"):
+			_build_board()
+		_refresh())
 	get_viewport().size_changed.connect(_fit_map)
 	start_battle()
 
@@ -487,7 +493,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_ESCAPE:
-				_cancel_targeting()
+				if mode == Mode.TARGET:
+					_cancel_targeting()
+				else:
+					_open_menu()
 			KEY_SPACE, KEY_ENTER, KEY_KP_ENTER:
 				_on_end_turn_pressed()
 			KEY_A:
@@ -545,6 +554,35 @@ func _cancel_targeting() -> void:
 		mode = Mode.MOVE
 		selected_ability = ""
 		_refresh()
+
+
+## Esc / Menu button: resume, settings, autoplay, restart or quit.
+func _open_menu() -> void:
+	if engine == null or hud.is_dialog_open():
+		return
+	var choices: Array[Dictionary] = [{"id": "resume", "label": "Resume"}, {"id": "settings", "label": "Settings"}]
+	if not autoplay and not engine.state.is_over:
+		choices.append({"id": "autoplay", "label": "Let the AI finish"})
+	if not is_embedded():
+		choices.append({"id": "restart", "label": "Restart"})
+	if OS.get_name() != "Web":
+		choices.append({"id": "quit", "label": "Quit game"})
+	var body := UiKit.color_tag("Battles can't be saved: the campaign autosaves at the start of your next turn. "
+			+ "\"Let the AI finish\" plays both sides to the end (A toggles it back).", Palette.TEXT_DIM)
+	hud.show_menu(body, choices)
+	var token := _battle_token
+	var choice: String = await hud.menu_choice
+	if token != _battle_token:
+		return
+	match choice:
+		"settings":
+			hud.show_settings()
+		"autoplay":
+			_toggle_autoplay()
+		"restart":
+			start_battle()
+		"quit":
+			get_tree().quit()
 
 
 func _toggle_autoplay() -> void:

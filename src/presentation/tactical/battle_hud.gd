@@ -10,6 +10,11 @@ signal end_turn_pressed
 signal restart_pressed
 ## Answer from the story/choice dialog.
 signal dialog_choice(choice_id: String)
+## Answer from the pause menu (separate from story dialogs).
+signal menu_choice(choice_id: String)
+signal menu_pressed
+## The settings overlay closed.
+signal settings_closed
 
 const TOP_H := 44.0
 const BOTTOM_H := 172.0
@@ -23,6 +28,7 @@ var _name_label: Label
 var _shield_title: Label
 var _hull_title: Label
 var _dialog: DialogPanel
+var _menu: DialogPanel
 var _shield_bar: ProgressBar
 var _shield_value: Label
 var _hull_bar: ProgressBar
@@ -157,6 +163,7 @@ func _build() -> void:
 	top_row.add_child(_order_box)
 	_objective_label = _label("", 13, Palette.TEXT_DIM)
 	top_row.add_child(_objective_label)
+	top_row.add_child(UiKit.button("Menu  [Esc]", func() -> void: menu_pressed.emit()))
 
 	# Bottom panel: unit info + abilities.
 	var bottom := _panel()
@@ -208,7 +215,7 @@ func _build() -> void:
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	actions.add_child(_hint_label)
-	actions.add_child(_label("Click: move/target · 1-3: abilities · Esc: cancel · A: autoplay · V: 2D/3D · 3D: wheel zoom, Q/E rotate, arrows pan",
+	actions.add_child(_label("Click: move/target · 1-3: abilities · Esc: cancel/menu · A: autoplay · V: 2D/3D · 3D: wheel zoom, Q/E rotate, arrows pan",
 			11, Palette.TEXT_DIM))
 
 	# Combat log.
@@ -244,6 +251,10 @@ func _build() -> void:
 	_dialog.place(480, 280)
 	_dialog.choice_made.connect(func(id: String) -> void: dialog_choice.emit(id))
 	add_child(_dialog)
+	_menu = DialogPanel.new()
+	_menu.place(520, 260)
+	_menu.choice_made.connect(func(id: String) -> void: menu_choice.emit(id))
+	add_child(_menu)
 
 
 ## Story beats and choices from mission triggers. Await `dialog_choice`.
@@ -252,7 +263,20 @@ func ask(title: String, body_bbcode: String, choices: Array[Dictionary]) -> void
 
 
 func is_dialog_open() -> bool:
+	return _dialog.is_open() or _menu.is_open() or SettingsPanel.is_open_in(self)
+
+
+## The pause menu. Await `menu_choice`.
+func show_menu(body_bbcode: String, choices: Array[Dictionary]) -> void:
+	_menu.ask("Menu", body_bbcode, choices)
+
+
+func is_story_dialog_open() -> bool:
 	return _dialog.is_open()
+
+
+func show_settings() -> void:
+	SettingsPanel.open_overlay(self, func() -> void: settings_closed.emit())
 
 
 func _bar_row(title: String, color: Color) -> Array:

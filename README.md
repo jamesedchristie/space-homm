@@ -83,7 +83,7 @@ afterwards, and the fleet loses its doctrine bonus meanwhile.
 | --- | --- |
 | Click a blue hex | Move (costs AP; nebula hexes cost 2) |
 | `1`–`3` or ability button | Select ability, then click a red hex |
-| Right-click / `Esc` | Cancel targeting |
+| Right-click / `Esc` | Cancel targeting (`Esc` otherwise opens the menu: settings, let the AI finish, quit) |
 | `Space` / `Enter` | End turn |
 | `A` | Toggle autoplay |
 | `R` | Restart (standalone battles only) |
