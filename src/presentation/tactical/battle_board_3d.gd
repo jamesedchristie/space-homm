@@ -80,6 +80,7 @@ func setup(p_engine: BattleEngine, p_data: DataRegistry, floor_style: String) ->
 
 func teardown() -> void:
 	views.clear()
+	_props.clear()
 	marker_labels.clear()
 	if _world != null:
 		_world.queue_free()
@@ -127,20 +128,13 @@ func _build_board() -> void:
 	var glass := SurfaceTool.new()
 	glass.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var polys: Array = []
+	if _floor == "deck":
+		DeckKit.build(self, _world)
 	for c in grid.cells():
 		var terrain := grid.terrain_def(c)
 		var deco: String = terrain.get("decoration", "")
 		if _floor == "deck":
-			match deco:
-				"bulkhead":
-					BoardGeometry.prism(solid, _cell_poly(c, 1.0), 0.0, WALL_HEIGHT, Color(0.13, 0.145, 0.19), Color(0.19, 0.21, 0.26))
-				"hazard":
-					BoardGeometry.prism(solid, _cell_poly(c, 0.97), 0.0, DECK_HEIGHT, Color(0.14, 0.15, 0.17), Color(0.2, 0.2, 0.18))
-					_door(solid, c)
-				_:
-					BoardGeometry.prism(solid, _cell_poly(c, 0.97), 0.0, DECK_HEIGHT, Color(0.12, 0.15, 0.19), Color(0.17, 0.21, 0.26))
-					if deco == "crates":
-						_crates(solid, c)
+			pass  # dressed by DeckKit
 		else:
 			var fill := Color(0.05, 0.08, 0.15, 0.1)
 			if terrain.has("color"):
@@ -312,12 +306,23 @@ func _redraw_overlays() -> void:
 	_overlay_mesh.mesh = BoardGeometry.commit(im)
 
 
+## Props standing on a cell (hidden while it's unexplored, so fog doesn't leak them).
+var _props: Dictionary = {}
+
+
+func register_prop(cell: Vector2i, node: Node3D) -> void:
+	_props.get_or_add(cell, []).append(node)
+
+
 func set_fog(explored: Dictionary, visible_now: Dictionary) -> void:
 	_explored = explored
+	for c: Vector2i in _props:
+		for n: Node3D in _props[c]:
+			n.visible = not engine.state.fog_enabled or explored.has(c)
 	var im := {"v": [], "c": []}
 	for c in engine.state.grid.cells():
 		if not explored.has(c):
-			BoardGeometry.fill_poly(im, _cell_poly(c, 1.0), Color(0.0, 0.005, 0.015, 0.97), WALL_HEIGHT + 0.05)
+			BoardGeometry.fill_poly(im, _cell_poly(c, 1.0), Color(0.0, 0.005, 0.015, 0.97), WALL_HEIGHT + 0.3)
 		elif not visible_now.has(c):
 			BoardGeometry.fill_poly(im, _cell_poly(c, 1.0), Color(0.0, 0.0, 0.03, 0.5), _floor_y + 0.012)
 	_fog_mesh.mesh = BoardGeometry.commit(im)
