@@ -290,7 +290,9 @@ func _resolve_mission(token: int) -> void:
 ## Fills in the open battle/mission dialog with auto-resolve odds as the
 ## simulations finish (in the background; the player can answer any time).
 func _show_odds(scenario: Dictionary, team: int, body: String) -> void:
-	var odds := OddsEstimator.new(data, scenario, team, 12, engine.state.turn_number * 131)
+	# Single-threaded builds run one simulation per frame: keep it short there.
+	var runs := 12 if OddsEstimator.threaded() else 6
+	var odds := OddsEstimator.new(data, scenario, team, runs, engine.state.turn_number * 131)
 	odds.start()
 	var shown := -1
 	var token := _token
