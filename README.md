@@ -73,16 +73,23 @@ sites; enter a seed on the New Campaign screen to replay one).
 **Every game is different:** the seed scatters one-time **discoveries** across the sector
 (derelict hulks to salvage, strange signals, smugglers' caches, escape pods). Fly a fleet in to
 find out what's there: resources, research, a free ship, star charts, an item, or now and then
-a trap. Unclaimed planets may roll **traits** (rich deposits, ancient ruins, trade crossroads,
-vast continents, hostile biosphere) that change what they're worth. Hover to see them.
+a trap. Bodies in unclaimed systems may roll **traits** (rich deposits, ancient ruins, rare
+gases, vast continents, subsurface ocean, hostile biosphere) that pay once you develop them.
 
-Planets: move onto one to capture it. Friendly fleets parked at your planets repair
-25% hull per turn. Nebulae and asteroid belts cost 2 moves, and battles there are
-fought on matching battle maps.
+**Star systems.** The map's systems each have a star and a few bodies: habitable worlds
+(terran, ocean, desert, arctic), rocks (barren, volcanic), asteroid belts, gas giants and ice
+moons. Move a fleet in to claim a system; enemy systems are captured the same way (defended
+ones fight back). Then develop it body by body: click your system (or select one and press
+**S**) to open the **system view**. Habitable worlds take a **colony** (taxes, some research,
+and slots for a shipyard, trade hub and defenses), rocks and belts a **mining base**, ice moons
+and gas giants a **research station** (gas giants also a **gas refinery**). Undeveloped worlds
+produce nothing, so a system with a habitable world and rich rocks is worth fighting over.
+One build at a time per system; ships need a shipyard. Friendly fleets in your systems repair
+25% hull per turn. Nebulae and asteroid fields cost 2 moves, and battles there are fought on
+matching battle maps.
 
-Empire: each planet produces credits, alloys and research (by planet type and buildings).
-Queue buildings or ships per planet in the Empire panel (E); ships need a shipyard. Research
-points flow into the tech you pick. The Free Traders start at peace with you and at war with
+Empire (E): every system's output, research (points flow into the tech you pick) and
+diplomacy. The Free Traders start at peace with you and at war with
 the raiders. At peace you can't attack each other or take each other's planets. Propose peace,
 declare war or send gifts in the Diplomacy tab. The raiders never negotiate. The war ends when
 nobody left is at war (the highest score wins) or when one faction stands alone.
@@ -141,7 +148,7 @@ Squad missions play like XCOM with story beats like a tabletop RPG:
 - The UI theme is built in code (`src/presentation/shared/game_theme.gd`); colors live in `palette.gd`.
 - Ship sprites are set per unit in JSON (`visual.sprite`, with `{team}` replaced by the team's
   color variant). Battle maps can set `backdrop` colors and `floor: "deck"` for interiors.
-  Planet types set `surface` colors for the planet shader.
+  Body types set `surface` colors for the planet shader.
 
 ## Tests and tools (headless, no editor needed)
 
@@ -174,12 +181,13 @@ CI runs the tests and both smoke tests on every push (`.github/workflows/tests.y
 - **New status:** `data/tactical/statuses/<id>.json` with `modifiers`, `flags` and/or `on_turn_start` effects.
 - **New battle map:** `data/tactical/maps/<id>.json`, with `deployment.west`/`east` if galaxy battles use it.
 - **New campaign:** `data/strategic/campaigns/<id>.json` (map, factions, planets, fleets).
-- **Galaxy terrain / planet types:** `data/strategic/terrain.json`, `data/strategic/planet_types.json`.
+- **Galaxy terrain, stars, bodies:** `data/strategic/terrain.json`, `star_types.json`,
+  `body_types.json` (category, size, colony slots, bonus yields, shader colours), `planet_traits.json`.
 - **Heroes:** classes, items, traits and XP thresholds in `data/heroes/`; named heroes, starting
   inventory and anomalies in the campaign file.
-- **Economy:** `data/empire/` (resources, buildings, techs); planet `yields`/`slots` in
-  `planet_types.json`; ship `strategic.cost`/`build_turns`/`requires_tech` in unit files;
-  campaign `resources`, `relations`, `techs`, planet `buildings`.
+- **Economy:** `data/empire/` (resources, buildings with `on: [body categories]` or
+  `needs: "colony"`, techs); ship `strategic.cost`/`build_turns`/`requires_tech` in unit files;
+  campaign `resources`, `relations`, `techs`, system `bodies` with `buildings`.
 - **New mission:** `data/missions/<id>.json` (map, enemies, objectives, story triggers with choices,
   rewards, follow-up on failure), plus a square-grid map with `deployment.squad`.
 

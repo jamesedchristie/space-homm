@@ -1,7 +1,8 @@
 extends TestCase
-## Economy, production, research, diplomacy and planet defenses.
-## Fixture galaxy: home_a (terran: 6 credits, 2 research), home_b (barren:
-## 5 alloys), middle (ice). test_dummy: speed 3, sensor 1.
+## Economy, production, research, diplomacy and system defenses.
+## Fixture galaxy: home_a (terran colony: 3+2 credits, 1 research; barren rock;
+## gas giant), home_b (desert colony: 3 credits, 1 research, 1 alloys; asteroid
+## belt), middle (ice moon, arctic). test_dummy: speed 3, sensor 1.
 
 
 func _cell(e: GalaxyEngine, col: int, row: int) -> Vector2i:
@@ -23,36 +24,48 @@ func _rich(extra: Dictionary = {}) -> Dictionary:
 
 func _planets_with(buildings_a: Array, buildings_b: Array = []) -> Array:
 	return [
-		{"id": "home_a", "type": "terran", "at": [0, 5], "owner": "a", "buildings": buildings_a},
-		{"id": "home_b", "type": "barren", "at": [9, 5], "owner": "b", "buildings": buildings_b},
-		{"id": "middle", "type": "ice", "at": [5, 3]},
+		{"id": "home_a", "at": [0, 5], "owner": "a",
+			"bodies": [{"type": "terran", "buildings": ["colony"] + buildings_a}, {"type": "barren"}]},
+		{"id": "home_b", "at": [9, 5], "owner": "b",
+			"bodies": [{"type": "desert", "buildings": ["colony"] + buildings_b}, {"type": "asteroid_belt"}]},
+		{"id": "middle", "at": [5, 3], "bodies": [{"type": "ice_moon"}]},
 	]
 
 
 func test_income_each_turn() -> void:
 	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 8, 2]])
-	assert_eq(e.state.resources["a"]["credits"], 6, "terran yields 6 credits")
-	assert_eq(e.state.research["a"]["progress"], 2, "unassigned research is banked")
+	assert_eq(e.state.resources["a"]["credits"], 5, "terran colony: 3 + 2 credits")
+	assert_eq(e.state.research["a"]["progress"], 1, "unassigned research is banked")
 	_end_round(e)
-	assert_eq(e.state.resources["a"]["credits"], 12)
-	assert_eq(e.state.resources["b"]["alloys"], 5, "b has had one turn: barren yields 5 alloys")
+	assert_eq(e.state.resources["a"]["credits"], 10)
+	assert_eq(e.state.resources["b"]["alloys"], 1, "b has had one turn: desert colony bonus")
+	var undeveloped := EmpireRules.body_yields(e, e.state.planets["home_a"].bodies[1])
+	assert_true(undeveloped.is_empty(), "undeveloped bodies produce nothing")
 
 
 func test_building_costs_and_completes() -> void:
 	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 8, 2]], _rich())
 	var credits: int = e.state.resources["a"]["credits"]
-	assert_true(e.submit(QueueBuildCommand.new("a", "home_a", "building", "mine")).ok)
-	assert_eq(e.state.resources["a"]["credits"], credits - 40, "paid up front")
+	var home: Planet = e.state.planets["home_a"]
+	assert_false(e.submit(QueueBuildCommand.new("a", "home_a", "building", "mining_base", home.bodies[0]["id"])).ok,
+			"no mines on the colony world")
+	assert_true(e.submit(QueueBuildCommand.new("a", "home_a", "building", "mining_base", home.bodies[1]["id"])).ok)
+	assert_eq(e.state.resources["a"]["credits"], credits - 35, "paid up front")
 	assert_false(e.submit(QueueBuildCommand.new("a", "home_a", "building", "trade_hub")).ok, "one build at a time")
 	_end_round(e)
 	_end_round(e)
-	assert_true("mine" in e.state.planets["home_a"].buildings)
-	assert_eq(EmpireRules.planet_yields(e, e.state.planets["home_a"])["alloys"], 4)
+	assert_true("mining_base" in home.bodies[1]["buildings"])
+	assert_eq(EmpireRules.planet_yields(e, home)["alloys"], 4)
+	# The developed rock takes nothing else; the colony world takes colony buildings.
+	var options := EmpireRules.build_options(e, home)
+	assert_true(options.filter(func(o: Dictionary) -> bool: return o["body"] == home.bodies[1]["id"]).is_empty())
+	assert_true(options.any(func(o: Dictionary) -> bool: return o["id"] == "trade_hub" and o["body"] == home.bodies[0]["id"]))
+	assert_true(options.any(func(o: Dictionary) -> bool: return o["id"] == "research_station" and o["body"] == home.bodies[2]["id"]))
 
 
 func test_cannot_afford_or_build_ships_without_shipyard() -> void:
 	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 8, 2]])
-	assert_eq(e.submit(QueueBuildCommand.new("a", "home_a", "building", "research_lab")).error, "Can't afford it")
+	assert_eq(e.submit(QueueBuildCommand.new("a", "home_a", "building", "research_station")).error, "Can't afford it")
 	var rich := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 8, 2]], _rich())
 	assert_false(rich.submit(QueueBuildCommand.new("a", "home_a", "unit", "frigate")).ok, "needs a shipyard")
 
@@ -112,8 +125,8 @@ func _three(relations: Array, extra: Dictionary = {}) -> GalaxyEngine:
 
 func test_peace_blocks_attacks_and_captures() -> void:
 	var e := _three([{"factions": ["a", "c"], "status": "peace", "opinion": 20}],
-			{"planets": [{"id": "home_a", "type": "terran", "at": [0, 5], "owner": "a"},
-				{"id": "port_c", "type": "ice", "at": [2, 4], "owner": "c"}]})
+			{"planets": [{"id": "home_a", "at": [0, 5], "owner": "a", "bodies": [{"type": "terran", "buildings": ["colony"]}]},
+				{"id": "port_c", "at": [2, 4], "owner": "c", "bodies": [{"type": "arctic", "buildings": ["colony"]}]}]})
 	var f := e.state.fleets_of("a")[0]
 	var c_fleet := e.state.fleets_of("c")[0]
 	assert_false(c_fleet.cell in e.attack_targets(f.id))

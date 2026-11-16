@@ -131,8 +131,8 @@ table is built before threads start) and one run per frame on the single-threade
 
 A campaign's `"random"` entry adds seeded variety (`GalaxyEngine._roll_random_features`, using
 the campaign RNG so a seed always gives the same sector):
-- `"planet_traits": chance`: each unowned planet without traits may roll one from
-  `data/strategic/planet_traits.json` (`yields`, `slots`), read by `EmpireRules`.
+- `"planet_traits": chance`: undeveloped bodies in unowned systems may roll a trait that
+  suits their category (`on`) from `data/strategic/planet_traits.json` (`yields`, `slots`).
 - `"discoveries": {"count", "kinds"?, "min_distance"?}`: one-time finds placed on free cells
   away from planets and fleets (or listed explicitly as `"discoveries": [{"kind", "at"}]`).
   The first fleet to enter one claims it: a weighted roll on its `outcomes` in
@@ -460,10 +460,10 @@ rounds 3, 5 and 7, and `"eliminate_all_wins": false` so clearing the first wave 
   `defense_unit`, `requires_tech`.
 - `techs.json`: `name`, `description`, `cost`, `requires`, `effects` (see the table above).
 
-Planet types gain `yields` and `slots`. Units gain `strategic.cost`, `build_turns` and `requires_tech`.
+Units gain `strategic.cost`, `build_turns` and `requires_tech`.
 Campaigns gain `resources: {faction: {credits, alloys}}`,
 `relations: [{factions: [a, b], status: "peace"|"war", opinion}]`, `techs: {faction: [ids]}`,
-planet `buildings`, faction `always_hostile`, and faction `ai` (personality overrides for
+system `bodies` (with `buildings`), faction `always_hostile`, and faction `ai` (personality overrides for
 `GalaxyAI`: `attack_ratio`, how much stronger than the target a fleet must be to attack,
 default 0.9; `hunt_range`, default 5; `retreat_hull_ratio`, default 0.5). In *The Drift* the
 traders are cautious (1.4, range 3) and the raiders only take even-or-better fights (1.0).
@@ -471,7 +471,20 @@ traders are cautious (1.4, range 3) and the raiders only take even-or-better fig
 **Galaxy terrain** (`data/strategic/terrain.json`): `passable`, `move_cost`, `color`,
 `decoration` ("rocks"), `battle_map`.
 
-**Planet types** (`data/strategic/planet_types.json`): `name`, `description`, `color`, `size`, optional `battle_map`.
+**Star systems.** `Planet` (the class keeps its historical name) is a star system: `star`
+(`star_types.json`) and `bodies: [{id, name, type, traits, buildings}]`. Body types
+(`body_types.json`) have a `category` (habitable / rock / belt / gas / ice), `size`,
+`colony_slots`, a `bonus` paid once the body is developed and shader `surface` colours.
+Buildings (`data/empire/buildings.json`) are either installations (`"on": [categories]`, one
+per body: colony, mining base, research station, gas refinery) or colony buildings
+(`"needs": "colony"`, up to the colony's slots: shipyard, trade hub, defense platform).
+`EmpireRules.build_options()` lists what fits each body; `QueueBuildCommand` carries the
+`body_id`; yields come only from developed bodies (buildings + bonus + traits) times tech
+multipliers. Campaign systems list `bodies` explicitly or omit them for a seeded random set
+(`SystemBuilder`; `"home": true` guarantees a terran world). Galaxy views draw a system as its
+star with bodies on tilted orbits (`Planet3D`, `PlanetView`); the **system view**
+(`SystemView`, a SubViewport with the same model up close plus a card per body) is where the
+player builds. Saves are version 2; version 1 saves (planets with types) are refused.
 
 **Campaign** (`data/strategic/campaigns/*.json`)
 ```jsonc

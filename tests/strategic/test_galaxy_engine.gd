@@ -243,23 +243,27 @@ func test_random_features_are_seeded() -> void:
 	var c := GalaxyEngine.from_campaign(data, "the_drift", 78)
 	var layout := func(e: GalaxyEngine) -> String:
 		var cells := e.state.discoveries.values().map(func(d: Dictionary) -> String: return "%s@%s" % [d["kind"], d["cell"]])
-		var traits := e.state.planets.values().map(func(p: Planet) -> String: return "%s:%s" % [p.id, p.traits])
+		var traits := e.state.planets.values().map(func(p: Planet) -> String: return "%s:%s" % [p.id, p.bodies])
 		return str(cells) + str(traits)
 	assert_eq(a.state.discoveries.size(), 7)
 	assert_eq(layout.call(a), layout.call(b), "same seed, same sector")
 	assert_ne(layout.call(a), layout.call(c), "different seed, different finds")
 	for p: Planet in a.state.planets.values():
 		if not p.owner.is_empty():
-			assert_true(p.traits.is_empty(), "home worlds stay fair")
+			for body in p.bodies:
+				assert_true(body["traits"].is_empty(), "home worlds stay fair")
 
 
-func test_planet_traits_change_yields_and_slots() -> void:
+func test_body_traits_change_yields_and_slots() -> void:
 	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 9, 0]])
-	var p: Planet = e.state.planets["middle"]
-	p.traits.clear()
-	var base := EmpireRules.planet_yields(e, p)
-	var slots := EmpireRules.slots(e, p)
-	p.traits.append("rich_deposits")
-	p.traits.append("vast_continents")
-	assert_eq(EmpireRules.planet_yields(e, p).get("alloys", 0), int(base.get("alloys", 0)) + 2)
-	assert_eq(EmpireRules.slots(e, p), slots + 1)
+	var home: Planet = e.state.planets["home_a"]
+	var colony: Dictionary = home.bodies[0]
+	var rock: Dictionary = home.bodies[1]
+	var base := EmpireRules.planet_yields(e, home)
+	var slots := EmpireRules.colony_slots(e, colony)
+	rock["traits"].append("rich_deposits")
+	assert_eq(EmpireRules.planet_yields(e, home), base, "traits only pay once the body is developed")
+	rock["buildings"].append("mining_base")
+	assert_eq(EmpireRules.planet_yields(e, home).get("alloys", 0), int(base.get("alloys", 0)) + 4 + 2)
+	colony["traits"].append("vast_continents")
+	assert_eq(EmpireRules.colony_slots(e, colony), slots + 1)

@@ -104,7 +104,7 @@ func _build_models(fleet: Fleet) -> void:
 	for i in mini(defs.size(), slots.size()):
 		var visual: Dictionary = defs[i].get("visual", {})
 		var model := ModelFactory.build(_data, visual.get("model", "frigate"), color)
-		var s := float(visual.get("size", 1.0)) * (0.85 if i == 0 else 0.5)
+		var s := float(visual.get("size", 1.0)) * (0.65 if i == 0 else 0.4)
 		model.scale = Vector3(s, s, s)
 		model.position = slots[i]
 		_models.add_child(model)

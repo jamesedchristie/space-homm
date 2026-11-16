@@ -13,7 +13,8 @@ extends RefCounted
 ## the UI allows; to_dict() refuses otherwise.
 
 const FORMAT := "space-homm-save"
-const VERSION := 1
+## 2: star systems with bodies (planets have "bodies" instead of type/buildings/traits).
+const VERSION := 2
 const DIR := "user://saves"
 const AUTOSAVE := "autosave"
 const QUICKSAVE := "quicksave"
@@ -26,9 +27,8 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 		return {}
 	var planets := []
 	for p: Planet in s.planets.values():
-		planets.append({"id": p.id, "name": p.name, "type": p.type, "cell": p.cell, "owner": p.owner,
-				"sensor": p.sensor, "description": p.description, "buildings": p.buildings.duplicate(),
-				"traits": p.traits.duplicate(),
+		planets.append({"id": p.id, "name": p.name, "star": p.star, "cell": p.cell, "owner": p.owner,
+				"sensor": p.sensor, "description": p.description, "bodies": p.bodies.duplicate(true),
 				"queue": p.queue.duplicate(true)})
 	var fleets := []
 	for f: Fleet in s.fleets.values():
@@ -89,6 +89,8 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 		return {"error": "Not a save file"}
 	if int(save.get("version", 0)) > VERSION:
 		return {"error": "This save is from a newer version of the game"}
+	if int(save.get("version", 0)) < 2:
+		return {"error": "This save is from before star systems were added and can't be loaded"}
 	var campaign_id: String = save.get("campaign", "")
 	if not data.campaigns.has(campaign_id):
 		return {"error": "Unknown campaign '%s'" % campaign_id}
@@ -106,13 +108,20 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 		var p := Planet.new()
 		p.id = p_d["id"]
 		p.name = p_d["name"]
-		p.type = p_d["type"]
+		p.star = p_d.get("star", "yellow")
 		p.cell = p_d["cell"]
 		p.owner = p_d["owner"]
 		p.sensor = p_d["sensor"]
 		p.description = p_d["description"]
-		p.buildings.assign(p_d["buildings"])
-		p.traits.assign(p_d.get("traits", []))
+		for b: Dictionary in p_d.get("bodies", []):
+			var body := b.duplicate(true)
+			var traits: Array[String] = []
+			traits.assign(b.get("traits", []))
+			var buildings: Array[String] = []
+			buildings.assign(b.get("buildings", []))
+			body["traits"] = traits
+			body["buildings"] = buildings
+			p.bodies.append(body)
 		p.queue = p_d["queue"]
 		s.planets[p.id] = p
 	for f_d: Dictionary in d["fleets"]:

@@ -28,7 +28,7 @@ const HUNT_RANGE := 5
 ## there, instead of trickling out one ship at a time.
 const MUSTER_SIZE := 3
 ## Build order for economy buildings.
-const BUILD_PRIORITY := ["mine", "trade_hub", "research_lab", "defense_platform", "shipyard"]
+const BUILD_PRIORITY := ["colony", "mining_base", "gas_refinery", "research_station", "trade_hub", "defense_platform", "shipyard"]
 
 var _turn_key := ""
 var _done := {}
@@ -232,7 +232,7 @@ func _empire_command(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
 		_planned[planet.id] = true
 		var choice := choose_build(engine, planet)
 		if not choice.is_empty():
-			return QueueBuildCommand.new(faction_id, planet.id, choice["kind"], choice["id"])
+			return QueueBuildCommand.new(faction_id, planet.id, choice["kind"], choice["id"], choice.get("body", ""))
 	if not _diplomacy_done:
 		_diplomacy_done = true
 		return _diplomacy(engine, faction_id)
@@ -249,7 +249,7 @@ func choose_build(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 			continue
 		if option["kind"] == "unit":
 			ships.append(option)
-		else:
+		elif not buildings.has(option["id"]):
 			buildings[option["id"]] = option
 	ships.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return engine.data.units[a["id"]]["stats"]["max_hull"] > engine.data.units[b["id"]]["stats"]["max_hull"])

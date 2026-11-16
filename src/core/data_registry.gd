@@ -27,7 +27,8 @@ var scenarios: Dictionary = {}
 
 # Strategic layer
 var galaxy_terrain: Dictionary = {}
-var planet_types: Dictionary = {}
+var body_types: Dictionary = {}
+var star_types: Dictionary = {}
 var discoveries: Dictionary = {}
 var planet_traits: Dictionary = {}
 var campaigns: Dictionary = {}
@@ -71,7 +72,8 @@ func load_from(root: String) -> bool:
 	_load_keyed_file(root.path_join("tactical/damage_types.json"), damage_types)
 	_load_keyed_file(root.path_join("tactical/terrain.json"), terrain)
 	_load_keyed_file(root.path_join("strategic/terrain.json"), galaxy_terrain)
-	_load_keyed_file(root.path_join("strategic/planet_types.json"), planet_types)
+	_load_keyed_file(root.path_join("strategic/body_types.json"), body_types)
+	_load_keyed_file(root.path_join("strategic/star_types.json"), star_types)
 	_load_keyed_file(root.path_join("strategic/discoveries.json"), discoveries)
 	_load_keyed_file(root.path_join("strategic/planet_traits.json"), planet_traits)
 	_load_dir(root.path_join("strategic/campaigns"), campaigns)
@@ -133,8 +135,6 @@ func validate() -> PackedStringArray:
 
 	for id: String in galaxy_terrain:
 		_validate_battle_map("galaxy terrain '%s'" % id, galaxy_terrain[id])
-	for id: String in planet_types:
-		_validate_battle_map("planet type '%s'" % id, planet_types[id])
 	for id: String in discoveries:
 		for o: Dictionary in discoveries[id].get("outcomes", []):
 			var r: Dictionary = o.get("rewards", {})
@@ -287,8 +287,19 @@ func _validate_campaign(id: String, def: Dictionary) -> void:
 	for f: Dictionary in def.get("factions", []):
 		faction_ids.append(f.get("id", ""))
 	for p: Dictionary in def.get("planets", []):
-		if not planet_types.has(p.get("type", "")):
-			_err("%s: planet '%s' has unknown type '%s'" % [owner, p.get("name", ""), p.get("type", "")])
+		if p.has("star") and not star_types.has(p["star"]):
+			_err("%s: system '%s' has unknown star '%s'" % [owner, p.get("name", ""), p["star"]])
+		var listed: Variant = p.get("bodies", "random")
+		if listed is Array:
+			for b: Dictionary in listed:
+				if not body_types.has(b.get("type", "")):
+					_err("%s: system '%s' has a body of unknown type '%s'" % [owner, p.get("name", ""), b.get("type", "")])
+				for building_id: String in b.get("buildings", []):
+					if not buildings.has(building_id):
+						_err("%s: system '%s' has unknown building '%s'" % [owner, p.get("name", ""), building_id])
+				for t: String in b.get("traits", []):
+					if not planet_traits.has(t):
+						_err("%s: system '%s' has unknown trait '%s'" % [owner, p.get("name", ""), t])
 		if p.get("owner", "") != "" and p["owner"] not in faction_ids:
 			_err("%s: planet '%s' has unknown owner '%s'" % [owner, p.get("name", ""), p["owner"]])
 	var fleet_names: Array = []

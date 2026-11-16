@@ -3,8 +3,8 @@ extends GalaxyBoard
 ## The top-down 2D galaxy map: GridMapView with PlanetView, FleetView and
 ## AnomalyView markers and an FxLayer, all living in the screen's scene.
 
-const FLEET_OFFSET := Vector2(9, 9)
-const PLANET_OFFSET := Vector2(-8, -6)
+const FLEET_OFFSET := Vector2(13, 12)
+const PLANET_OFFSET := Vector2(-4, -3)
 
 var map_view: GridMapView
 var planets_layer: Node2D

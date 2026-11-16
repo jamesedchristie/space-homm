@@ -54,21 +54,21 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 		var p: Dictionary = homes[fid].duplicate(true)
 		p["at"] = [at.x, at.y]
 		p["owner"] = fid
+		if not p.has("bodies") or not p["bodies"] is Array:
+			p["bodies"] = _home_bodies(data, rng, p, homes[fid].get("buildings", []))
 		planets.append(p)
 
 	# Neutral planets: spread out, not too close to anything.
 	var names: Array = gen.get("planet_names", []).duplicate()
 	_shuffle(names, rng)
-	var types := data.planet_types.keys()
-	types.sort()
 	for i in int(gen.get("neutral_planets", 6)):
 		var at := _farthest(grid, w, h, occupied.keys(), occupied, rng, 4, 3)
 		if at == Vector2i(-1, -1):
 			break
 		occupied[at] = true
 		var name: String = names[i] if i < names.size() else "Planet %d" % (i + 1)
-		planets.append({"id": name.to_snake_case(), "name": name, "type": types[rng.randi() % types.size()],
-				"at": [at.x, at.y]})
+		planets.append({"id": name.to_snake_case(), "name": name, "at": [at.x, at.y], "star": SystemBuilder.random_star(data, rng),
+				"bodies": SystemBuilder.random_bodies(data, rng, name.to_snake_case(), name)})
 	out["planets"] = planets
 
 	# Starting fleets next to their homes.
@@ -134,6 +134,20 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 ## A free layout cell as far as possible from `points` (one of the best few,
 ## at random), at least `min_dist` from them and `min_others` from anything
 ## occupied. Vector2i(-1, -1) if none.
+## A home system: random bodies around a developed terran capital
+## (colony + the template's buildings on it).
+static func _home_bodies(data: DataRegistry, rng: RandomNumberGenerator, p: Dictionary, capital_buildings: Array) -> Array:
+	var bodies := SystemBuilder.random_bodies(data, rng, p["id"], p.get("name", p["id"]), true)
+	var out: Array = []
+	for b in bodies:
+		var entry := {"type": b["type"], "name": b["name"]}
+		if b["type"] == "terran" and not out.any(func(x: Dictionary) -> bool: return x.has("buildings")):
+			entry["name"] = p.get("name", b["name"])
+			entry["buildings"] = ["colony"] + capital_buildings.filter(func(x: String) -> bool: return x != "colony")
+		out.append(entry)
+	return out
+
+
 static func _farthest(grid: HexGrid, w: int, h: int, points: Array, occupied: Dictionary,
 		rng: RandomNumberGenerator, top: int, min_others: int = 0) -> Vector2i:
 	var scored: Array = []

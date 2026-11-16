@@ -69,6 +69,11 @@ func _ready() -> void:
 	hud.empire.closed.connect(_refresh)
 	hud.roster.command_requested.connect(_on_roster_command)
 	hud.roster.closed.connect(_refresh)
+	hud.system_view.command_requested.connect(_on_system_command)
+	hud.system_view.closed.connect(_refresh)
+	hud.empire.system_requested.connect(func(planet_id: String) -> void:
+		hud.empire.visible = false
+		_open_system(planet_id))
 	hud.menu_pressed.connect(_open_menu)
 	hud.settings_closed.connect(func() -> void:
 		# Apply a changed map view right away.
@@ -321,6 +326,30 @@ func _odds_text(odds: OddsEstimator) -> String:
 			UiKit.color_tag("(%d simulated battles; fighting it yourself can do better)" % odds.runs, Palette.TEXT_DIM)]
 
 
+## Opens the system view (explored systems only; build only in your own).
+func _open_system(planet_id: String) -> void:
+	var planet: Planet = engine.state.planets.get(planet_id)
+	if planet == null or not engine.explored_cells(player_faction).has(planet.cell):
+		return
+	hud.roster.visible = false
+	hud.empire.visible = false
+	hud.system_view.show_system(engine, planet, player_faction, not _busy and _is_human_turn())
+
+
+func _on_system_command(cmd: GalaxyCommand) -> void:
+	if _busy or not _is_human_turn():
+		return
+	var result := engine.submit(cmd)
+	if not result.ok:
+		hud.set_hint(result.error)
+	else:
+		await _play(result.events, _token)
+	_refresh_resources()
+	var shown := hud.system_view.shown_planet()
+	if not shown.is_empty():
+		hud.system_view.show_system(engine, engine.state.planets[shown], player_faction, not _busy and _is_human_turn())
+
+
 func _toggle_empire() -> void:
 	if hud.empire.visible:
 		hud.empire.visible = false
@@ -543,9 +572,7 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 	if _hover != null:
 		var planet := engine.state.planet_at(_hover)
 		if planet != null:
-			text += "   ·   %s" % planet.name
-			if not planet.traits.is_empty():
-				text += " (%s)" % ", ".join(planet.traits.map(func(t: String) -> String: return data.planet_traits.get(t, {}).get("name", t)))
+			text += "   ·   %s system, %d bodies" % [planet.name, planet.bodies.size()]
 		var anomaly := engine.state.anomaly_at(_hover)
 		if not anomaly.is_empty() and engine.explored_cells(player_faction).has(_hover):
 			text += "   ·   %s: end a move here with a commanded fleet to launch a mission" % anomaly["name"]
@@ -710,31 +737,32 @@ func _reward_text(r: Dictionary) -> String:
 
 
 func _planet_info(planet: Planet) -> String:
-	var type_def: Dictionary = data.planet_types.get(planet.type, {})
 	var owner := "Unclaimed"
 	var color := Palette.NEUTRAL
 	if not planet.owner.is_empty():
 		var f := engine.state.faction(planet.owner)
 		owner = f["name"]
 		color = Palette.team_color(f["team"])
-	var building_names := PackedStringArray()
-	for b in planet.buildings:
-		building_names.append(data.buildings[b]["name"])
-	var text := "[b]%s[/b]  %s\n%s\n\n%s\n\nYields %s per turn\nBuildings %d/%d%s" % [
-			planet.name, UiKit.color_tag(type_def.get("name", planet.type), Palette.TEXT_DIM),
-			UiKit.color_tag(owner, color), planet.description,
-			EmpirePanel._resource_text(engine, EmpireRules.planet_yields(engine, planet), true),
-			planet.buildings.size(), EmpireRules.slots(engine, planet),
-			(": " + ", ".join(building_names)) if not building_names.is_empty() else ""]
-	for t in planet.traits:
-		var tdef: Dictionary = data.planet_traits.get(t, {})
-		text += "\n" + UiKit.color_tag("%s: %s" % [tdef.get("name", t), tdef.get("description", "")], Palette.ACTIVE)
+	var star: Dictionary = data.star_types.get(planet.star, {})
+	var text := "[b]%s[/b]  %s\n%s%s\n\nYields %s per turn\n" % [
+			planet.name, UiKit.color_tag(star.get("name", ""), Color(star.get("color", "#ffffff"))),
+			UiKit.color_tag(owner, color), ("\n" + planet.description) if not planet.description.is_empty() else "",
+			EmpirePanel._resource_text(engine, EmpireRules.planet_yields(engine, planet), true)]
+	for b in planet.bodies:
+		var bdef: Dictionary = data.body_types.get(b["type"], {})
+		var line := "%s %s" % [UiKit.color_tag("●", Color(bdef.get("surface", {}).get("accent", "#aaaaaa"))), bdef.get("name", b["type"])]
+		if not b["buildings"].is_empty():
+			line += ": " + ", ".join(b["buildings"].map(func(x: String) -> String: return data.buildings[x]["name"]))
+		if not b["traits"].is_empty():
+			line += "  " + UiKit.color_tag(", ".join(b["traits"].map(func(t: String) -> String: return data.planet_traits[t]["name"])), Palette.ACTIVE)
+		text += "\n" + line
+	text += "\n" + UiKit.color_tag("Click your system or press S to open it.", Palette.TEXT_DIM)
 	var defenses := EmpireRules.defense_units(engine, planet).size()
 	if defenses > 0:
 		text += "\n" + UiKit.color_tag("Defended by %d platform(s): attackers must fight them." % defenses, Palette.BAD)
 	if planet.owner == player_faction:
 		if planet.queue.is_empty():
-			text += "\n" + UiKit.color_tag("Idle: queue something in the Empire panel (E).", Palette.TEXT_DIM)
+			text += "\n" + UiKit.color_tag("Idle: open the system (S) to build.", Palette.TEXT_DIM)
 		else:
 			var q := planet.queue
 			var item: String = data.buildings[q["item"]]["name"] if q["kind"] == "building" else data.units[q["item"]]["name"]
@@ -906,6 +934,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
 		_toggle_empire()
 		return
+	if hud.system_view.visible:
+		if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_ESCAPE, KEY_S]:
+			hud.system_view.close()
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_S and not selected_planet.is_empty():
+		_open_system(selected_planet)
+		return
 	if hud.roster.visible or hud.empire.visible:
 		return
 	if board.handle_input(event):
@@ -973,6 +1008,11 @@ func _on_left_click() -> void:
 	elif engine.state.planet_at(cell) != null:
 		selected_planet = engine.state.planet_at(cell).id
 		selected_fleet = ""
+		# Like a city screen: clicking your own system opens it.
+		if engine.state.planet_at(cell).owner == player_faction:
+			_refresh()
+			_open_system(selected_planet)
+			return
 	elif not anomaly.is_empty() and engine.explored_cells(player_faction).has(cell):
 		selected_anomaly = anomaly["id"]
 		selected_fleet = ""

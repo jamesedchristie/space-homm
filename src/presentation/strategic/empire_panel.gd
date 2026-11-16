@@ -6,8 +6,10 @@ extends PanelContainer
 
 signal command_requested(cmd: GalaxyCommand)
 signal closed
+## "Open" on a system in the Colonies tab.
+signal system_requested(planet_id: String)
 
-const TABS := ["Colonies", "Research", "Diplomacy"]
+const TABS := ["Systems", "Research", "Diplomacy"]
 
 var _tabs: TabContainer
 var _lists: Array[VBoxContainer] = []
@@ -68,43 +70,26 @@ func _build_colonies(engine: GalaxyEngine, faction_id: String, interactive: bool
 		var card := UiKit.panel(Color(0.08, 0.1, 0.16, 0.95))
 		var box := VBoxContainer.new()
 		card.add_child(box)
+		var developed := planet.bodies.filter(func(b: Dictionary) -> bool: return not b["buildings"].is_empty()).size()
 		var names := PackedStringArray()
 		for b in planet.buildings:
 			names.append(data.buildings[b]["name"])
-		box.add_child(_text("[b]%s[/b]  %s   ·   buildings %d/%d   ·   %s\n%s" % [planet.name,
-				UiKit.color_tag(data.planet_types[planet.type]["name"], Palette.TEXT_DIM),
-				planet.buildings.size(), EmpireRules.slots(engine, planet),
-				_resource_text(engine, EmpireRules.planet_yields(engine, planet), true),
-				", ".join(names) if not names.is_empty() else UiKit.color_tag("No buildings yet", Palette.TEXT_DIM)]))
+		var row := HBoxContainer.new()
+		box.add_child(row)
+		var info := _text("[b]%s[/b]   ·   %d/%d bodies developed   ·   %s\n%s" % [planet.name,
+				developed, planet.bodies.size(), _resource_text(engine, EmpireRules.planet_yields(engine, planet), true),
+				", ".join(names) if not names.is_empty() else UiKit.color_tag("Nothing built yet", Palette.TEXT_DIM)])
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(info)
+		var pid := planet.id
+		row.add_child(UiKit.button("Open", func() -> void: system_requested.emit(pid)))
 		if not planet.queue.is_empty():
 			var q := planet.queue
 			var item_name: String = data.buildings[q["item"]]["name"] if q["kind"] == "building" else data.units[q["item"]]["name"]
 			box.add_child(_text(UiKit.color_tag("Building %s: %d/%d turns" % [item_name, q["progress"], q["turns"]], Palette.ACTIVE)))
 		else:
-			box.add_child(_build_picker(engine, planet, interactive))
+			box.add_child(_text(UiKit.color_tag("Idle", Palette.TEXT_DIM)))
 		list.add_child(card)
-
-
-func _build_picker(engine: GalaxyEngine, planet: Planet, interactive: bool) -> OptionButton:
-	var picker := OptionButton.new()
-	picker.focus_mode = Control.FOCUS_NONE
-	picker.add_item("Build...")
-	var options := EmpireRules.build_options(engine, planet)
-	for i in options.size():
-		var o := options[i]
-		var label := "%s%s — %s, %d turns" % ["Ship: " if o["kind"] == "unit" else "", o["name"],
-				EmpireRules.cost_text(engine, o["cost"]), o["turns"]]
-		picker.add_item(label if o["ok"] else "%s (%s)" % [label, o["reason"].to_lower()])
-		picker.set_item_disabled(i + 1, not o["ok"])
-		var desc: String = engine.data.buildings[o["id"]].get("description", "") if o["kind"] == "building" \
-				else engine.data.units[o["id"]].get("description", "")
-		picker.set_item_tooltip(i + 1, desc)
-	picker.disabled = not interactive or options.is_empty()
-	picker.item_selected.connect(func(index: int) -> void:
-		if index > 0:
-			var o := options[index - 1]
-			command_requested.emit(QueueBuildCommand.new(planet.owner, planet.id, o["kind"], o["id"])))
-	return picker
 
 
 # --- Research -----------------------------------------------------------------

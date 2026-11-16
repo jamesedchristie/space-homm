@@ -1,0 +1,78 @@
+{
+  "terran": {
+    "name": "Terran World",
+    "description": "Temperate world with oceans and a breathable atmosphere. Can hold a colony.",
+    "category": "habitable",
+    "size": 1.0,
+    "colony_slots": 3,
+    "bonus": {"credits": 2},
+    "surface": {"base": "#2c66a0", "accent": "#4f9a5a", "atmosphere": "#7fc4ff"}
+  },
+  "ocean": {
+    "name": "Ocean World",
+    "description": "A planet-wide sea dotted with island chains. Can hold a colony.",
+    "category": "habitable",
+    "size": 1.0,
+    "colony_slots": 3,
+    "bonus": {"credits": 1, "research": 1},
+    "surface": {"base": "#1c4c86", "accent": "#3f8fae", "atmosphere": "#8fd0ff"}
+  },
+  "desert": {
+    "name": "Desert World",
+    "description": "Arid, but breathable at the poles. Can hold a colony.",
+    "category": "habitable",
+    "size": 0.9,
+    "colony_slots": 2,
+    "bonus": {"alloys": 1},
+    "surface": {"base": "#a8703a", "accent": "#e2b86e", "atmosphere": "#f0c890"}
+  },
+  "arctic": {
+    "name": "Arctic World",
+    "description": "Frozen oceans with a thin, cold atmosphere. Can hold a colony.",
+    "category": "habitable",
+    "size": 0.85,
+    "colony_slots": 2,
+    "bonus": {"research": 1},
+    "surface": {"base": "#7fa8c0", "accent": "#e6f2f8", "atmosphere": "#bfe6ff", "ice_caps": 1.0}
+  },
+  "barren": {
+    "name": "Barren Rock",
+    "description": "Airless rock. Good for a mining base or a research outpost.",
+    "category": "rock",
+    "size": 0.6,
+    "bonus": {},
+    "surface": {"base": "#4c4844", "accent": "#8a8580", "atmosphere": "#9aa0aa44"}
+  },
+  "volcanic": {
+    "name": "Volcanic World",
+    "description": "Molten crust rich in heavy metals. Mining here pays extra.",
+    "category": "rock",
+    "size": 0.7,
+    "bonus": {"alloys": 2},
+    "surface": {"base": "#3a1e18", "accent": "#e2582a", "atmosphere": "#ff8a4a66"}
+  },
+  "asteroid_belt": {
+    "name": "Asteroid Belt",
+    "description": "A ring of rubble around the star. Mining only.",
+    "category": "belt",
+    "size": 0.0,
+    "bonus": {"alloys": 1},
+    "surface": {"base": "#6e6258", "accent": "#9a8e82", "atmosphere": "#00000000"}
+  },
+  "gas_giant": {
+    "name": "Gas Giant",
+    "description": "Banded giant. Skim it for fuel or study its storms.",
+    "category": "gas",
+    "size": 1.4,
+    "bonus": {},
+    "surface": {"base": "#a8643a", "accent": "#ecc89c", "atmosphere": "#ffcf9a", "bands": 1.0}
+  },
+  "ice_moon": {
+    "name": "Ice Moon",
+    "description": "Frozen moon with a buried ocean. Ideal for a research station.",
+    "category": "ice",
+    "size": 0.5,
+    "bonus": {"research": 1},
+    "surface": {"base": "#9ab8c8", "accent": "#f0f8ff", "atmosphere": "#cfefff66", "ice_caps": 0.6}
+  }
+}

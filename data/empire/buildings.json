@@ -1,55 +1,58 @@
 {
-  "mine": {
-    "name": "Mining Complex",
-    "description": "+4 alloys per turn.",
-    "cost": {
-      "credits": 40
-    },
+  "colony": {
+    "name": "Colony",
+    "description": "Settle a habitable world. Colonies pay taxes, do some research and can host colony buildings (shipyard, trade hub, defenses).",
+    "on": ["habitable"],
+    "colony": true,
+    "cost": {"credits": 50, "alloys": 30},
+    "turns": 3,
+    "yields": {"credits": 3, "research": 1}
+  },
+  "mining_base": {
+    "name": "Mining Base",
+    "description": "Automated mines on a rocky world or asteroid belt.",
+    "on": ["rock", "belt"],
+    "cost": {"credits": 35},
     "turns": 2,
-    "yields": {
-      "alloys": 4
-    }
+    "yields": {"alloys": 4}
+  },
+  "research_station": {
+    "name": "Research Station",
+    "description": "A sealed science base on an ice moon, gas giant or barren rock.",
+    "on": ["ice", "gas", "rock"],
+    "cost": {"credits": 40, "alloys": 15},
+    "turns": 3,
+    "yields": {"research": 3}
+  },
+  "gas_refinery": {
+    "name": "Gas Refinery",
+    "description": "Skims fuel from a gas giant's upper atmosphere and sells it.",
+    "on": ["gas"],
+    "cost": {"credits": 30, "alloys": 20},
+    "turns": 2,
+    "yields": {"credits": 3, "alloys": 1}
   },
   "trade_hub": {
     "name": "Trade Hub",
-    "description": "+5 credits per turn.",
-    "cost": {
-      "alloys": 30
-    },
+    "description": "Markets and docks. Needs a colony.",
+    "needs": "colony",
+    "cost": {"alloys": 30},
     "turns": 2,
-    "yields": {
-      "credits": 5
-    }
-  },
-  "research_lab": {
-    "name": "Research Lab",
-    "description": "+4 research per turn.",
-    "cost": {
-      "credits": 40,
-      "alloys": 20
-    },
-    "turns": 3,
-    "yields": {
-      "research": 4
-    }
+    "yields": {"credits": 4}
   },
   "shipyard": {
     "name": "Shipyard",
-    "description": "Lets this planet build ships.",
-    "cost": {
-      "credits": 60,
-      "alloys": 60
-    },
+    "description": "Builds ships. Needs a colony.",
+    "needs": "colony",
+    "cost": {"credits": 60, "alloys": 60},
     "turns": 4,
     "shipyard": true
   },
   "defense_platform": {
     "name": "Defense Platform",
-    "description": "Orbital gun platform. Fights any enemy that attacks the planet.",
-    "cost": {
-      "credits": 30,
-      "alloys": 60
-    },
+    "description": "Orbital gun platform. Fights any enemy that attacks the system. Needs a colony.",
+    "needs": "colony",
+    "cost": {"credits": 30, "alloys": 60},
     "turns": 3,
     "requires_tech": "orbital_defenses",
     "defense_unit": "defense_platform"

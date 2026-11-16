@@ -1,7 +1,8 @@
 {
-  "rich_deposits": {"name": "Rich Deposits", "description": "+2 alloys per turn.", "yields": {"alloys": 2}},
-  "ancient_ruins": {"name": "Ancient Ruins", "description": "+2 research per turn.", "yields": {"research": 2}},
-  "trade_crossroads": {"name": "Trade Crossroads", "description": "+3 credits per turn.", "yields": {"credits": 3}},
-  "vast_continents": {"name": "Vast Continents", "description": "+1 building slot.", "slots": 1},
-  "hostile_biosphere": {"name": "Hostile Biosphere", "description": "-1 credits, +1 alloys per turn.", "yields": {"credits": -1, "alloys": 1}}
+  "rich_deposits": {"name": "Rich Deposits", "description": "+2 alloys once developed.", "on": ["rock", "belt", "habitable"], "yields": {"alloys": 2}},
+  "ancient_ruins": {"name": "Ancient Ruins", "description": "+2 research once developed.", "on": ["habitable", "rock", "ice"], "yields": {"research": 2}},
+  "rare_gases": {"name": "Rare Gases", "description": "+3 credits once developed.", "on": ["gas"], "yields": {"credits": 3}},
+  "vast_continents": {"name": "Vast Continents", "description": "+1 colony building slot.", "on": ["habitable"], "slots": 1},
+  "hostile_biosphere": {"name": "Hostile Biosphere", "description": "-1 credits, +1 alloys once developed.", "on": ["habitable"], "yields": {"credits": -1, "alloys": 1}},
+  "subsurface_ocean": {"name": "Subsurface Ocean", "description": "+2 research once developed.", "on": ["ice"], "yields": {"research": 2}}
 }

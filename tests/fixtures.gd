@@ -81,9 +81,11 @@ static func campaign(fleets: Array, extra: Dictionary = {}) -> Dictionary:
 		"map": {"grid": "hex", "width": 10, "height": 6, "terrain": {"nebula": [[5, 0]]}},
 		"factions": [{"id": "a", "controller": "player"}, {"id": "b", "controller": "ai"}],
 		"planets": [
-			{"id": "home_a", "type": "terran", "at": [0, 5], "owner": "a"},
-			{"id": "home_b", "type": "barren", "at": [9, 5], "owner": "b"},
-			{"id": "middle", "type": "ice", "at": [5, 3]},
+			{"id": "home_a", "at": [0, 5], "owner": "a", "star": "yellow",
+				"bodies": [{"type": "terran", "buildings": ["colony"]}, {"type": "barren"}, {"type": "gas_giant"}]},
+			{"id": "home_b", "at": [9, 5], "owner": "b", "star": "red",
+				"bodies": [{"type": "desert", "buildings": ["colony"]}, {"type": "asteroid_belt"}]},
+			{"id": "middle", "at": [5, 3], "star": "white", "bodies": [{"type": "ice_moon"}, {"type": "arctic"}]},
 		],
 		"fleets": fleet_defs,
 	}

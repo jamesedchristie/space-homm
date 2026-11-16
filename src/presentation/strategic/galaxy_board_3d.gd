@@ -12,8 +12,8 @@ extends GalaxyBoard
 
 const SCALE := 1.0 / GridMapView.CELL_SIZE
 ## Where planets and fleets sit inside their hex (back-left / front-right).
-const PLANET_OFFSET := Vector3(-0.22, 0, -0.18)
-const FLEET_OFFSET := Vector3(0.26, 0, 0.24)
+const PLANET_OFFSET := Vector3(-0.12, 0, -0.1)
+const FLEET_OFFSET := Vector3(0.44, 0, 0.4)
 const FOG_HEIGHT := 0.32
 const FOG_SHADER := preload("res://src/presentation/shaders/fog_3d.gdshader")
 

@@ -50,20 +50,32 @@ static func unit_unlocked(engine: GalaxyEngine, faction_id: String, unit_id: Str
 
 # --- Economy ------------------------------------------------------------------
 
-## Per-turn output of a planet: type yields + building yields, times tech multipliers.
+## Per-turn output of a system: every developed body's buildings, plus that
+## body's type bonus and traits, times tech multipliers. Undeveloped bodies
+## produce nothing: a world's riches only pay once you build there.
 static func planet_yields(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 	var out := {}
-	_add(out, engine.data.planet_types.get(planet.type, {}).get("yields", {}))
-	for b in planet.buildings:
-		_add(out, engine.data.buildings.get(b, {}).get("yields", {}))
-	for t in planet.traits:
-		_add(out, engine.data.planet_traits.get(t, {}).get("yields", {}))
+	for b in planet.bodies:
+		_add(out, body_yields(engine, b))
 	if not planet.owner.is_empty():
 		for e in tech_effects(engine, planet.owner, "yield"):
 			if out.has(e["resource"]):
 				out[e["resource"]] = float(out[e["resource"]]) * float(e.get("mul", 1.0))
 	for k: String in out:
 		out[k] = roundi(out[k])
+	return out
+
+
+## Output of one body before tech multipliers.
+static func body_yields(engine: GalaxyEngine, b: Dictionary) -> Dictionary:
+	var out := {}
+	if b["buildings"].is_empty():
+		return out
+	for building_id: String in b["buildings"]:
+		_add(out, engine.data.buildings.get(building_id, {}).get("yields", {}))
+	_add(out, engine.data.body_types.get(b["type"], {}).get("bonus", {}))
+	for t: String in b["traits"]:
+		_add(out, engine.data.planet_traits.get(t, {}).get("yields", {}))
 	return out
 
 
@@ -97,11 +109,51 @@ static func cost_text(engine: GalaxyEngine, cost: Dictionary) -> String:
 
 # --- Colonies -----------------------------------------------------------------
 
+## Build spots in the system: one installation per body, plus each colony's
+## colony-building slots.
 static func slots(engine: GalaxyEngine, planet: Planet) -> int:
-	var n := int(engine.data.planet_types.get(planet.type, {}).get("slots", 2))
-	for t in planet.traits:
+	var n := 0
+	for b in planet.bodies:
+		n += 1
+		if is_habitable(engine, b):
+			n += colony_slots(engine, b)
+	return n
+
+
+static func body_category(engine: GalaxyEngine, b: Dictionary) -> String:
+	return engine.data.body_types.get(b["type"], {}).get("category", "")
+
+
+static func is_habitable(engine: GalaxyEngine, b: Dictionary) -> bool:
+	return body_category(engine, b) == "habitable"
+
+
+## Colony buildings a colonised body can hold (type slots + traits).
+static func colony_slots(engine: GalaxyEngine, b: Dictionary) -> int:
+	var n := int(engine.data.body_types.get(b["type"], {}).get("colony_slots", 0))
+	for t: String in b["traits"]:
 		n += int(engine.data.planet_traits.get(t, {}).get("slots", 0))
 	return n
+
+
+## Why `building_id` can't go on body `b` ("" if it can, ignoring cost and queue).
+static func body_build_error(engine: GalaxyEngine, b: Dictionary, building_id: String) -> String:
+	var def: Dictionary = engine.data.buildings.get(building_id, {})
+	if def.has("on"):
+		if body_category(engine, b) not in def["on"]:
+			return "Can't be built on a %s" % engine.data.body_types.get(b["type"], {}).get("name", b["type"]).to_lower()
+		if not b["buildings"].is_empty():
+			return "This world is already developed"
+		return ""
+	if def.get("needs", "") == "colony":
+		if "colony" not in b["buildings"]:
+			return "Needs a colony on this world"
+		if building_id in b["buildings"]:
+			return "Already built here"
+		if b["buildings"].size() - 1 >= colony_slots(engine, b):
+			return "No free colony slots"
+		return ""
+	return "Can't be built here"
 
 
 static func has_shipyard(engine: GalaxyEngine, planet: Planet) -> bool:
@@ -121,28 +173,39 @@ static func defense_units(engine: GalaxyEngine, planet: Planet) -> Array[String]
 	return out
 
 
-## Everything the planet could start building, with whether it's possible now:
-## [{"kind", "id", "name", "cost", "turns", "ok": bool, "reason": String}]
+## Everything the system could start building, with whether it's possible now:
+## [{"kind", "id", "name", "body": body id or "", "cost", "turns", "ok": bool, "reason": String}]
+## Buildings are only listed for bodies where they make sense.
 static func build_options(engine: GalaxyEngine, planet: Planet) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var faction_id := planet.owner
 	var busy := not planet.queue.is_empty()
-	for b_id: String in engine.data.buildings:
-		var def: Dictionary = engine.data.buildings[b_id]
-		if b_id in planet.buildings or not building_unlocked(engine, faction_id, b_id):
-			continue
-		var reason := ""
-		if planet.buildings.size() >= slots(engine, planet):
-			reason = "No free building slots"
-		out.append(_option(engine, planet, "building", b_id, def.get("name", b_id), def.get("cost", {}),
-				int(def.get("turns", 1)), reason, busy))
+	for b in planet.bodies:
+		for b_id: String in engine.data.buildings:
+			var def: Dictionary = engine.data.buildings[b_id]
+			if not building_unlocked(engine, faction_id, b_id):
+				continue
+			var reason := body_build_error(engine, b, b_id)
+			# Hide what can never go here; show what's merely blocked for now.
+			if def.has("on") and body_category(engine, b) not in def["on"]:
+				continue
+			if def.get("needs", "") == "colony" and "colony" not in b["buildings"]:
+				continue
+			if reason == "Already built here" or reason == "This world is already developed":
+				continue
+			var option := _option(engine, planet, "building", b_id, def.get("name", b_id), def.get("cost", {}),
+					int(def.get("turns", 1)), reason, busy)
+			option["body"] = b["id"]
+			out.append(option)
 	if has_shipyard(engine, planet):
 		for u_id: String in engine.data.units:
 			var strat: Dictionary = engine.data.units[u_id].get("strategic", {})
 			if not strat.has("cost") or not unit_unlocked(engine, faction_id, u_id):
 				continue
-			out.append(_option(engine, planet, "unit", u_id, engine.data.units[u_id].get("name", u_id),
-					strat["cost"], int(strat.get("build_turns", 1)), "", busy))
+			var option := _option(engine, planet, "unit", u_id, engine.data.units[u_id].get("name", u_id),
+					strat["cost"], int(strat.get("build_turns", 1)), "", busy)
+			option["body"] = ""
+			out.append(option)
 	return out
 
 

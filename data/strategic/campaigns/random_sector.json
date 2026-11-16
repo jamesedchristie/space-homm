@@ -107,7 +107,6 @@
       "patrol": {
         "id": "haven",
         "name": "Haven",
-        "type": "terran",
         "sensor": 3,
         "description": "Patrol Group headquarters. Fleets here repair.",
         "buildings": [
@@ -117,20 +116,17 @@
       "raiders": {
         "id": "rustholm",
         "name": "Rustholm",
-        "type": "barren",
         "sensor": 3,
         "description": "Raider stronghold carved into a dead moon.",
         "buildings": [
           "shipyard",
           "trade_hub",
-          "research_lab",
           "defense_platform"
         ]
       },
       "traders": {
         "id": "ardent",
         "name": "Ardent",
-        "type": "terran",
         "sensor": 3,
         "buildings": [
           "shipyard",

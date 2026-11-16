@@ -28,6 +28,8 @@ var _dialog: DialogPanel
 var roster: HeroRoster
 ## Colonies / research / diplomacy overlay.
 var empire: EmpirePanel
+## A star system up close: bodies and building.
+var system_view: SystemView
 
 
 func _ready() -> void:
@@ -158,6 +160,9 @@ func _build() -> void:
 	empire = EmpirePanel.new()
 	UiKit.anchor(empire, 0, 0, 1, 1, 40, TOP_H + 16, -RIGHT_W - 40, -BOTTOM_H - 16)
 	add_child(empire)
+	system_view = SystemView.new()
+	UiKit.anchor(system_view, 0, 0, 1, 1, 30, TOP_H + 12, -RIGHT_W - 30, -BOTTOM_H - 12)
+	add_child(system_view)
 
 	_dialog = DialogPanel.new()
 	_dialog.place(520, 330)

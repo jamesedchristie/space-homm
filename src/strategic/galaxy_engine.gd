@@ -64,15 +64,12 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 		var p := Planet.new()
 		p.id = p_def.get("id", s.make_uid("planet"))
 		p.name = p_def.get("name", p.id)
-		p.type = p_def.get("type", "")
 		p.cell = s.grid.cell_from_layout(_layout(p_def.get("at", [0, 0])))
 		p.owner = p_def.get("owner", "")
 		p.sensor = int(p_def.get("sensor", DEFAULT_PLANET_SENSOR))
-		p.description = p_def.get("description", p_data.planet_types.get(p.type, {}).get("description", ""))
-		for b: String in p_def.get("buildings", []):
-			p.buildings.append(b)
-		for t: String in p_def.get("traits", []):
-			p.traits.append(t)
+		p.star = p_def.get("star", SystemBuilder.random_star(p_data, s.rng))
+		p.bodies = SystemBuilder.bodies_from_def(p_data, p_def, p.name, s.rng)
+		p.description = p_def.get("description", "")
 		s.planets[p.id] = p
 
 	var fleet_by_name := {}
@@ -133,7 +130,8 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 
 
 ## Seeded variety, so no two games of a campaign play the same:
-##   "planet_traits": chance (0..1) that each unowned planet without traits rolls one
+##   "planet_traits": chance (0..1) that each unowned system's undeveloped bodies roll a trait
+##                    (one that suits the body's category)
 ##   "discoveries": {"count", "kinds": [ids] (default all), "min_distance": from planets and fleets}
 func _roll_random_features(random: Dictionary) -> void:
 	var s := state
@@ -145,8 +143,15 @@ func _roll_random_features(random: Dictionary) -> void:
 		ids.sort()
 		for id: String in ids:
 			var p: Planet = s.planets[id]
-			if p.owner.is_empty() and p.traits.is_empty() and s.rng.randf() < chance:
-				p.traits.append(trait_ids[s.rng.randi() % trait_ids.size()])
+			if not p.owner.is_empty():
+				continue  # home systems stay fair
+			for b: Dictionary in p.bodies:
+				if not b["traits"].is_empty() or s.rng.randf() >= chance * 0.5:
+					continue
+				var category := EmpireRules.body_category(self, b)
+				var fits: Array = trait_ids.filter(func(t: String) -> bool: return category in data.planet_traits[t].get("on", []))
+				if not fits.is_empty():
+					b["traits"].append(fits[s.rng.randi() % fits.size()])
 	var spec: Dictionary = random.get("discoveries", {})
 	var count := int(spec.get("count", 0))
 	if count <= 0:
@@ -249,7 +254,8 @@ func validate(cmd: GalaxyCommand) -> String:
 		if planet == null or planet.owner != cmd.faction_id:
 			return "Not your planet"
 		for option in EmpireRules.build_options(self, planet):
-			if option["kind"] == cmd.kind and option["id"] == cmd.item_id:
+			if option["kind"] == cmd.kind and option["id"] == cmd.item_id \
+					and (cmd.kind != "building" or cmd.body_id.is_empty() or option["body"] == cmd.body_id):
 				return option["reason"]
 		return "Can't build that here"
 	elif cmd is DiplomacyCommand:
@@ -431,9 +437,6 @@ func has_pending_battle() -> bool:
 
 ## Tactical map for a battle at `cell`: planet type, then terrain, then default.
 func battle_map_for(cell: Vector2i) -> String:
-	var planet := state.planet_at(cell)
-	if planet != null and data.planet_types.get(planet.type, {}).has("battle_map"):
-		return data.planet_types[planet.type]["battle_map"]
 	var terrain := state.grid.terrain_def(cell)
 	if terrain.has("battle_map"):
 		return terrain["battle_map"]
@@ -560,7 +563,7 @@ func resolve_pending_battle(battle: BattleEngine) -> Array[Dictionary]:
 		for i in platforms_lost:
 			for building_id in planet.buildings:
 				if not data.buildings[building_id].get("defense_unit", "").is_empty():
-					planet.buildings.erase(building_id)
+					planet.remove_building(building_id)
 					break
 
 	var winner := ""
@@ -1091,8 +1094,9 @@ func _run_economy(faction_id: String) -> void:
 		if planet.queue["progress"] < planet.queue["turns"]:
 			continue
 		if planet.queue["kind"] == "building":
-			planet.buildings.append(planet.queue["item"])
-			emit({"type": GalaxyEvents.BUILDING_COMPLETED, "planet": planet.id, "building": planet.queue["item"]})
+			planet.add_building(planet.queue.get("body", ""), planet.queue["item"])
+			emit({"type": GalaxyEvents.BUILDING_COMPLETED, "planet": planet.id, "building": planet.queue["item"],
+					"body": planet.queue.get("body", "")})
 			planet.queue = {}
 		elif _launch_ship(planet, planet.queue["item"]):
 			planet.queue = {}
@@ -1134,7 +1138,13 @@ func _do_queue(cmd: QueueBuildCommand) -> void:
 	var cost: Dictionary = source.get("cost", {})
 	EmpireRules.pay(self, cmd.faction_id, cost)
 	var turns := int(source.get("turns", source.get("build_turns", 1)))
-	planet.queue = {"kind": cmd.kind, "item": cmd.item_id, "progress": 0, "turns": turns}
+	var body_id := cmd.body_id
+	if cmd.kind == "building" and body_id.is_empty():
+		for option in EmpireRules.build_options(self, planet):
+			if option["kind"] == "building" and option["id"] == cmd.item_id and option["ok"]:
+				body_id = option["body"]
+				break
+	planet.queue = {"kind": cmd.kind, "item": cmd.item_id, "body": body_id, "progress": 0, "turns": turns}
 	emit({"type": GalaxyEvents.BUILD_QUEUED, "planet": planet.id, "kind": cmd.kind, "item": cmd.item_id,
 			"turns": turns})
 

@@ -5,7 +5,10 @@
   "max_turns": 150,
   "random": {
     "planet_traits": 0.7,
-    "discoveries": {"count": 7, "min_distance": 2}
+    "discoveries": {
+      "count": 7,
+      "min_distance": 2
+    }
   },
   "briefing": "The Drift is lawless space at the edge of the Patrol's reach. Raiders run it from [b]Rustholm[/b] in the east and prey on anything that moves. The Ceres Free Traders hold [b]Ardent[/b] in the north-east: at peace with you, at war with the raiders.\n\n[b]Goal:[/b] destroy the raiders and take their planets. The campaign ends when one faction stands alone, or when nobody is left at war (then the highest empire score wins).\n\n[b]Getting started[/b]\n- Click a fleet, then a blue hex to move. Move into an enemy fleet to start a battle: fight it yourself or auto-resolve.\n- Move onto unclaimed planets to capture them. Planets produce credits, alloys and research.\n- [b]E[/b] Empire: build queues, research, diplomacy.  [b]H[/b] Heroes.  [b]Space[/b] end turn.  [b]Esc[/b] menu.\n- The Derelict Station (purple crystal) is a mission for a fleet with a ready commander.",
   "battle_max_rounds": 30,
@@ -109,7 +112,6 @@
     {
       "id": "haven",
       "name": "Haven",
-      "type": "terran",
       "at": [
         1,
         5
@@ -117,14 +119,30 @@
       "owner": "patrol",
       "sensor": 3,
       "description": "Patrol Group headquarters. Fleets here repair.",
-      "buildings": [
-        "shipyard"
+      "star": "yellow",
+      "bodies": [
+        {
+          "type": "barren",
+          "buildings": [
+            "mining_base"
+          ]
+        },
+        {
+          "type": "terran",
+          "name": "Haven",
+          "buildings": [
+            "colony",
+            "shipyard"
+          ]
+        },
+        {
+          "type": "ice_moon"
+        }
       ]
     },
     {
       "id": "rustholm",
       "name": "Rustholm",
-      "type": "barren",
       "at": [
         14,
         5
@@ -132,64 +150,144 @@
       "owner": "raiders",
       "sensor": 3,
       "description": "Raider stronghold carved into a dead moon.",
-      "buildings": [
-        "shipyard",
-        "trade_hub",
-        "research_lab",
-        "defense_platform"
+      "star": "red",
+      "bodies": [
+        {
+          "type": "volcanic",
+          "buildings": [
+            "mining_base"
+          ]
+        },
+        {
+          "type": "desert",
+          "name": "Rustholm",
+          "buildings": [
+            "colony",
+            "shipyard",
+            "trade_hub",
+            "defense_platform"
+          ]
+        },
+        {
+          "type": "asteroid_belt",
+          "buildings": [
+            "mining_base"
+          ]
+        }
       ]
     },
     {
       "id": "keplers_reach",
       "name": "Kepler's Reach",
-      "type": "ice",
       "at": [
         5,
         1
+      ],
+      "star": "white",
+      "bodies": [
+        {
+          "type": "arctic",
+          "name": "Kepler's Reach"
+        },
+        {
+          "type": "asteroid_belt"
+        },
+        {
+          "type": "ice_moon"
+        }
       ]
     },
     {
       "id": "tethys",
       "name": "Tethys",
-      "type": "gas_giant",
       "at": [
         6,
         9
+      ],
+      "star": "orange",
+      "bodies": [
+        {
+          "type": "barren"
+        },
+        {
+          "type": "gas_giant",
+          "name": "Tethys"
+        },
+        {
+          "type": "ice_moon"
+        }
       ]
     },
     {
       "id": "vesper",
       "name": "Vesper",
-      "type": "desert",
       "at": [
         8,
         5
+      ],
+      "star": "yellow",
+      "bodies": [
+        {
+          "type": "volcanic"
+        },
+        {
+          "type": "desert",
+          "name": "Vesper"
+        },
+        {
+          "type": "barren"
+        }
       ]
     },
     {
       "id": "ardent",
       "name": "Ardent",
-      "type": "terran",
       "at": [
         10,
         1
       ],
       "owner": "traders",
       "sensor": 3,
-      "buildings": [
-        "shipyard",
-        "trade_hub",
-        "defense_platform"
-      ],
-      "description": "Free Trader port. Neutral to the Patrol, hated by the raiders."
+      "description": "Free Trader port. Neutral to the Patrol, hated by the raiders.",
+      "star": "yellow",
+      "bodies": [
+        {
+          "type": "terran",
+          "name": "Ardent",
+          "buildings": [
+            "colony",
+            "shipyard",
+            "trade_hub",
+            "defense_platform"
+          ]
+        },
+        {
+          "type": "gas_giant",
+          "buildings": [
+            "gas_refinery"
+          ]
+        }
+      ]
     },
     {
       "id": "orison",
       "name": "Orison",
-      "type": "ice",
       "at": [
         11,
         9
+      ],
+      "star": "blue",
+      "bodies": [
+        {
+          "type": "arctic",
+          "name": "Orison"
+        },
+        {
+          "type": "asteroid_belt"
+        },
+        {
+          "type": "ice_moon"
+        }
       ]
     }
   ],
