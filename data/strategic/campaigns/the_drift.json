@@ -494,6 +494,33 @@
         8
       ],
       "mission": "silent_relay"
+    },
+    {
+      "id": "freighter",
+      "name": "Smuggler's Freighter",
+      "at": [
+        3,
+        6
+      ],
+      "mission": "smugglers_freighter"
+    },
+    {
+      "id": "plague_lab",
+      "name": "Plague Lab",
+      "at": [
+        12,
+        7
+      ],
+      "mission": "plague_lab"
+    },
+    {
+      "id": "wreck",
+      "name": "Wreck Field",
+      "at": [
+        12,
+        2
+      ],
+      "mission": "wreck_ambush"
     }
   ],
   "relations": [

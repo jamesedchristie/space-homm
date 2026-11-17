@@ -1,0 +1,29 @@
+{
+  "id": "spore_lash",
+  "name": "Spore Lash",
+  "description": "A burst of infected tissue and spores. Leaves the target contaminated.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    3
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        8,
+        12
+      ],
+      "damage_type": "kinetic"
+    },
+    {
+      "type": "apply_status",
+      "status": "contaminated",
+      "duration": 3
+    }
+  ],
+  "fx": "projectile"
+}

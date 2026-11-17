@@ -1,0 +1,473 @@
+{
+  "id": "wreck_ambush",
+  "name": "Ambush at the Wreck",
+  "type": "ground",
+  "description": "A freighter broke up over a dead moon and her cargo is scattered across the surface. It looks like a salvage job. The raiders who have been watching it from the ridges know that, too. Dig in inside the hull and hold on until the shuttle can lift you out.",
+  "map": "wreck_field",
+  "squad_size": 3,
+  "marine_unit": "marine",
+  "duration": 2,
+  "max_rounds": 20,
+  "requires_hero": true,
+  "recommended_level": 2,
+  "enemy_name": "Ridge Raiders",
+  "eliminate_all_wins": false,
+  "enemies": [
+    {
+      "unit": "boarder",
+      "name": "Raider",
+      "at": [
+        14,
+        5
+      ],
+      "alert": true
+    },
+    {
+      "unit": "boarder",
+      "name": "Raider",
+      "at": [
+        13,
+        8
+      ],
+      "alert": true
+    },
+    {
+      "unit": "raider_sniper",
+      "name": "Ridge Sniper",
+      "at": [
+        14,
+        0
+      ],
+      "alert": true
+    }
+  ],
+  "objectives": [
+    {
+      "type": "survive_rounds",
+      "rounds": 9,
+      "description": "Hold the wreck for 9 rounds until the shuttle lifts you out"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "black_box",
+      "cells": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          7
+        ]
+      ],
+      "title": "Flight Recorder",
+      "text": "The freighter's black box is still bolted under the control deck, ticking with residual power. Its data would be worth good money, and so would the people who want to keep it quiet.",
+      "choices": [
+        {
+          "label": "Pull the recorder core",
+          "check": {
+            "skill": "tech",
+            "difficulty": 3
+          },
+          "text": "The core comes out clean. The last minutes of the freighter's flight include a raider hail and a map of their camps.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 40,
+              "research": 35,
+              "intel": 1
+            }
+          ],
+          "fail_text": "The recorder's emergency beacon pings, and every raider on the moon knows where you are.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 10
+            },
+            {
+              "type": "effect",
+              "to": "unit",
+              "effect": {
+                "type": "apply_status",
+                "status": "marked",
+                "duration": 3
+              }
+            }
+          ]
+        },
+        {
+          "label": "Leave it",
+          "text": "You've got other problems.",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "scavenger",
+      "cells": [
+        [
+          5,
+          5
+        ],
+        [
+          5,
+          6
+        ]
+      ],
+      "title": "Wounded Scavenger",
+      "text": "A scavenger from the freighter crew is wedged behind a bulkhead, bleeding badly. “Raiders... they watched us crash. They're waiting for dark.”",
+      "choices": [
+        {
+          "label": "Make him tell you everything",
+          "check": {
+            "skill": "command",
+            "difficulty": 3
+          },
+          "text": "He tells you where they'll come from and how many. The squad shifts to cover the breach.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 35,
+              "loyalty": 5
+            },
+            {
+              "type": "effect",
+              "to": "squad",
+              "effect": {
+                "type": "apply_status",
+                "status": "braced",
+                "duration": 4
+              }
+            }
+          ],
+          "fail_text": "He babbles in pain, and what he says makes no sense. You lose precious time.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 10
+            }
+          ]
+        },
+        {
+          "label": "Patch him up",
+          "text": "Medical gel, a pressure dressing. He thanks you in a whisper. It costs time, but the squad respects it.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 20,
+              "loyalty": 10
+            },
+            {
+              "type": "effect",
+              "to": "unit",
+              "effect": {
+                "type": "apply_status",
+                "status": "disabled",
+                "duration": 1
+              }
+            }
+          ]
+        },
+        {
+          "label": "Leave him",
+          "text": "There is no time. The squad says nothing.",
+          "effects": [
+            {
+              "type": "reward",
+              "loyalty": -10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "east_door",
+      "cells": [
+        [
+          10,
+          5
+        ],
+        [
+          10,
+          6
+        ]
+      ],
+      "title": "East Hatch",
+      "text": "The east hatch is buckled but still seals, if someone can force it into its frame before the raiders get there.",
+      "choices": [
+        {
+          "label": "Brace the hatch",
+          "check": {
+            "skill": "combat",
+            "difficulty": 2
+          },
+          "text": "A pry bar and a shoulder. The hatch stays shut, and the squad takes position behind it.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 25
+            },
+            {
+              "type": "effect",
+              "to": "squad",
+              "effect": {
+                "type": "apply_status",
+                "status": "braced",
+                "duration": 4
+              }
+            }
+          ],
+          "fail_text": "The hatch jams half open. You have wasted the time.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 5
+            }
+          ]
+        },
+        {
+          "label": "Leave it",
+          "text": "It will have to do.",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "snare",
+      "cells": [
+        [
+          3,
+          5
+        ],
+        [
+          3,
+          6
+        ]
+      ],
+      "title": "Tripwire",
+      "text": "A salvage snare charge, left by raiders under the wreck's torn skin. The charge goes off under your boot.",
+      "effects": [
+        {
+          "type": "effect",
+          "to": "unit",
+          "effect": {
+            "type": "apply_status",
+            "status": "hull_breach",
+            "duration": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "skiff_west",
+      "round": 2,
+      "title": "Skiff From the West",
+      "text": "A raider skiff screams in over the ridge and drops its boarders on the crash scar. Two of them head straight for the torn hull.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "boarder",
+              "name": "Raider",
+              "at": [
+                0,
+                5
+              ]
+            },
+            {
+              "unit": "boarder",
+              "name": "Raider",
+              "at": [
+                0,
+                6
+              ]
+            },
+            {
+              "unit": "boarder",
+              "name": "Raider",
+              "at": [
+                1,
+                9
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drones_south",
+      "round": 4,
+      "title": "Drones From the South",
+      "text": "Two automated wreck-hunters whine out of the south ravine. The raiders must have woken their old salvage drones.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "sentry_drone",
+              "name": "Salvage Drone",
+              "at": [
+                6,
+                11
+              ]
+            },
+            {
+              "unit": "sentry_drone",
+              "name": "Salvage Drone",
+              "at": [
+                10,
+                11
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ridge_north",
+      "round": 5,
+      "title": "North Ridge",
+      "text": "A second sniper opens up from the north ridge. The raiders want the hull door shut with you inside it.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "raider_sniper",
+              "name": "Ridge Sniper",
+              "at": [
+                4,
+                0
+              ]
+            },
+            {
+              "unit": "boarder",
+              "name": "Raider",
+              "at": [
+                7,
+                0
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chief",
+      "round": 7,
+      "title": "The Raider Chief",
+      "text": "“Send them out! We'll take what's left.” The raider chief herself leads the last rush from the east.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "smuggler_captain",
+              "name": "Raider Chief",
+              "at": [
+                15,
+                5
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "rewards": {
+    "xp": 140,
+    "items": [
+      "heavy_plating"
+    ]
+  },
+  "on_failure": {
+    "mission": "wreck_rescue",
+    "name": "Salvage Camp"
+  },
+  "caches": {
+    "count": 2,
+    "title": "Cargo Crate",
+    "loot": [
+      {
+        "weight": 3,
+        "text": "A crew locker: someone's savings, in credit chips.",
+        "rewards": {
+          "credits": 35
+        }
+      },
+      {
+        "weight": 3,
+        "text": "Spare parts, neatly crated.",
+        "rewards": {
+          "alloys": 30
+        }
+      },
+      {
+        "weight": 2,
+        "text": "A data slate full of engineering notes.",
+        "rewards": {
+          "research": 25
+        }
+      },
+      {
+        "weight": 1,
+        "text": "A sealed case of grenades.",
+        "rewards": {
+          "items": [
+            "frag_grenade"
+          ]
+        }
+      },
+      {
+        "weight": 1,
+        "text": "A field medic's kit, still stocked.",
+        "rewards": {
+          "items": [
+            "medkit"
+          ]
+        }
+      },
+      {
+        "weight": 2,
+        "text": "Raider nav logs: patrol routes and the systems they come from.",
+        "rewards": {
+          "intel": 1
+        }
+      }
+    ]
+  },
+  "loot": [
+    {
+      "weight": 3,
+      "text": "The freighter's scattered cargo is worth picking up.",
+      "rewards": {
+        "credits": 90
+      }
+    },
+    {
+      "weight": 3,
+      "text": "Hull plating and engine parts, bundled up for the shuttle.",
+      "rewards": {
+        "alloys": 55
+      }
+    },
+    {
+      "weight": 2,
+      "text": "The raiders' dropped comms packs hold their ridge rendezvous.",
+      "rewards": {
+        "intel": 1
+      }
+    },
+    {
+      "weight": 1,
+      "text": "A dead raider's fine carbine.",
+      "rewards": {
+        "items": [
+          "assault_rifle"
+        ]
+      }
+    }
+  ]
+}

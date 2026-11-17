@@ -1,0 +1,35 @@
+{
+  "id": "raider_sniper",
+  "name": "Raider Sniper",
+  "description": "Long-sighted raider with a scoped railcarbine. Frail up close.",
+  "tags": [
+    "infantry"
+  ],
+  "stats": {
+    "max_hull": 30,
+    "max_shields": 10,
+    "armor": 0,
+    "initiative": 7,
+    "max_ap": 4,
+    "sight": 9
+  },
+  "abilities": [
+    "aimed_shot",
+    "overwatch"
+  ],
+  "visual": {
+    "placeholder": "boarder",
+    "sprite": "",
+    "size": 0.9,
+    "model": "boarder"
+  },
+  "stat_names": {
+    "hull": "Health",
+    "shields": "Shields"
+  },
+  "aptitudes": {
+    "combat": 1,
+    "command": 0,
+    "tech": 0
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "contaminated",
+  "name": "Contaminated",
+  "description": "Spore infection: takes 3 hull damage at the start of each turn, ignoring shields and armor.",
+  "on_turn_start": [
+    {
+      "type": "damage",
+      "amount": 3,
+      "damage_type": "kinetic",
+      "bypass_shields": true,
+      "ignore_armor": true
+    }
+  ],
+  "ai_value": -8
+}
