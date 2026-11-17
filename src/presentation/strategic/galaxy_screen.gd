@@ -587,7 +587,13 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 			and engine.state.fleet_at(_hover).owner == player_faction and _hover != fleet.cell:
 		text = "Join %s (merge fleets, %d moves)" % [engine.state.fleet_at(_hover).name, _reach[_hover]["cost"]]
 	elif _hover != null and _hover in _attack_cells:
-		text = "Attack %s here" % engine.state.fleet_at(_hover).name
+		var target_fleet := engine.state.fleet_at(_hover)
+		var target_system := engine.state.planet_at(_hover)
+		if target_fleet != null:
+			text = "Attack %s here" % target_fleet.name
+		elif target_system != null:
+			text = "Assault the defenses of %s (%d platform(s))" % [target_system.name,
+					EmpireRules.defense_units(engine, target_system).size()]
 	elif _hover != null and _reach.has(_hover) and _hover != fleet.cell:
 		text = "Move here: %d of %d moves" % [_reach[_hover]["cost"], fleet.moves_left]
 	else:
