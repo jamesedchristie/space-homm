@@ -341,3 +341,18 @@ func test_damage_over_time_ignores_cover_and_flanking() -> void:
 	for effect_def: Dictionary in e.data.statuses["hull_breach"]["on_turn_start"]:
 		e._apply_effect(effect_def, source, target)
 	assert_eq(before - target.hull, 6, "5 kinetic vs hull (x1.2), whatever the attacker's angle was")
+
+
+func test_wiped_squad_loses_even_with_waves_pending() -> void:
+	var trigger := {"id": "wave", "team": 0, "round": 3,
+		"effects": [{"type": "spawn", "units": [{"unit": "test_dummy", "at": [7, 5], "team": 1}]}]}
+	var e := _engine(_scenario([{"unit": "test_fast_dummy", "at": [0, 4]}],
+			[{"unit": "test_dummy", "at": [7, 0]}],
+			{"triggers": [trigger], "objectives": [{"type": "survive_rounds", "team": 0, "rounds": 4}]}))
+	for u in e.state.living_units(0):
+		u.hull = 0
+		u.alive = false
+	e.state.version += 1
+	e.submit(EndTurnCommand.new(e.state.active_unit_id))
+	assert_true(e.state.is_over, "nobody is left to reinforce")
+	assert_eq(e.state.winner, 1)
