@@ -102,7 +102,9 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 
 	# 2b. Regroup: a small fleet with nothing to attack joins a friendly fleet
 	# it can reach this turn (bigger fleets win more battles).
-	if target == null and fleet.ships.size() < MUSTER_SIZE and fleet.hero_id.is_empty():
+	# (Barbarians don't: they raid in small packs.)
+	if target == null and fleet.ships.size() < MUSTER_SIZE and fleet.hero_id.is_empty() \
+			and s.faction(fleet.owner).get("role", "major") != "barbarian":
 		var reach := engine.reachable_for(fleet.id)
 		var best_join: Fleet = null
 		for other: Fleet in s.fleets_of(fleet.owner):

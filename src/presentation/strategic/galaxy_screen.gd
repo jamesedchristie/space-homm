@@ -871,8 +871,13 @@ func _describe(e: Dictionary) -> String:
 		GalaxyEvents.SYSTEM_PLUNDERED:
 			if e["previous_owner"] != player_faction:
 				return ""
-			return UiKit.color_tag("   Raiders plundered %s: %d credits stolen%s" % [s.planets[e["planet"]].name, e["credits"],
-					(", %s wrecked" % data.buildings[e["building"]]["name"]) if not e["building"].is_empty() else ""], Palette.BAD)
+			var losses := PackedStringArray()
+			if int(e["credits"]) > 0:
+				losses.append("%d credits stolen" % e["credits"])
+			if not e["building"].is_empty():
+				losses.append("%s wrecked" % data.buildings[e["building"]]["name"])
+			losses.append("the system is lost")
+			return UiKit.color_tag("   Raiders plundered %s: %s" % [s.planets[e["planet"]].name, ", ".join(losses)], Palette.BAD)
 		GalaxyEvents.DEN_CLEARED:
 			if e["faction"] != player_faction:
 				return ""
