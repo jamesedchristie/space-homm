@@ -258,11 +258,16 @@ func validate(cmd: GalaxyCommand) -> String:
 		var planet: Planet = state.planets.get(cmd.planet_id)
 		if planet == null or planet.owner != cmd.faction_id:
 			return "Not your planet"
+		var refusal := "Can't build that here"
 		for option in EmpireRules.build_options(self, planet):
 			if option["kind"] == cmd.kind and option["id"] == cmd.item_id \
 					and (cmd.kind != "building" or cmd.body_id.is_empty() or option["body"] == cmd.body_id):
-				return option["reason"]
-		return "Can't build that here"
+				if option["ok"]:
+					return ""
+				# No body named: any body that fits will do, so report the first reason only if none does.
+				if refusal == "Can't build that here":
+					refusal = option["reason"]
+		return refusal
 	elif cmd is DiplomacyCommand:
 		return _validate_diplomacy(cmd)
 	elif cmd is SplitFleetCommand:
@@ -860,6 +865,8 @@ func _do_move(cmd: MoveFleetCommand) -> void:
 				enemy = occupant
 				ambush = next != cmd.to
 			break  # a fleet we're at peace with blocks the way
+		if occupant != null and occupant != fleet:
+			break  # own fleet that can no longer be joined (e.g. a find filled the fleet): stop short
 		if is_defended_against(state.planet_at(next), fleet.owner):
 			defended = state.planet_at(next)
 			break

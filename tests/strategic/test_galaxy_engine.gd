@@ -268,3 +268,33 @@ func test_body_traits_change_yields_and_slots() -> void:
 	assert_eq(EmpireRules.planet_yields(e, home).get("alloys", 0), int(base.get("alloys", 0)) + 4 + 2)
 	colony["traits"].append("vast_continents")
 	assert_eq(EmpireRules.colony_slots(e, colony), slots + 1)
+
+
+func test_queue_without_body_accepts_any_body_that_fits() -> void:
+	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 9, 0]], {"planets": [
+		{"id": "home_a", "at": [0, 5], "owner": "a", "bodies": [
+			{"type": "desert", "buildings": ["colony", "shipyard", "defense_platform"]},
+			{"type": "terran", "buildings": ["colony"]}]},
+		{"id": "home_b", "at": [9, 5], "owner": "b", "bodies": [{"type": "desert", "buildings": ["colony"]}]}]})
+	e.state.resources["a"]["alloys"] = 100
+	e.state.research["a"]["known"].append("orbital_defenses")
+	var planet: Planet = e.state.planets["home_a"]
+	var cmd := QueueBuildCommand.new("a", "home_a", "building", "trade_hub")
+	assert_eq(e.validate(cmd), "", "the second colony has a free slot")
+	assert_true(e.submit(cmd).ok)
+	assert_eq(planet.queue.get("body", ""), planet.bodies[1]["id"])
+
+
+func test_merge_target_filled_by_discovery_ship_blocks_instead_of_stacking() -> void:
+	var e := Fixtures.galaxy([["a", "test_fast_dummy", 1, 2], ["a", "test_dummy", 4, 2], ["b", "test_dummy", 9, 0]])
+	e.data.discoveries["test_ship"] = {"name": "Hulk", "outcomes": [{"weight": 1, "rewards": {"ship": "interceptor"}}]}
+	var mover := e.state.fleets_of("a")[0]
+	var other := e.state.fleets_of("a")[1]
+	for i in EmpireRules.MAX_FLEET_SIZE - 2:
+		mover.ships.append(mover.ships[0].duplicate())
+	e.state.discoveries["d1"] = {"id": "d1", "kind": "test_ship", "cell": _cell(e, 3, 2)}
+	assert_true(e.reachable_for(mover.id).has(other.cell), "merge looks possible before the find")
+	var result := e.submit(MoveFleetCommand.new("a", mover.id, other.cell))
+	assert_true(result.ok, result.error)
+	assert_ne(mover.cell, other.cell, "two fleets must never share a cell")
+	assert_true(e.state.fleets.has(mover.id), "no merge: it would exceed the fleet size")
