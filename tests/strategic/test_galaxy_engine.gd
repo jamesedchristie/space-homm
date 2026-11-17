@@ -298,3 +298,12 @@ func test_merge_target_filled_by_discovery_ship_blocks_instead_of_stacking() -> 
 	assert_true(result.ok, result.error)
 	assert_ne(mover.cell, other.cell, "two fleets must never share a cell")
 	assert_true(e.state.fleets.has(mover.id), "no merge: it would exceed the fleet size")
+
+
+func test_heroes_leave_a_lost_system() -> void:
+	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 9, 0]], {"heroes": [
+		{"id": "h", "class": "technician", "owner": "a", "planet": "home_a"}]})
+	e.state.planets["middle"].owner = "a"
+	e._capture_planet(e.state.planets["home_a"], _fleet_of(e, "b"))
+	assert_eq(e.state.planets["home_a"].owner, "b")
+	assert_eq(e.state.heroes["h"].planet_id, "middle", "the hero falls back to a system their faction still holds")

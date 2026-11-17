@@ -1045,11 +1045,23 @@ func _capture_planet(planet: Planet, fleet: Fleet) -> void:
 		emit({"type": GalaxyEvents.DEN_CLEARED, "planet": planet.id, "faction": fleet.owner, "loot": loot})
 	planet.owner = fleet.owner
 	planet.queue = {}
+	_evacuate_heroes(planet, previous)
 	DiplomacyRules.change_opinion(state, previous, fleet.owner, DiplomacyRules.PLANET_TAKEN_OPINION)
 	emit({"type": GalaxyEvents.PLANET_CAPTURED, "planet": planet.id, "faction": fleet.owner,
 			"previous_owner": previous, "fleet": fleet.id})
 	_update_explored()
 	_check_eliminations()
+
+
+## Heroes waiting at a system its owner just lost fall back to the owner's
+## first remaining planet (with none left they stay put, ready for a recapture).
+func _evacuate_heroes(planet: Planet, previous: String) -> void:
+	var home := state.home_planet(previous) if not previous.is_empty() else null
+	if home == null:
+		return
+	for h in state.heroes_of(previous):
+		if h.planet_id == planet.id:
+			h.planet_id = home.id
 
 
 func _begin_faction_turn() -> void:
@@ -1152,6 +1164,7 @@ func _plunder(planet: Planet, fleet: Fleet) -> void:
 		planet.remove_building(wrecked)
 	planet.queue = {}
 	planet.owner = ""
+	_evacuate_heroes(planet, previous)
 	DiplomacyRules.change_opinion(state, previous, fleet.owner, DiplomacyRules.PLANET_TAKEN_OPINION)
 	emit({"type": GalaxyEvents.SYSTEM_PLUNDERED, "planet": planet.id, "faction": fleet.owner, "previous_owner": previous,
 			"credits": stolen, "building": wrecked})
