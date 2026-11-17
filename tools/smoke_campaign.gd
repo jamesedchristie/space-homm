@@ -2,7 +2,8 @@ extends SceneTree
 ## Smoke test for the full game flow: runs the main scene with autoplay on
 ## and "watch battles" so battles involving the player are played on the real
 ## battle screen, then handed back to the galaxy. Passes if the campaign ends
-## and at least one battle and one mission went through the battle screen.
+## and at least one battle and one mission went through the battle screen
+## (whoever wins: in The Drift scenario a loss ends with no winner).
 ##   godot --headless --path . -s res://tools/smoke_campaign.gd
 
 var _game: Node
@@ -43,7 +44,7 @@ func _process(_delta: float) -> bool:
 		var winner: String = engine.state.winner
 		print("Campaign finished on turn %d, winner '%s', %d battle(s) played on the battle screen (%d mission(s))" % [
 				engine.state.turn_number, winner, _battles_seen, _missions_seen])
-		quit(0 if _battles_seen > 0 and _missions_seen > 0 and winner != "" else 1)
+		quit(0 if _battles_seen > 0 and _missions_seen > 0 else 1)  # a loss (no winner) still exercises the flow
 	elif _frames > 200000:
 		printerr("Campaign did not finish (turn %d)" % engine.state.turn_number)
 		quit(1)
