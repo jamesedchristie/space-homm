@@ -330,3 +330,14 @@ func test_random_caches_are_placed_and_pay_out() -> void:
 	a.submit(MoveCommand.new(me.id, cells[0]))
 	assert_eq(a.state.rewards.size(), 1)
 	assert_eq(a.state.rewards[0]["credits"], 30)
+
+
+func test_damage_over_time_ignores_cover_and_flanking() -> void:
+	# Source stands where the half cover at (6, 5) would shield the target from an attack.
+	var e := _engine(_scenario([{"unit": "test_fast_dummy", "at": [7, 3]}], [{"unit": "test_dummy", "at": [5, 5]}]))
+	var source := e.state.active_unit()
+	var target := e.state.living_enemies_of(source)[0]
+	var before := target.hull
+	for effect_def: Dictionary in e.data.statuses["hull_breach"]["on_turn_start"]:
+		e._apply_effect(effect_def, source, target)
+	assert_eq(before - target.hull, 6, "5 kinetic vs hull (x1.2), whatever the attacker's angle was")
