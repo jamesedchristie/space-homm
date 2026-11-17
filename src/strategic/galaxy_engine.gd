@@ -258,11 +258,16 @@ func validate(cmd: GalaxyCommand) -> String:
 		var planet: Planet = state.planets.get(cmd.planet_id)
 		if planet == null or planet.owner != cmd.faction_id:
 			return "Not your planet"
+		var refusal := "Can't build that here"
 		for option in EmpireRules.build_options(self, planet):
 			if option["kind"] == cmd.kind and option["id"] == cmd.item_id \
 					and (cmd.kind != "building" or cmd.body_id.is_empty() or option["body"] == cmd.body_id):
-				return option["reason"]
-		return "Can't build that here"
+				if option["ok"]:
+					return ""
+				# No body named: any body that fits will do, so report the first reason only if none does.
+				if refusal == "Can't build that here":
+					refusal = option["reason"]
+		return refusal
 	elif cmd is DiplomacyCommand:
 		return _validate_diplomacy(cmd)
 	elif cmd is SplitFleetCommand:
@@ -860,6 +865,8 @@ func _do_move(cmd: MoveFleetCommand) -> void:
 				enemy = occupant
 				ambush = next != cmd.to
 			break  # a fleet we're at peace with blocks the way
+		if occupant != null and occupant != fleet:
+			break  # own fleet that can no longer be joined (e.g. a find filled the fleet): stop short
 		if is_defended_against(state.planet_at(next), fleet.owner):
 			defended = state.planet_at(next)
 			break
@@ -1038,11 +1045,23 @@ func _capture_planet(planet: Planet, fleet: Fleet) -> void:
 		emit({"type": GalaxyEvents.DEN_CLEARED, "planet": planet.id, "faction": fleet.owner, "loot": loot})
 	planet.owner = fleet.owner
 	planet.queue = {}
+	_evacuate_heroes(planet, previous)
 	DiplomacyRules.change_opinion(state, previous, fleet.owner, DiplomacyRules.PLANET_TAKEN_OPINION)
 	emit({"type": GalaxyEvents.PLANET_CAPTURED, "planet": planet.id, "faction": fleet.owner,
 			"previous_owner": previous, "fleet": fleet.id})
 	_update_explored()
 	_check_eliminations()
+
+
+## Heroes waiting at a system its owner just lost fall back to the owner's
+## first remaining planet (with none left they stay put, ready for a recapture).
+func _evacuate_heroes(planet: Planet, previous: String) -> void:
+	var home := state.home_planet(previous) if not previous.is_empty() else null
+	if home == null:
+		return
+	for h in state.heroes_of(previous):
+		if h.planet_id == planet.id:
+			h.planet_id = home.id
 
 
 func _begin_faction_turn() -> void:
@@ -1145,6 +1164,7 @@ func _plunder(planet: Planet, fleet: Fleet) -> void:
 		planet.remove_building(wrecked)
 	planet.queue = {}
 	planet.owner = ""
+	_evacuate_heroes(planet, previous)
 	DiplomacyRules.change_opinion(state, previous, fleet.owner, DiplomacyRules.PLANET_TAKEN_OPINION)
 	emit({"type": GalaxyEvents.SYSTEM_PLUNDERED, "planet": planet.id, "faction": fleet.owner, "previous_owner": previous,
 			"credits": stolen, "building": wrecked})

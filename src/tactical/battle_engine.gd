@@ -774,15 +774,17 @@ func _check_objectives() -> void:
 			_finish(result, "objective")
 			return
 	# Safety net: a battle with no opponents left always ends, unless timed
-	# reinforcements are still to come.
-	if state.teams_alive().size() == 0 or (state.teams_alive().size() == 1 and not _timed_triggers_pending()):
+	# reinforcements are still to come for the survivors (a wiped-out squad
+	# can't be reinforced: the battle is lost now).
+	var survivors := state.teams_alive()
+	if survivors.size() == 0 or (survivors.size() == 1 and not _timed_triggers_pending(survivors[0])):
 		var alive := state.teams_alive()
 		_finish(alive[0] if alive.size() == 1 else BattleState.DRAW, "elimination")
 
 
-func _timed_triggers_pending() -> bool:
+func _timed_triggers_pending(team: int) -> bool:
 	for t in state.triggers:
-		if t.has("round") and not t["fired"]:
+		if t.has("round") and not t["fired"] and int(t.get("team", 0)) == team:
 			return true
 	return false
 
