@@ -1,0 +1,758 @@
+{
+  "id": "plague_lab",
+  "name": "Plague Lab",
+  "type": "ground",
+  "description": "A research station went dark under quarantine seal, and something is still moving in its vents. The vault holds the only copy of the research. Go in, take what you can and be back at the evacuation lock before the infection finishes waking up.",
+  "map": "plague_lab",
+  "squad_size": 3,
+  "marine_unit": "marine",
+  "duration": 2,
+  "max_rounds": 30,
+  "requires_hero": true,
+  "recommended_level": 2,
+  "enemy_name": "The Infected",
+  "enemies": [
+    {
+      "unit": "infected_crew",
+      "name": "Lab Technician",
+      "at": [
+        9,
+        10
+      ],
+      "group": "hall"
+    },
+    {
+      "unit": "infected_drone",
+      "name": "Infected Drone",
+      "at": [
+        8,
+        5
+      ],
+      "group": "hall"
+    },
+    {
+      "unit": "infected_crew",
+      "name": "Lab Technician",
+      "at": [
+        6,
+        6
+      ],
+      "group": "hall"
+    },
+    {
+      "unit": "infected_crew",
+      "name": "Ward Patient",
+      "at": [
+        1,
+        2
+      ],
+      "group": "ward_a"
+    },
+    {
+      "unit": "infected_drone",
+      "name": "Infected Drone",
+      "at": [
+        2,
+        4
+      ],
+      "group": "ward_a"
+    },
+    {
+      "unit": "sentry_drone",
+      "name": "Vault Security",
+      "at": [
+        8,
+        1
+      ],
+      "group": "vault"
+    },
+    {
+      "unit": "infected_crew",
+      "name": "Ward Patient",
+      "at": [
+        13,
+        1
+      ],
+      "group": "ward_b"
+    },
+    {
+      "unit": "infected_drone",
+      "name": "Infected Drone",
+      "at": [
+        14,
+        5
+      ],
+      "group": "ward_b"
+    },
+    {
+      "unit": "infected_drone",
+      "name": "Infected Drone",
+      "at": [
+        15,
+        2
+      ],
+      "group": "ward_b"
+    }
+  ],
+  "objectives": [
+    {
+      "type": "reach_cells",
+      "cells": [
+        [
+          15,
+          9
+        ],
+        [
+          15,
+          10
+        ],
+        [
+          15,
+          11
+        ]
+      ],
+      "description": "Reach the evacuation lock"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "decon",
+      "cells": [
+        [
+          3,
+          9
+        ],
+        [
+          3,
+          10
+        ]
+      ],
+      "title": "Decon Locker",
+      "text": "Hazmat suits hang in a sealed locker beside the dock. Their seals are old.",
+      "choices": [
+        {
+          "label": "Check the seals and suit up",
+          "check": {
+            "skill": "tech",
+            "difficulty": 2
+          },
+          "text": "Every seal tested, every suit sound. The squad moves with a little more confidence.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 25
+            },
+            {
+              "type": "effect",
+              "to": "squad",
+              "effect": {
+                "type": "apply_status",
+                "status": "braced",
+                "duration": 5
+              }
+            }
+          ],
+          "fail_text": "Two of the three suits are perished. You make do.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 10
+            },
+            {
+              "type": "effect",
+              "to": "unit",
+              "effect": {
+                "type": "apply_status",
+                "status": "braced",
+                "duration": 3
+              }
+            }
+          ]
+        },
+        {
+          "label": "No time",
+          "text": "You go in as you are.",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "vents",
+      "cells": [
+        [
+          6,
+          4
+        ],
+        [
+          5,
+          4
+        ],
+        [
+          5,
+          5
+        ]
+      ],
+      "title": "Vent Control",
+      "text": "The air handling panel is live. Whatever is in the vents answers to it: purge the ducts now, or the station will do it for you later.",
+      "choices": [
+        {
+          "label": "Purge the ducts",
+          "check": {
+            "skill": "tech",
+            "difficulty": 3
+          },
+          "text": "Hot air floods the ducts and the scratching dies away. Maintenance logs go straight to your research team.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 45,
+              "research": 20
+            }
+          ],
+          "fail_text": "The purge jams and the vents burst open. Infected drones pour out of the ducts.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 10
+            },
+            {
+              "type": "spawn",
+              "units": [
+                {
+                  "unit": "infected_drone",
+                  "name": "Vent Crawler",
+                  "at": [
+                    6,
+                    6
+                  ]
+                },
+                {
+                  "unit": "infected_drone",
+                  "name": "Vent Crawler",
+                  "at": [
+                    9,
+                    6
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Weld the hatches shut",
+          "check": {
+            "skill": "combat",
+            "difficulty": 2
+          },
+          "text": "Slag and a few tense minutes. The nearest hatches are sealed for good.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 25
+            }
+          ],
+          "fail_text": "The weld pops, spraying spores across you.",
+          "fail_effects": [
+            {
+              "type": "effect",
+              "to": "unit",
+              "effect": {
+                "type": "apply_status",
+                "status": "contaminated",
+                "duration": 3
+              }
+            }
+          ]
+        },
+        {
+          "label": "Leave the vents",
+          "text": "Not your problem yet.",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "vault",
+      "cells": [
+        [
+          7,
+          0
+        ],
+        [
+          8,
+          0
+        ]
+      ],
+      "title": "The Data Vault",
+      "text": "The vault console glows. The full research archive is here behind a quarantine lock, and so is the vault's security system.",
+      "choices": [
+        {
+          "label": "Crack the vault",
+          "check": {
+            "skill": "tech",
+            "difficulty": 4
+          },
+          "text": "The lock yields. The archive is complete: formulae, containment protocols, and an armoured harness the lab designed for its own security staff.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 60,
+              "research": 70,
+              "intel": 1,
+              "items": [
+                "barrier_harness"
+              ]
+            }
+          ],
+          "fail_text": "The lock trips a lab-wide containment alert, and the vault ducts burst.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 15
+            },
+            {
+              "type": "alert",
+              "group": "vault"
+            },
+            {
+              "type": "effect",
+              "to": "unit",
+              "effect": {
+                "type": "apply_status",
+                "status": "contaminated",
+                "duration": 3
+              }
+            },
+            {
+              "type": "spawn",
+              "units": [
+                {
+                  "unit": "infected_drone",
+                  "name": "Vault Crawler",
+                  "at": [
+                    6,
+                    2
+                  ]
+                },
+                {
+                  "unit": "infected_drone",
+                  "name": "Vault Crawler",
+                  "at": [
+                    9,
+                    2
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Copy the summary",
+          "check": {
+            "skill": "tech",
+            "difficulty": 2
+          },
+          "text": "A quick copy of the executive summary. Not the full archive, but enough.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 25,
+              "research": 25
+            }
+          ],
+          "fail_text": "The copy is corrupted, and the security drone notices.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 5
+            },
+            {
+              "type": "alert",
+              "group": "vault"
+            }
+          ]
+        },
+        {
+          "label": "Leave",
+          "text": "You leave the vault sealed.",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "researcher",
+      "cells": [
+        [
+          1,
+          5
+        ],
+        [
+          1,
+          6
+        ]
+      ],
+      "title": "Sealed Researcher",
+      "text": "A researcher is huddled in a pressure cell, tapping on the glass. “I'm clean! Look at me! Please don't leave me in here.”",
+      "choices": [
+        {
+          "label": "Talk her through decontamination",
+          "check": {
+            "skill": "command",
+            "difficulty": 3
+          },
+          "text": "Slow, calm, step by step. She walks out clean and gives you the access codes for the vault.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 40,
+              "loyalty": 10,
+              "intel": 1
+            }
+          ],
+          "fail_text": "She panics, slams the release and runs. The noise wakes the ward.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 10
+            },
+            {
+              "type": "alert",
+              "group": "ward_a"
+            }
+          ]
+        },
+        {
+          "label": "Leave her sealed",
+          "text": "Quarantine rules are quarantine rules. The squad does not say anything.",
+          "effects": [
+            {
+              "type": "reward",
+              "loyalty": -5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "patient_zero",
+      "cells": [
+        [
+          12,
+          1
+        ],
+        [
+          12,
+          0
+        ]
+      ],
+      "title": "Specimen Tank",
+      "text": "The first sample is still alive in its tank, a grey mass pulsing under the glass. Whatever it is, it started this.",
+      "choices": [
+        {
+          "label": "Extract a sample",
+          "check": {
+            "skill": "tech",
+            "difficulty": 3
+          },
+          "text": "The sample is isolated, sealed and in your hands. The research will be worth the risk.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 35,
+              "research": 40
+            }
+          ],
+          "fail_text": "The seal tears and spores burst out. The ward wakes.",
+          "fail_effects": [
+            {
+              "type": "alert",
+              "group": "ward_b"
+            },
+            {
+              "type": "effect",
+              "to": "unit",
+              "effect": {
+                "type": "apply_status",
+                "status": "contaminated",
+                "duration": 3
+              }
+            }
+          ]
+        },
+        {
+          "label": "Burn it",
+          "text": "A thermite charge. The tank goes up and takes the nearest evidence with it.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 20,
+              "loyalty": 5
+            }
+          ]
+        },
+        {
+          "label": "Leave it",
+          "text": "You step away from the glass.",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "decon_lock",
+      "cells": [
+        [
+          13,
+          8
+        ],
+        [
+          14,
+          8
+        ]
+      ],
+      "title": "Decontamination Lock",
+      "text": "The exit lock requires a full decontamination cycle. The infection is not far behind you.",
+      "choices": [
+        {
+          "label": "Run a rapid cycle",
+          "check": {
+            "skill": "tech",
+            "difficulty": 2
+          },
+          "text": "Hot mist, then clean air. The lock cycles in seconds, and nothing comes through with you.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 30
+            }
+          ],
+          "fail_text": "The cycle stalls halfway and the squad is bathed in spores.",
+          "fail_effects": [
+            {
+              "type": "effect",
+              "to": "squad",
+              "effect": {
+                "type": "apply_status",
+                "status": "contaminated",
+                "duration": 3
+              }
+            }
+          ]
+        },
+        {
+          "label": "Run through the lock",
+          "text": "No time. You push through the half-open seals.",
+          "effects": [
+            {
+              "type": "effect",
+              "to": "unit",
+              "effect": {
+                "type": "apply_status",
+                "status": "contaminated",
+                "duration": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wave_south",
+      "round": 4,
+      "title": "Vents Rupture",
+      "text": "Across the lab, vent covers fall off. Infected drones are streaming out of the ducts behind you.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "infected_drone",
+              "name": "Vent Swarm",
+              "at": [
+                5,
+                11
+              ]
+            },
+            {
+              "unit": "infected_drone",
+              "name": "Vent Swarm",
+              "at": [
+                6,
+                10
+              ]
+            },
+            {
+              "unit": "infected_drone",
+              "name": "Vent Swarm",
+              "at": [
+                5,
+                9
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wave_west",
+      "round": 7,
+      "title": "Ward Breach",
+      "text": "The west ward door splinters. Whatever was in there is loose, and moving fast.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "infected_drone",
+              "name": "Ward Swarm",
+              "at": [
+                3,
+                4
+              ]
+            },
+            {
+              "unit": "infected_drone",
+              "name": "Ward Swarm",
+              "at": [
+                3,
+                6
+              ]
+            },
+            {
+              "unit": "infected_crew",
+              "name": "Ward Patient",
+              "at": [
+                2,
+                5
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wave_exit",
+      "round": 10,
+      "title": "Containment Failure",
+      "text": "Alarms on every deck. The bay doors cycle and the infection pours out of the last sealed ducts, right at the exit.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "infected_drone",
+              "name": "Last Swarm",
+              "at": [
+                12,
+                10
+              ]
+            },
+            {
+              "unit": "infected_drone",
+              "name": "Last Swarm",
+              "at": [
+                14,
+                9
+              ]
+            },
+            {
+              "unit": "infected_crew",
+              "name": "Last Patient",
+              "at": [
+                13,
+                10
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "rewards": {
+    "xp": 150,
+    "research": 30
+  },
+  "caches": {
+    "count": 2,
+    "title": "Supply Locker",
+    "loot": [
+      {
+        "weight": 3,
+        "text": "A crew locker: someone's savings, in credit chips.",
+        "rewards": {
+          "credits": 35
+        }
+      },
+      {
+        "weight": 3,
+        "text": "Spare parts, neatly crated.",
+        "rewards": {
+          "alloys": 30
+        }
+      },
+      {
+        "weight": 2,
+        "text": "A data slate full of engineering notes.",
+        "rewards": {
+          "research": 25
+        }
+      },
+      {
+        "weight": 1,
+        "text": "A sealed case of grenades.",
+        "rewards": {
+          "items": [
+            "frag_grenade"
+          ]
+        }
+      },
+      {
+        "weight": 1,
+        "text": "A field medic's kit, still stocked.",
+        "rewards": {
+          "items": [
+            "medkit"
+          ]
+        }
+      },
+      {
+        "weight": 2,
+        "text": "Raider nav logs: patrol routes and the systems they come from.",
+        "rewards": {
+          "intel": 1
+        }
+      }
+    ]
+  },
+  "loot": [
+    {
+      "weight": 3,
+      "text": "Clean sample cases and sealed reagents.",
+      "rewards": {
+        "research": 40
+      }
+    },
+    {
+      "weight": 2,
+      "text": "The lab's emergency stores.",
+      "rewards": {
+        "alloys": 40
+      }
+    },
+    {
+      "weight": 2,
+      "text": "Quarantine logs: where the infection came from.",
+      "rewards": {
+        "intel": 1
+      }
+    },
+    {
+      "weight": 1,
+      "text": "A sealed field surgery kit.",
+      "rewards": {
+        "items": [
+          "medkit"
+        ]
+      }
+    }
+  ]
+}

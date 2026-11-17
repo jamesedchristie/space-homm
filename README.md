@@ -17,6 +17,11 @@ and Mass Effect-style hero missions, all built on **one shared tactical engine**
   reinforcements and objectives. A failed mission turns into a rescue mission for captured heroes.
   *The Drift* has two: the **Derelict Station** (reach the data core) and the **Silent Relay**
   (hold the relay room for 8 rounds against raider waves), each with its own rescue follow-up.
+  Three more squad missions add variety: **Smuggler's Freighter** (board a cargo ship, fight
+  through its holds, and choose between a hostage and the cargo), **Plague Lab** (a quarantined
+  station run mostly on Tech checks, with infected drones breaking out in timed waves while you
+  reach the evacuation lock) and **Ambush at the Wreck** (survive raiders arriving from every
+  side of a crash site; failure leaves a rescue mission at the raiders' salvage camp).
 - **Step 4 (done):** empire systems. Credits, alloys and research from planets and buildings;
   build queues for buildings and ships; a tech tree (ship upgrades, faster fleets, sensors,
   yields, defense platforms, the Destroyer); a third faction, the Ceres Free Traders, with

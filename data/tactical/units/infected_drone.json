@@ -1,0 +1,29 @@
+{
+  "id": "infected_drone",
+  "name": "Infected Drone",
+  "description": "A lab drone running on corrupted firmware and something growing in its casing. Fast and fragile.",
+  "tags": [
+    "drone"
+  ],
+  "stats": {
+    "max_hull": 22,
+    "max_shields": 0,
+    "armor": 0,
+    "initiative": 9,
+    "max_ap": 5,
+    "sight": 6
+  },
+  "abilities": [
+    "spore_lash"
+  ],
+  "visual": {
+    "placeholder": "drone",
+    "sprite": "",
+    "size": 0.6,
+    "model": "drone"
+  },
+  "stat_names": {
+    "hull": "Chassis",
+    "shields": "Shields"
+  }
+}

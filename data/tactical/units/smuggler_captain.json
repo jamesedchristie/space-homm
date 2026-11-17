@@ -1,0 +1,36 @@
+{
+  "id": "smuggler_captain",
+  "name": "Smuggler Captain",
+  "description": "A veteran blockade runner. Hard to hit, harder to bargain with.",
+  "tags": [
+    "infantry"
+  ],
+  "stats": {
+    "max_hull": 50,
+    "max_shields": 20,
+    "armor": 1,
+    "initiative": 7,
+    "max_ap": 4,
+    "sight": 6
+  },
+  "abilities": [
+    "boarder_shotgun",
+    "rifle_burst",
+    "overwatch"
+  ],
+  "visual": {
+    "placeholder": "boarder",
+    "sprite": "",
+    "size": 1.05,
+    "model": "boarder"
+  },
+  "stat_names": {
+    "hull": "Health",
+    "shields": "Shields"
+  },
+  "aptitudes": {
+    "combat": 2,
+    "command": 2,
+    "tech": 0
+  }
+}

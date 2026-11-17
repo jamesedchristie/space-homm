@@ -1,0 +1,116 @@
+{
+  "id": "wreck_rescue",
+  "name": "Salvage Camp",
+  "type": "ground",
+  "description": "The raiders dragged your people off the moon and into their salvage camp, working them for ransom. Go in quietly, or loudly, and get them out.",
+  "map": "derelict_deck",
+  "squad_size": 3,
+  "marine_unit": "marine",
+  "duration": 2,
+  "max_rounds": 25,
+  "requires_hero": false,
+  "recommended_level": 1,
+  "enemy_name": "Camp Guards",
+  "enemies": [
+    {
+      "unit": "boarder",
+      "name": "Guard",
+      "at": [
+        6,
+        2
+      ],
+      "group": "mid"
+    },
+    {
+      "unit": "boarder",
+      "name": "Guard",
+      "at": [
+        12,
+        8
+      ],
+      "group": "aft"
+    },
+    {
+      "unit": "raider_sniper",
+      "name": "Lookout",
+      "at": [
+        12,
+        2
+      ],
+      "group": "aft"
+    }
+  ],
+  "objectives": [
+    {
+      "type": "reach_cells",
+      "cells": [
+        [
+          13,
+          4
+        ],
+        [
+          13,
+          5
+        ]
+      ],
+      "description": "Reach the holding pen"
+    }
+  ],
+  "triggers": [],
+  "rewards": {
+    "xp": 80,
+    "free_captives": true
+  },
+  "caches": {
+    "count": 1,
+    "title": "Supply Locker",
+    "loot": [
+      {
+        "weight": 3,
+        "text": "A crew locker: someone's savings, in credit chips.",
+        "rewards": {
+          "credits": 35
+        }
+      },
+      {
+        "weight": 3,
+        "text": "Spare parts, neatly crated.",
+        "rewards": {
+          "alloys": 30
+        }
+      },
+      {
+        "weight": 2,
+        "text": "A data slate full of engineering notes.",
+        "rewards": {
+          "research": 25
+        }
+      },
+      {
+        "weight": 1,
+        "text": "A sealed case of grenades.",
+        "rewards": {
+          "items": [
+            "frag_grenade"
+          ]
+        }
+      },
+      {
+        "weight": 1,
+        "text": "A field medic's kit, still stocked.",
+        "rewards": {
+          "items": [
+            "medkit"
+          ]
+        }
+      },
+      {
+        "weight": 2,
+        "text": "Raider nav logs: patrol routes and the systems they come from.",
+        "rewards": {
+          "intel": 1
+        }
+      }
+    ]
+  }
+}

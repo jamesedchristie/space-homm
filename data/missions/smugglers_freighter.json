@@ -1,0 +1,353 @@
+{
+  "id": "smugglers_freighter",
+  "name": "Smuggler's Freighter",
+  "type": "ground",
+  "description": "A blockade runner is dead in the water with her running lights off, and her crew has stopped answering hails. Board her at the stern, fight forward through the holds and take the bridge. Someone aboard may still be alive.",
+  "map": "freighter_deck",
+  "squad_size": 3,
+  "marine_unit": "marine",
+  "duration": 2,
+  "max_rounds": 30,
+  "requires_hero": true,
+  "recommended_level": 1,
+  "enemy_name": "Smuggler Crew",
+  "enemies": [
+    {
+      "unit": "smuggler",
+      "name": "Hold Guard",
+      "at": [
+        8,
+        1
+      ],
+      "group": "hold1"
+    },
+    {
+      "unit": "smuggler",
+      "name": "Hired Breacher",
+      "at": [
+        8,
+        7
+      ],
+      "group": "hold1"
+    },
+    {
+      "unit": "smuggler",
+      "name": "Cargo Guard",
+      "at": [
+        14,
+        1
+      ],
+      "group": "hold2"
+    },
+    {
+      "unit": "sentry_drone",
+      "name": "Cargo Loader",
+      "at": [
+        15,
+        4
+      ],
+      "group": "hold2"
+    },
+    {
+      "unit": "smuggler_deckhand",
+      "name": "Bridge Hand",
+      "at": [
+        18,
+        1
+      ],
+      "group": "bridge"
+    },
+    {
+      "unit": "smuggler_captain",
+      "name": "Captain Vael",
+      "at": [
+        18,
+        4
+      ],
+      "group": "bridge"
+    }
+  ],
+  "objectives": [
+    {
+      "type": "reach_cells",
+      "cells": [
+        [
+          19,
+          3
+        ],
+        [
+          19,
+          4
+        ],
+        [
+          19,
+          5
+        ]
+      ],
+      "description": "Reach the bridge"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "manifest",
+      "cells": [
+        [
+          5,
+          7
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "title": "Cargo Manifest",
+      "text": "A dock terminal still shows the manifest: sealed medical crates, no origin. Whatever the cargo really is, someone in the next hold is guarding it.",
+      "choices": [
+        {
+          "label": "Pull the guard rota",
+          "check": {
+            "skill": "tech",
+            "difficulty": 3
+          },
+          "text": "The rota shows a shift change in the aft hold. You know where the guards stand and what they carry.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 35
+            },
+            {
+              "type": "effect",
+              "to": "squad",
+              "effect": {
+                "type": "apply_status",
+                "status": "rallied",
+                "duration": 3
+              }
+            }
+          ],
+          "fail_text": "The terminal squeals a hail-tone. The next hold is awake.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 10
+            },
+            {
+              "type": "alert",
+              "group": "hold2"
+            }
+          ]
+        },
+        {
+          "label": "Leave it",
+          "text": "Not worth the time.",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "hostage",
+      "cells": [
+        [
+          13,
+          3
+        ],
+        [
+          13,
+          4
+        ],
+        [
+          13,
+          5
+        ]
+      ],
+      "title": "Hostage or Cargo",
+      "text": "Behind the container stack, a bound deckhand. “They are selling us as cargo.” Beside him, a crate stencilled MEDICAL has a lock that is worth more than the whole boarding party.",
+      "choices": [
+        {
+          "label": "Order the guards to stand down",
+          "check": {
+            "skill": "command",
+            "difficulty": 3
+          },
+          "text": "Your voice carries the whole deck. The guards lower their weapons and the deckhand walks out beside you. The squad sees how you did it.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 40,
+              "loyalty": 10,
+              "intel": 1
+            },
+            {
+              "type": "effect",
+              "to": "squad",
+              "effect": {
+                "type": "apply_status",
+                "status": "rallied",
+                "duration": 3
+              }
+            }
+          ],
+          "fail_text": "A guard fires a warning shot. The captain heard every word, and he is ready.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 10,
+              "loyalty": 3
+            },
+            {
+              "type": "alert",
+              "group": "hold2"
+            },
+            {
+              "type": "alert",
+              "group": "bridge"
+            }
+          ]
+        },
+        {
+          "label": "Cut him free and push on",
+          "text": "He crawls toward the stern. It costs nothing but a few seconds, and the squad notes it.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 25,
+              "loyalty": 5
+            }
+          ]
+        },
+        {
+          "label": "Take the cargo and go",
+          "text": "The crate holds smuggled stims, alloy ingots and a ledger. The deckhand's pleading follows you forward.",
+          "effects": [
+            {
+              "type": "reward",
+              "credits": 90,
+              "alloys": 30,
+              "loyalty": -10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "second_boat",
+      "cells": [
+        [
+          10,
+          2
+        ],
+        [
+          10,
+          6
+        ]
+      ],
+      "title": "Second Boat",
+      "text": "A thump through the hull: another skiff has clamped onto the stern airlock. Smugglers are coming in behind you.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "smuggler_deckhand",
+              "name": "Boarding Party",
+              "at": [
+                3,
+                4
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "rewards": {
+    "xp": 130,
+    "items": [
+      "shotgun"
+    ]
+  },
+  "caches": {
+    "count": 2,
+    "title": "Supply Locker",
+    "loot": [
+      {
+        "weight": 3,
+        "text": "A crew locker: someone's savings, in credit chips.",
+        "rewards": {
+          "credits": 35
+        }
+      },
+      {
+        "weight": 3,
+        "text": "Spare parts, neatly crated.",
+        "rewards": {
+          "alloys": 30
+        }
+      },
+      {
+        "weight": 2,
+        "text": "A data slate full of engineering notes.",
+        "rewards": {
+          "research": 25
+        }
+      },
+      {
+        "weight": 1,
+        "text": "A sealed case of grenades.",
+        "rewards": {
+          "items": [
+            "frag_grenade"
+          ]
+        }
+      },
+      {
+        "weight": 1,
+        "text": "A field medic's kit, still stocked.",
+        "rewards": {
+          "items": [
+            "medkit"
+          ]
+        }
+      },
+      {
+        "weight": 2,
+        "text": "Raider nav logs: patrol routes and the systems they come from.",
+        "rewards": {
+          "intel": 1
+        }
+      }
+    ]
+  },
+  "loot": [
+    {
+      "weight": 3,
+      "text": "The ship's strongbox and a day's worth of fuel.",
+      "rewards": {
+        "credits": 100
+      }
+    },
+    {
+      "weight": 2,
+      "text": "The salvage teams strip the cargo bays.",
+      "rewards": {
+        "alloys": 50
+      }
+    },
+    {
+      "weight": 2,
+      "text": "The captain's logbook names the buyers.",
+      "rewards": {
+        "intel": 1
+      }
+    },
+    {
+      "weight": 1,
+      "text": "A smuggled medical crate, genuinely medical.",
+      "rewards": {
+        "items": [
+          "medkit"
+        ]
+      }
+    }
+  ]
+}

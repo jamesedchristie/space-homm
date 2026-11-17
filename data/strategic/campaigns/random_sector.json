@@ -427,6 +427,21 @@
         "id": "relay",
         "name": "Silent Relay",
         "mission": "silent_relay"
+      },
+      {
+        "id": "freighter",
+        "name": "Smuggler's Freighter",
+        "mission": "smugglers_freighter"
+      },
+      {
+        "id": "plague_lab",
+        "name": "Plague Lab",
+        "mission": "plague_lab"
+      },
+      {
+        "id": "wreck",
+        "name": "Wreck Field",
+        "mission": "wreck_ambush"
       }
     ],
     "planet_names": [

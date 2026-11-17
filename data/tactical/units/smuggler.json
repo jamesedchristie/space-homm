@@ -1,0 +1,35 @@
+{
+  "id": "smuggler",
+  "name": "Smuggler Gunhand",
+  "description": "Hired freighter muscle with a carbine and a bad attitude about inspections.",
+  "tags": [
+    "infantry"
+  ],
+  "stats": {
+    "max_hull": 32,
+    "max_shields": 10,
+    "armor": 1,
+    "initiative": 6,
+    "max_ap": 4,
+    "sight": 6
+  },
+  "abilities": [
+    "rifle_burst",
+    "overwatch"
+  ],
+  "visual": {
+    "placeholder": "boarder",
+    "sprite": "",
+    "size": 0.95,
+    "model": "boarder"
+  },
+  "stat_names": {
+    "hull": "Health",
+    "shields": "Shields"
+  },
+  "aptitudes": {
+    "combat": 1,
+    "command": 0,
+    "tech": 0
+  }
+}
