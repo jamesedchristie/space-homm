@@ -61,7 +61,7 @@ static func unit_unlocked(engine: GalaxyEngine, faction_id: String, unit_id: Str
 static func planet_yields(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 	var out := {}
 	for b in planet.bodies:
-		_add(out, body_yields(engine, b))
+		_add(out, body_yields(engine, b, planet.owner))
 	if not planet.owner.is_empty():
 		for e in tech_effects(engine, planet.owner, "yield"):
 			if out.has(e["resource"]):
@@ -71,8 +71,9 @@ static func planet_yields(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 	return out
 
 
-## Output of one body before tech multipliers.
-static func body_yields(engine: GalaxyEngine, b: Dictionary) -> Dictionary:
+## Output of one body before tech multipliers. `faction_id` (the owner) adds
+## the faction's "body_bonus" tech effects; leave it empty for base output.
+static func body_yields(engine: GalaxyEngine, b: Dictionary, faction_id: String = "") -> Dictionary:
 	var out := {}
 	if b["buildings"].is_empty():
 		return out
@@ -81,7 +82,24 @@ static func body_yields(engine: GalaxyEngine, b: Dictionary) -> Dictionary:
 	_add(out, engine.data.body_types.get(b["type"], {}).get("bonus", {}))
 	for t: String in b["traits"]:
 		_add(out, engine.data.planet_traits.get(t, {}).get("yields", {}))
+	if not faction_id.is_empty():
+		for e in tech_effects(engine, faction_id, "body_bonus"):
+			if body_bonus_applies(engine, b, e):
+				_add(out, e.get("yields", {}))
 	return out
+
+
+## Whether a "body_bonus" tech effect covers body `b`: it must match one of
+## the effect's "body_types" / "categories" (an effect naming neither matches
+## every body) and, if the effect names a "building", have that building.
+static func body_bonus_applies(engine: GalaxyEngine, b: Dictionary, effect: Dictionary) -> bool:
+	var types: Array = effect.get("body_types", [])
+	var categories: Array = effect.get("categories", [])
+	if (not types.is_empty() or not categories.is_empty()) \
+			and b["type"] not in types and body_category(engine, b) not in categories:
+		return false
+	var building: String = effect.get("building", "")
+	return building.is_empty() or building in b["buildings"]
 
 
 ## Credits a faction earns from trade with friendly minor powers: at peace
@@ -136,7 +154,7 @@ static func slots(engine: GalaxyEngine, planet: Planet) -> int:
 	for b in planet.bodies:
 		n += 1
 		if is_habitable(engine, b):
-			n += colony_slots(engine, b)
+			n += colony_slots(engine, b, planet.owner)
 	return n
 
 
@@ -148,16 +166,21 @@ static func is_habitable(engine: GalaxyEngine, b: Dictionary) -> bool:
 	return body_category(engine, b) == "habitable"
 
 
-## Colony buildings a colonised body can hold (type slots + traits).
-static func colony_slots(engine: GalaxyEngine, b: Dictionary) -> int:
+## Colony buildings a colonised body can hold (type slots + traits + the
+## owner's "body_bonus" tech effects).
+static func colony_slots(engine: GalaxyEngine, b: Dictionary, faction_id: String = "") -> int:
 	var n := int(engine.data.body_types.get(b["type"], {}).get("colony_slots", 0))
 	for t: String in b["traits"]:
 		n += int(engine.data.planet_traits.get(t, {}).get("slots", 0))
+	if not faction_id.is_empty():
+		for e in tech_effects(engine, faction_id, "body_bonus"):
+			if body_bonus_applies(engine, b, e):
+				n += int(e.get("colony_slots", 0))
 	return n
 
 
 ## Why `building_id` can't go on body `b` ("" if it can, ignoring cost and queue).
-static func body_build_error(engine: GalaxyEngine, b: Dictionary, building_id: String) -> String:
+static func body_build_error(engine: GalaxyEngine, b: Dictionary, building_id: String, faction_id: String = "") -> String:
 	var def: Dictionary = engine.data.buildings.get(building_id, {})
 	if def.has("on"):
 		if body_category(engine, b) not in def["on"]:
@@ -170,7 +193,7 @@ static func body_build_error(engine: GalaxyEngine, b: Dictionary, building_id: S
 			return "Needs a colony on this world"
 		if building_id in b["buildings"]:
 			return "Already built here"
-		if b["buildings"].size() - 1 >= colony_slots(engine, b):
+		if b["buildings"].size() - 1 >= colony_slots(engine, b, faction_id):
 			return "No free colony slots"
 		return ""
 	return "Can't be built here"
@@ -205,7 +228,7 @@ static func build_options(engine: GalaxyEngine, planet: Planet) -> Array[Diction
 			var def: Dictionary = engine.data.buildings[b_id]
 			if not building_unlocked(engine, faction_id, b_id):
 				continue
-			var reason := body_build_error(engine, b, b_id)
+			var reason := body_build_error(engine, b, b_id, faction_id)
 			# Hide what can never go here; show what's merely blocked for now.
 			if def.has("on") and body_category(engine, b) not in def["on"]:
 				continue

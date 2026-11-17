@@ -110,5 +110,60 @@
         "add": 0.15
       }
     ]
+  },
+  "terraforming": {
+    "name": "Terraforming",
+    "description": "Desert and arctic worlds hold one more colony building.",
+    "cost": 70,
+    "requires": [
+      "deep_space_sensors"
+    ],
+    "effects": [
+      {"type": "body_bonus", "body_types": ["desert", "arctic"], "colony_slots": 1}
+    ]
+  },
+  "orbital_habitats": {
+    "name": "Orbital Habitats",
+    "description": "Every colony yields +1 credits.",
+    "cost": 90,
+    "requires": [
+      "terraforming"
+    ],
+    "effects": [
+      {"type": "body_bonus", "categories": ["habitable"], "building": "colony", "yields": {"credits": 1}}
+    ]
+  },
+  "asteroid_refining": {
+    "name": "Asteroid Refining",
+    "description": "Mining bases on asteroid belts yield +2 alloys.",
+    "cost": 70,
+    "requires": [
+      "automated_mining"
+    ],
+    "effects": [
+      {"type": "body_bonus", "body_types": ["asteroid_belt"], "building": "mining_base", "yields": {"alloys": 2}}
+    ]
+  },
+  "deep_core_taps": {
+    "name": "Deep Core Taps",
+    "description": "Mining bases on volcanic worlds yield +2 alloys (doubling their bonus).",
+    "cost": 90,
+    "requires": [
+      "asteroid_refining"
+    ],
+    "effects": [
+      {"type": "body_bonus", "body_types": ["volcanic"], "building": "mining_base", "yields": {"alloys": 2}}
+    ]
+  },
+  "cryogenic_labs": {
+    "name": "Cryogenic Labs",
+    "description": "Research stations on ice moons and gas giants yield +2 research.",
+    "cost": 60,
+    "requires": [
+      "deep_space_sensors"
+    ],
+    "effects": [
+      {"type": "body_bonus", "body_types": ["ice_moon", "gas_giant"], "building": "research_station", "yields": {"research": 2}}
+    ]
   }
 }

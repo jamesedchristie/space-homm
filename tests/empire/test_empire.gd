@@ -272,3 +272,86 @@ func test_only_major_powers_win() -> void:
 	e._check_eliminations()
 	assert_true(e.state.is_over)
 	assert_eq(e.state.winner, "", "no major power left: nobody wins")
+
+
+# --- Colony techs (body_bonus) ------------------------------------------------
+
+func _with_tech(tech_id: String) -> GalaxyEngine:
+	return Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 8, 2]],
+			_rich({"techs": {"a": [tech_id]}, "planets": _planets_with([])}))
+
+
+func test_body_bonus_techs_are_valid_content() -> void:
+	var data := DataRegistry.get_default()
+	assert_eq(data.errors.size(), 0, "\n".join(data.errors))
+	for id: String in ["terraforming", "orbital_habitats", "asteroid_refining", "deep_core_taps", "cryogenic_labs"]:
+		assert_true(data.techs.has(id), id)
+	var bad := Fixtures.registry()
+	bad.techs["bad"] = {"name": "Bad", "cost": 1, "effects": [{"type": "body_bonus", "body_types": ["nope"]}]}
+	bad.validate()
+	assert_true("unknown body type" in "\n".join(bad.errors))
+	assert_true("gives nothing" in "\n".join(bad.errors))
+
+
+func test_terraforming_adds_colony_slots_on_desert_and_arctic_only() -> void:
+	var e := _with_tech("terraforming")
+	var terran: Dictionary = e.state.planets["home_a"].bodies[0]
+	var desert: Dictionary = e.state.planets["home_b"].bodies[0]
+	assert_eq(EmpireRules.colony_slots(e, terran, "a"), EmpireRules.colony_slots(e, terran), "terran worlds unchanged")
+	assert_eq(EmpireRules.colony_slots(e, desert, "a"), EmpireRules.colony_slots(e, desert) + 1)
+	assert_eq(EmpireRules.colony_slots(e, desert, "b"), EmpireRules.colony_slots(e, desert), "only the researcher benefits")
+	assert_eq(EmpireRules.slots(e, e.state.planets["home_b"]), EmpireRules.slots(_with_tech("reinforced_hulls"), _with_tech("reinforced_hulls").state.planets["home_b"]),
+			"b's own slots are unchanged")
+
+
+func test_orbital_habitats_pay_per_colony() -> void:
+	var plain := _with_tech("reinforced_hulls")
+	var e := _with_tech("orbital_habitats")
+	assert_eq(EmpireRules.planet_yields(e, e.state.planets["home_a"])["credits"],
+			EmpireRules.planet_yields(plain, plain.state.planets["home_a"])["credits"] + 1)
+	assert_eq(EmpireRules.planet_yields(e, e.state.planets["home_b"])["credits"],
+			EmpireRules.planet_yields(plain, plain.state.planets["home_b"])["credits"], "b doesn't know the tech")
+
+
+func test_asteroid_refining_needs_a_mining_base_on_a_belt() -> void:
+	var e := _with_tech("asteroid_refining")
+	var rock: Dictionary = e.state.planets["home_a"].bodies[1]
+	rock["buildings"].append("mining_base")
+	assert_eq(EmpireRules.body_yields(e, rock, "a")["alloys"], 4, "rocks don't get the belt bonus")
+	var belt: Dictionary = e.state.planets["home_b"].bodies[1]
+	assert_eq(EmpireRules.body_yields(e, belt, "a"), {}, "undeveloped")
+	belt["buildings"].append("mining_base")
+	assert_eq(EmpireRules.body_yields(e, belt, "a")["alloys"], 4 + 1 + 2, "mine 4 + belt bonus 1 + tech 2")
+	assert_eq(EmpireRules.body_yields(e, belt, "b")["alloys"], 4 + 1)
+	assert_eq(EmpireRules.body_yields(e, belt)["alloys"], 5, "no faction: base output")
+
+
+func test_deep_core_taps_boost_volcanic_mines() -> void:
+	var e := _with_tech("deep_core_taps")
+	var rock: Dictionary = e.state.planets["home_a"].bodies[1]
+	rock["type"] = "volcanic"
+	rock["buildings"].append("mining_base")
+	assert_eq(EmpireRules.body_yields(e, rock, "a")["alloys"], 4 + 2 + 2)
+	rock["type"] = "barren"
+	assert_eq(EmpireRules.body_yields(e, rock, "a")["alloys"], 4)
+
+
+func test_cryogenic_labs_boost_research_stations_on_ice_and_gas() -> void:
+	var e := _with_tech("cryogenic_labs")
+	var ice: Dictionary = e.state.planets["middle"].bodies[0]
+	ice["buildings"].append("research_station")
+	assert_eq(EmpireRules.body_yields(e, ice, "a")["research"], 3 + 1 + 2)
+	var gas: Dictionary = e.state.planets["home_a"].bodies[1]
+	gas["type"] = "gas_giant"
+	gas["buildings"].append("gas_refinery")
+	assert_false(EmpireRules.body_yields(e, gas, "a").has("research"), "a refinery isn't a research station")
+	gas["buildings"] = ["research_station"]
+	assert_eq(EmpireRules.body_yields(e, gas, "a")["research"], 3 + 2, "gas giant station gets the bonus")
+
+
+func test_colony_tech_prerequisites() -> void:
+	var e := _with_tech("reinforced_hulls")
+	assert_eq(ResearchRules.status(e, "a", "deep_core_taps"), ResearchRules.LOCKED)
+	assert_eq(ResearchRules.status(e, "a", "orbital_habitats"), ResearchRules.LOCKED)
+	assert_eq(ResearchRules.status(e, "a", "terraforming"), ResearchRules.LOCKED, "needs sensors")
+	assert_eq(ResearchRules.status(e, "a", "asteroid_refining"), ResearchRules.LOCKED, "needs automated mining")

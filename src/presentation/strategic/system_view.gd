@@ -139,10 +139,10 @@ func _body_card(engine: GalaxyEngine, planet: Planet, b: Dictionary, options: Ar
 	var text := "%s [b]%s[/b]  %s" % [UiKit.color_tag("●", surface), b["name"], UiKit.color_tag(def.get("name", b["type"]), Palette.TEXT_DIM)]
 	if not traits.is_empty():
 		text += "  ·  " + ", ".join(traits)
-	text += "\n" + (", ".join(built) + "  ·  " + EmpirePanel._resource_text(engine, EmpireRules.body_yields(engine, b), true)
+	text += "\n" + (", ".join(built) + "  ·  " + EmpirePanel._resource_text(engine, EmpireRules.body_yields(engine, b, planet.owner), true)
 			if not built.is_empty() else UiKit.color_tag(def.get("description", ""), Palette.TEXT_DIM))
 	if EmpireRules.is_habitable(engine, b) and "colony" in b["buildings"]:
-		text += UiKit.color_tag("  ·  colony slots %d/%d" % [b["buildings"].size() - 1, EmpireRules.colony_slots(engine, b)], Palette.TEXT_DIM)
+		text += UiKit.color_tag("  ·  colony slots %d/%d" % [b["buildings"].size() - 1, EmpireRules.colony_slots(engine, b, planet.owner)], Palette.TEXT_DIM)
 	head.append_text(text)
 	box.add_child(head)
 	if not options.is_empty():

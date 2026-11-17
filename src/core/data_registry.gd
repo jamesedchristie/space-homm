@@ -180,6 +180,10 @@ func validate() -> PackedStringArray:
 		var ability: String = species[id].get("squad_ability", "")
 		if not ability.is_empty() and not abilities.has(ability):
 			_err("species '%s': unknown squad ability '%s'" % [id, ability])
+		var names: Dictionary = species[id].get("names", {})
+		for key: String in ["fleets", "heroes", "ship_names"]:
+			if names.has(key) and (not names[key] is Array or names[key].is_empty()):
+				_err("species '%s': names.%s must be a non-empty list" % [id, key])
 		for e: Dictionary in species[id].get("effects", []):
 			if e.get("type", "") == "ship_status" and not statuses.has(e.get("status", "")):
 				_err("species '%s': unknown status '%s'" % [id, e.get("status", "")])
@@ -221,6 +225,8 @@ func _validate_empire() -> void:
 						_err("tech '%s': unknown resource '%s'" % [id, e.get("resource", "")])
 				"empire_modifier":
 					pass
+				"body_bonus":
+					_validate_body_bonus(id, e)
 				_:
 					_err("tech '%s': unknown effect type '%s'" % [id, e.get("type", "")])
 	for id: String in units:
@@ -233,6 +239,25 @@ func _validate_empire() -> void:
 			for b: String in p.get("buildings", []):
 				if not buildings.has(b):
 					_err("campaign '%s': planet '%s' has unknown building '%s'" % [id, p.get("id", ""), b])
+
+
+func _validate_body_bonus(tech_id: String, e: Dictionary) -> void:
+	for t: String in e.get("body_types", []):
+		if not body_types.has(t):
+			_err("tech '%s': unknown body type '%s'" % [tech_id, t])
+	var categories: Array[String] = []
+	for def: Dictionary in body_types.values():
+		categories.append(def.get("category", ""))
+	for c: String in e.get("categories", []):
+		if c not in categories:
+			_err("tech '%s': unknown body category '%s'" % [tech_id, c])
+	if e.has("building") and not buildings.has(e["building"]):
+		_err("tech '%s': unknown building '%s'" % [tech_id, e["building"]])
+	for k: String in e.get("yields", {}):
+		if not resources.has(k):
+			_err("tech '%s': unknown resource '%s'" % [tech_id, k])
+	if e.get("yields", {}).is_empty() and int(e.get("colony_slots", 0)) == 0:
+		_err("tech '%s': body_bonus gives nothing (needs yields or colony_slots)" % tech_id)
 
 
 func _validate_mission(id: String, def: Dictionary) -> void:

@@ -1196,8 +1196,12 @@ func _launch_ship(planet: Planet, unit_id: String) -> bool:
 		fleet.name = "%s Squadron %d" % [planet.name, state.next_uid]
 		state.fleets[fleet.id] = fleet
 		emit({"type": GalaxyEvents.FLEET_CREATED, "fleet": fleet.id, "planet": planet.id})
+	var ship_names: Array = data.species.get(state.faction(planet.owner).get("species", ""), {}).get("names", {}).get("ship_names", [])
+	var ship_label: String = unit_def.get("name", unit_id)
+	if not ship_names.is_empty():
+		ship_label = ship_names[state.next_uid % ship_names.size()]
 	var ship := {"uid": state.make_uid("ship"), "unit": unit_id,
-			"name": "%s %d" % [unit_def.get("name", unit_id), state.next_uid],
+			"name": "%s %d" % [ship_label, state.next_uid],
 			"hull": int(unit_def["stats"]["max_hull"])}
 	fleet.ships.append(ship)
 	emit({"type": GalaxyEvents.SHIP_COMPLETED, "planet": planet.id, "unit": unit_id, "fleet": fleet.id,

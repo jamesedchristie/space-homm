@@ -145,7 +145,15 @@ style)`; battle teams carry `species`). Campaign factions set `species` and `rol
 - `minor`: stays near home (AI expands within 4 of its capital); `EmpireRules.trade_income`
   pays friendly majors at peace.
 The New Campaign screen's species choice rewrites the player's faction (and swaps an AI major
-of that species to the player's original one).
+of that species to the player's original one) via `SpeciesNaming.with_player_species`
+(`src/strategic/species_naming.gd`). Each species has `names`: `{home, home_description,
+fleets: [...], heroes: [...], ship_names: [...]}`. `SpeciesNaming.apply(def, faction_id,
+species_id, data)` renames that faction's home system (the `generate.homes` entry, or the first
+owned planet of a hand-made campaign, plus a body of the same name), its starting fleets (in
+order) and their ships, and its heroes (in order; ids, class and gear stay), and rewrites heroes'
+`fleet` references to the new fleet names. It works on the campaign definition before the engine
+is built, so it is testable without the UI. Ships built later are named from the owner species'
+`ship_names` (`GalaxyEngine._launch_ship`).
 
 ### Randomness: discoveries and planet traits
 
@@ -329,7 +337,13 @@ finished ships join the fleet in orbit or form a new one. Opinions of factions a
 | `ship_status` | a (hidden, permanent) status every ship starts battles with |
 | `empire_modifier` | `fleet_speed`, `sensor`, `field_repair` bonuses |
 | `yield` | multiplies a resource's output |
+| `body_bonus` | per-body bonus: `body_types` and/or `categories` (neither = every body), optional `building` the body must hold, `yields` added to that body's output (before `yield` multipliers) and/or `colony_slots` added to its colony slots. Applied by `EmpireRules.body_yields` / `colony_slots` for the owner |
 | `unlock_building` / `unlock_unit` | makes a building or ship buildable (matching `requires_tech`) |
+
+The colony techs use `body_bonus`: Terraforming (+1 colony slot on desert and arctic worlds),
+Orbital Habitats (+1 credits per colony), Asteroid Refining (+2 alloys per belt mining base),
+Deep Core Taps (+2 alloys per volcanic mining base) and Cryogenic Labs (+2 research per research
+station on ice moons and gas giants).
 
 **Diplomacy:** relations default to war unless the campaign says otherwise. At peace, fleets
 can't attack or pass through each other and planets can't be captured. An AI accepts peace if

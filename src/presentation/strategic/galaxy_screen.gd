@@ -111,23 +111,7 @@ func start_campaign() -> void:
 func _campaign_with_species() -> Variant:
 	if player_species.is_empty():
 		return campaign_id
-	var def: Dictionary = data.campaigns[campaign_id].duplicate(true)
-	var player: Dictionary = {}
-	for f: Dictionary in def["factions"]:
-		if f.get("controller", "") == "player":
-			player = f
-	if player.is_empty() or player.get("species", "") == player_species:
-		return def
-	var original: String = player.get("species", "")
-	for f: Dictionary in def["factions"]:
-		if f != player and f.get("species", "") == player_species and f.get("role", "major") == "major":
-			f["species"] = original
-			if data.species.has(original):
-				f["name"] = data.species[original]["empire_name"]
-	player["species"] = player_species
-	player["name"] = data.species[player_species]["empire_name"]
-	def["id"] = campaign_id
-	return def
+	return SpeciesNaming.with_player_species(data.campaigns[campaign_id], player_species, data)
 
 
 ## Continues a saved campaign (see GalaxySave). Saves are made between turns,

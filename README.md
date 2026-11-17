@@ -19,7 +19,8 @@ and Mass Effect-style hero missions, all built on **one shared tactical engine**
   (hold the relay room for 8 rounds against raider waves), each with its own rescue follow-up.
 - **Step 4 (done):** empire systems. Credits, alloys and research from planets and buildings;
   build queues for buildings and ships; a tech tree (ship upgrades, faster fleets, sensors,
-  yields, defense platforms, the Destroyer); a third faction, the Ceres Free Traders, with
+  yields, defense platforms, the Destroyer, and colony techs that deepen the body economy:
+  Terraforming, Orbital Habitats, Asteroid Refining, Deep Core Taps, Cryogenic Labs); a third faction, the Ceres Free Traders, with
   war/peace, opinion, peace proposals and gifts; defended planets that fight back.
 
 ## Running it
@@ -81,6 +82,10 @@ are deliberately subtle:
 | Vel'tari | Vel'tari Concord | +20% research | +15% shields; pearl hulls, crystal fins | Mind Ward (you and adjacent allies: shields and -25% damage) |
 | Kesh | Kesh Dominion | +15% alloys | +10% damage; bronze hulls, rams | Blood Oath (heal and +20% damage) |
 | Sorn | Sorn Directorate | +1 fleet speed | 8% less damage; slate hulls, dorsal ridges | Shadow Veil (-50% damage for a turn) |
+
+Each species also has its own names (`names` in `data/strategic/species.json`): your home
+system, starting fleets, ships and heroes are renamed to match the species you pick, and the AI
+power that would have had your species gets the human names instead.
 
 **Other powers.** The raiders are **barbarians**: their dens launch new raider fleets every few
 turns; they plunder systems (stealing credits and wrecking a building) rather than holding
