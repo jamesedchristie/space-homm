@@ -194,6 +194,10 @@ func _continue(token: int) -> void:
 	_busy = true
 	_refresh()
 	while token == _token and not engine.state.is_over:
+		if player_faction in engine.state.eliminated and not autoplay:
+			_busy = false
+			_game_over()
+			return
 		if engine.has_pending_battle():
 			await _resolve_battle(token)
 			continue
@@ -489,14 +493,19 @@ func _animate_move(e: Dictionary) -> void:
 func _game_over() -> void:
 	var s := engine.state
 	var title := "Draw"
-	if s.winner == player_faction and not autoplay:
+	var player_out := player_faction in s.eliminated and not s.is_over
+	if player_out and not autoplay:
+		title = "Defeat"
+	elif s.winner == player_faction and not autoplay:
 		title = "Victory"
 	elif s.winner != "" and not autoplay:
 		title = "Defeat"
 	elif s.winner != "":
 		title = "%s wins" % s.faction(s.winner)["name"]
-	var lines := PackedStringArray(["The campaign is over after %d turns (%s)." % [s.turn_number,
-			"by treaty" if engine.state.eliminated.size() < s.factions.size() - 1 else "by conquest"], ""])
+	var majors_left := s.factions.filter(func(f: Dictionary) -> bool:
+		return f.get("role", "major") == "major" and not s.is_eliminated(f["id"])).size()
+	var how := "your empire has fallen" if player_out else ("by conquest" if majors_left <= 1 else "by treaty")
+	var lines := PackedStringArray(["The campaign is over after %d turns (%s)." % [s.turn_number, how], ""])
 	for f in s.factions:
 		if not s.is_eliminated(f["id"]):
 			lines.append("%s: score %d" % [UiKit.color_tag(f["name"], Palette.team_color(f["team"])), EmpireRules.score(engine, f["id"])])

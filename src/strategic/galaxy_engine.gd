@@ -1035,8 +1035,9 @@ func _do_split(cmd: SplitFleetCommand) -> void:
 func _capture_planet(planet: Planet, fleet: Fleet) -> void:
 	var previous := planet.owner
 	if state.faction(fleet.owner).get("role", "") == "barbarian":
-		_plunder(planet, fleet)
-		return
+		if not previous.is_empty():
+			_plunder(planet, fleet)
+		return  # nothing to take from an unclaimed system
 	var loot: Dictionary = state.faction(previous).get("barbarian", {}).get("den_loot", {}) if not previous.is_empty() else {}
 	if not loot.is_empty():
 		var stock: Dictionary = state.resources[fleet.owner]
