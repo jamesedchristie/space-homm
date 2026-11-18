@@ -1,0 +1,16 @@
+{
+  "id": "stun_baton",
+  "name": "Stun Baton",
+  "description": "A crackling baton: shocks an adjacent enemy and may stun it. Strips shields well. Ignores cover.",
+  "ap_cost": 2,
+  "cooldown": 2,
+  "target": "enemy",
+  "range": [1, 1],
+  "requires_los": true,
+  "melee": true,
+  "effects": [
+    {"type": "damage", "amount": [10, 14], "damage_type": "energy"},
+    {"type": "apply_status", "status": "disabled", "duration": 1, "chance": 0.4}
+  ],
+  "fx": "melee"
+}

@@ -29,6 +29,8 @@ var _active_ring: MeshInstance3D
 var _is_ship := false
 var _spins := false
 var _t := 0.0
+## Forward lean of a person's body (radians): the melee strike pose.
+var _lean := 0.0
 var _trail: CPUParticles3D
 
 
@@ -122,6 +124,11 @@ func _process(delta: float) -> void:
 	_t += delta
 	if _spins:
 		_model.rotation.y += delta * 0.4
+	elif not _is_ship:
+		# People breathe and shift their weight; leaning in is the melee pose.
+		_model.position.y = (sin(_t * 2.1) + 1.0) * 0.006
+		_model.rotation.z = -_lean + sin(_t * 0.9) * 0.012
+		_model.rotation.x = sin(_t * 0.7 + 1.3) * 0.015
 	elif _is_ship:
 		_model.position.y = altitude + _lift + sin(_t * 1.6) * 0.035
 		_model.rotation.x = sin(_t * 1.1) * 0.03 + _bank
@@ -212,6 +219,42 @@ func play_hit() -> void:
 	tw.tween_property(_model, "scale", _model.scale, 0.15)
 
 
+## Hand-to-hand strike: rock back, lunge to just short of `target_ground`
+## (the target's position), call `on_contact` as the blow lands, then recover.
+## Ships have no melee pose, they just ram forward and back.
+func play_melee(target_ground: Vector3, on_contact: Callable) -> void:
+	var start := position
+	var dir := target_ground - start
+	dir.y = 0.0
+	var gap := dir.length()
+	if gap < 0.01:
+		on_contact.call()
+		return
+	var contact := start + dir.normalized() * maxf(gap - 0.95, 0.0)
+	var tw := create_tween()
+	tw.tween_property(self, "_lean", 0.18, 0.1).set_trans(Tween.TRANS_SINE)
+	tw.parallel().tween_property(self, "position", start - dir.normalized() * 0.08, 0.1)
+	tw.tween_property(self, "_lean", 0.5, 0.09).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(self, "position", contact, 0.09).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(on_contact)
+	tw.tween_interval(0.07)
+	tw.tween_property(self, "_lean", 0.0, 0.22).set_trans(Tween.TRANS_SINE)
+	tw.parallel().tween_property(self, "position", start, 0.22).set_trans(Tween.TRANS_SINE)
+	await tw.finished
+
+
+## A short flinch away from `from_ground` (taking a melee blow).
+func recoil(from_ground: Vector3) -> void:
+	var away := position - from_ground
+	away.y = 0.0
+	if away.length() < 0.01:
+		return
+	var rest := position
+	var tw := create_tween()
+	tw.tween_property(self, "position", rest + away.normalized() * 0.14, 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "position", rest, 0.2).set_trans(Tween.TRANS_SINE)
+
+
 ## Shield bubble flash, brightest on the side facing the attacker.
 func play_shield_hit(from_world: Vector3) -> void:
 	var bubble := MeshInstance3D.new()
@@ -252,7 +295,7 @@ func play_destroyed() -> void:
 
 ## World position shots should aim at / come from.
 func aim_point() -> Vector3:
-	return global_position + Vector3(0, _model.position.y + (0.12 if _is_ship else 0.5), 0)
+	return global_position + Vector3(0, _model.position.y + (0.12 if _is_ship else 0.85), 0)
 
 
 static func _flat_material(color: Color) -> StandardMaterial3D:

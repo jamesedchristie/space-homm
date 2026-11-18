@@ -1,0 +1,16 @@
+{
+  "id": "rending_claws",
+  "name": "Rending Claws",
+  "description": "Overgrown, spore-laced limbs tear at an adjacent target. May leave it contaminated.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [1, 1],
+  "requires_los": true,
+  "melee": true,
+  "effects": [
+    {"type": "damage", "amount": [12, 15], "damage_type": "kinetic"},
+    {"type": "apply_status", "status": "contaminated", "duration": 3, "chance": 0.5}
+  ],
+  "fx": "melee"
+}

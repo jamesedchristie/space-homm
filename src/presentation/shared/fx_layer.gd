@@ -15,7 +15,10 @@ const SOUNDS := {
 	"pulse": "sfx/sfx_zap.ogg",
 	"self": "sfx/sfx_shieldUp.ogg",
 	"explosion": "sfx/sfx_shieldDown.ogg",
+	"melee": "sfx/sfx_shieldDown.ogg",
 }
+## Per-key playback pitch (default 1): a higher shieldDown reads as a sharp thud.
+const SOUND_PITCH := {"melee": 1.6}
 const SOUND_VOLUME_DB := -12.0
 
 var _additive := CanvasItemMaterial.new()
@@ -41,6 +44,9 @@ func play(kind: String, from: Vector2, to: Vector2, color: Color, blast_radius: 
 		"pulse":
 			await _beam(from, to, color, 2.0)
 			await _ring(to, 30.0, color)
+		"melee":
+			_impact(to, color, 0.9, laser)
+			explode(to, 0.5, color)
 		"self":
 			_flash(from, 1.2, color)
 			await _ring(from, 36.0, color)
@@ -104,6 +110,7 @@ func play_sound(key: String) -> void:
 	var player := AudioStreamPlayer.new()
 	player.stream = _streams[key]
 	player.volume_db = SOUND_VOLUME_DB
+	player.pitch_scale = SOUND_PITCH.get(key, 1.0)
 	add_child(player)
 	player.finished.connect(player.queue_free)
 	player.play()

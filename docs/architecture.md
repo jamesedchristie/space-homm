@@ -254,6 +254,15 @@ story beats (choices with skill checks that depend on who you brought).
   from a hypothetical cell, which the AI uses to find flanks; the AI also prefers firing
   positions with cover (`cover_safety()`). Only deck terrain (walls, crates) has cover, so fleet
   battles are unchanged.
+- **Melee**: an ability with `"melee": true` (and `"fx": "melee"`, `"range": [1, 1]`) is hand to
+  hand. `DamageEffect` and `preview_ability()` skip directional cover and flanking for it, and
+  overwatch reaction shots never use it. Units tagged `"rusher"` (raiders, the infected) get
+  `RuleBasedAI.RUSHER_MELEE_BONUS` on melee scores so they close in; the AI otherwise scores melee
+  like any ability (it wins when the target is behind cover or only 1 AP is left). Presentation:
+  `battle_screen._play_ability` turns a melee ability into the `"melee"` play kind;
+  `BattleBoard3D` runs `Unit3D.play_melee()` (lean back, lunge to a stand-off cell, impact
+  callback: `Fx3D.melee_impact()` flash, sparks, slash streaks, target `recoil()`, sound `melee`)
+  and `BattleBoard2D` does the same with a plain position tween.
 - **Overwatch**: an ability with `"ends_turn": true` applying the `overwatch` status. Moves are
   walked cell by cell; when an enemy on overwatch can hit the mover (first enemy-targeted
   damaging, non-area ability in range and sight), it fires at `REACTION_DAMAGE` and the move is
@@ -412,7 +421,8 @@ back, fighters), `broadside` (turns side-on and ripple-fires), `spinal` (charge,
     { "type": "apply_status", "status": "hull_breach", "duration": 2, "chance": 0.5 },
     { "type": "heal", "stat": "shields", "amount": 20, "to": "self" }   // "to": "self" targets the user
   ],
-  "fx": "torpedo"            // presentation hint: projectile | beam | torpedo | pulse | self
+  "melee": false,            // true: hand to hand, ignores cover, plays a lunge (use "fx": "melee", range [1, 1])
+  "fx": "torpedo"            // presentation hint: projectile | beam | torpedo | pulse | self | melee
 }
 ```
 

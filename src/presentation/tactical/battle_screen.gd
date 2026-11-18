@@ -355,7 +355,9 @@ func _play_ability(e: Dictionary) -> void:
 			color = Palette.damage_color(effect.get("damage_type", ""))
 			laser = Palette.DAMAGE_LASERS.get(effect.get("damage_type", ""), "Blue")
 			break
-	await board.play_ability(ability.get("fx", "projectile"), e["unit"], e["target"], color,
+	# "melee": true abilities lunge at their target (the "fx" field is the fallback look).
+	var kind: String = "melee" if ability.get("melee", false) else ability.get("fx", "projectile")
+	await board.play_ability(kind, e["unit"], e["target"], color,
 			int(ability.get("radius", 0)), laser)
 
 

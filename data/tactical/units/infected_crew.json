@@ -3,7 +3,8 @@
   "name": "Infected Crewman",
   "description": "A lab technician, long past help. Slow, tough and still reaching for you.",
   "tags": [
-    "infantry"
+    "infantry",
+    "rusher"
   ],
   "stats": {
     "max_hull": 55,
@@ -14,13 +15,14 @@
     "sight": 5
   },
   "abilities": [
+    "rending_claws",
     "spore_lash"
   ],
   "visual": {
     "placeholder": "boarder",
     "sprite": "",
     "size": 0.95,
-    "model": "boarder"
+    "model": "infected"
   },
   "stat_names": {
     "hull": "Health",

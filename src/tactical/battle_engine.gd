@@ -237,7 +237,8 @@ func preview_ability(unit_id: String, ability_id: String, target_cell: Vector2i,
 		p["lethal"] = p["hull_damage"] >= state.get_unit(p["unit"]).hull
 		var target := state.get_unit(p["unit"])
 		p["cover"] = CoverRules.evaluate(state, origin, target.cell) \
-				if int(ability.get("radius", 0)) == 0 and target.team != unit.team else {"cover": "", "flanked": false}
+				if int(ability.get("radius", 0)) == 0 and target.team != unit.team and not ability.get("melee", false) \
+				else {"cover": "", "flanked": false}
 	return order
 
 
@@ -376,7 +377,7 @@ func _overwatch_reaction(mover: BattleUnit) -> BattleUnit:
 func _reaction_ability(watcher: BattleUnit, target: BattleUnit) -> String:
 	for ability_id in watcher.abilities:
 		var ability: Dictionary = data.abilities.get(ability_id, {})
-		if ability.get("target", "") != "enemy" or int(ability.get("radius", 0)) > 0:
+		if ability.get("target", "") != "enemy" or int(ability.get("radius", 0)) > 0 or ability.get("melee", false):
 			continue
 		var damaging: bool = ability.get("effects", []).any(func(fx: Dictionary) -> bool: return fx.get("type", "") == "damage")
 		if not damaging:

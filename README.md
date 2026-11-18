@@ -152,6 +152,11 @@ Squad missions play like XCOM with story beats like a tabletop RPG:
   and you're **flanked** (+25%). Hovering a move shows the cover you'd have against each
   visible enemy; the attack preview shows the target's. Grenades and other area attacks ignore
   cover.
+- **Hand to hand.** Everyone close to an enemy can fight: marines carry a **Combat Knife** and
+  raiders a **Vibro-Blade** (2 AP, adjacent only), the infected tear with **Rending Claws**, and
+  heroes have a signature move (Vanguard **Shield Bash** staggers, Technician **Stun Baton**,
+  Marksman a knife). Melee **ignores cover**, so it is how you dig out someone behind a wall; the
+  attacker visibly lunges in. Raiders and the infected like to rush you.
 - **Overwatch** (1 AP, ends your turn): the first enemy that moves within range and sight
   takes a reaction shot (75% damage). Raiders use it too.
 - **Skill checks.** Some story choices test Combat, Tech or Command. The button shows the odds,
