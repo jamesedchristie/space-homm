@@ -67,6 +67,8 @@ and press **F6** (run current scene).
 | `Space` / `Enter` | End turn |
 | `E` | Empire panel: systems (population, upkeep), research by era, diplomacy, victory progress |
 | `H` | Heroes panel: gear, levels, assign/relieve fleet commanders |
+| `T` / research chip | Tech tree: every technology by era; click one to research it |
+| Attention list (top left) | What needs you this turn: research to choose, idle systems, heroes waiting, debt. Click to jump there |
 | `A` | Toggle autoplay (AI plays your faction too) |
 | `V` | Switch between the 2.5D (3D) and top-down (2D) galaxy map |
 | Mouse wheel / `Q` `R` / right-drag / arrows / middle-drag | 3D map: zoom / rotate / rotate and tilt / pan / pan |

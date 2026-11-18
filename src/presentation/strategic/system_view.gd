@@ -41,11 +41,11 @@ func _init() -> void:
 	box.add_child(row)
 
 	var left := VBoxContainer.new()
-	left.custom_minimum_size = Vector2(330, 0)
+	left.custom_minimum_size = Vector2(440, 0)
 	row.add_child(left)
 	var view_container := SubViewportContainer.new()
 	view_container.stretch = true
-	view_container.custom_minimum_size = Vector2(330, 250)
+	view_container.custom_minimum_size = Vector2(440, 320)
 	left.add_child(view_container)
 	_viewport = SubViewport.new()
 	_viewport.own_world_3d = true
@@ -220,7 +220,10 @@ func _build_scene(planet: Planet, engine: GalaxyEngine) -> void:
 	env.ambient_light_color = Color(0.25, 0.3, 0.45)
 	env.ambient_light_energy = 0.5
 	env.glow_enabled = true
-	env.glow_intensity = 1.0
+	# Close up the star would bloom into a white disc: glow only the hottest parts.
+	env.glow_intensity = 0.5
+	env.glow_hdr_threshold = 1.3
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env_node.environment = env
 	_scene_root.add_child(env_node)
 	BoardGeometry.space_scenery(_scene_root, Vector3.ZERO, Vector2(1.0, 1.0), absi(hash(planet.id)), true)
@@ -233,4 +236,4 @@ func _build_scene(planet: Planet, engine: GalaxyEngine) -> void:
 	_camera = Camera3D.new()
 	_camera.fov = 38
 	_scene_root.add_child(_camera)
-	_camera.look_at_from_position(Vector3(0, 2.1, 2.5), Vector3(0, 0.62, 0), Vector3.UP)
+	_camera.look_at_from_position(Vector3(0, 1.9, 2.7), Vector3(0, 0.6, 0), Vector3.UP)

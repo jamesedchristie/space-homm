@@ -215,7 +215,7 @@ func _build() -> void:
 	_faction_label = UiKit.header("", 15, Palette.TEXT)
 	row.add_child(_faction_label)
 	_faction_label.clip_text = true
-	_faction_label.custom_minimum_size = Vector2(150, 0)
+	_faction_label.custom_minimum_size = Vector2(175, 0)
 	_chip_row = HBoxContainer.new()
 	_chip_row.add_theme_constant_override("separation", 6)
 	row.add_child(_chip_row)
