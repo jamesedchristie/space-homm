@@ -265,8 +265,127 @@ func play_ability(kind: String, source_id: String, target: Vector2i, color: Colo
 	var to: Vector3 = views[target_unit.id].aim_point() if target_unit != null and views.has(target_unit.id) \
 			else world(target, _floor_y + 0.3)
 	_fx2d.play_sound(kind)
+	match _attack_style(source_id, kind):
+		"run":
+			await _strafing_run(source, target, to, color)
+			return
+		"broadside":
+			await _broadside(source, to, color)
+			return
+		"spinal":
+			await _spinal_shot(source, to, color)
+			return
 	var blast := float(radius) * engine.state.grid.to_pixel(Vector2i(1, 0), GridMapView.CELL_SIZE).length() * SCALE
 	await _fx.play(kind, source.aim_point(), to, color, blast)
+
+
+# --- Ship attack styles -------------------------------------------------------
+# Unit visual "attack_style" picks how a ship delivers its direct-fire weapons
+# (projectile and beam abilities) in open space:
+#   "run"        fighters: a strafing pass over the target and a loop back home
+#   "broadside"  line ships: turn side-on and ripple-fire down the hull
+#   "spinal"     capital ships: charge, one heavy slug down the keel, recoil
+
+func _attack_style(source_id: String, kind: String) -> String:
+	if _floor == "deck" or kind not in ["projectile", "beam"]:
+		return ""
+	var u := engine.state.get_unit(source_id)
+	return "" if u == null else str(u.def.get("visual", {}).get("attack_style", ""))
+
+
+func _strafing_run(view: Unit3D, target: Vector2i, to: Vector3, color: Color) -> void:
+	var home := view.position
+	var tgt := world(target, _floor_y)
+	var flat := tgt - home
+	flat.y = 0.0
+	var dist := flat.length()
+	if dist < 0.05:
+		await _fx.play("projectile", view.aim_point(), to, color, 0.0)
+		return
+	var fwd := flat / dist
+	var side := fwd.cross(Vector3.UP).normalized() * (1.0 if absi(hash(view.unit_id)) % 2 == 0 else -1.0)
+	# Out past the target and back round in a loop.
+	var pts: Array[Vector3] = [home, home + fwd * dist * 0.35 + side * 0.25, tgt - fwd * 0.75 + side * 0.18,
+			tgt + fwd * 0.85 - side * 0.12, tgt + fwd * 1.15 - side * 1.0, home - fwd * 0.4 - side * 0.9, home]
+	# Dive toward the target's height on the pass.
+	var target_view: Unit3D = null
+	var tu := engine.state.unit_at(target)
+	if tu != null and views.has(tu.id):
+		target_view = views[tu.id]
+	var dive := 0.0 if target_view == null else clampf(target_view.altitude - view.altitude, -0.6, 0.6)
+	var duration := 1.5 + dist * 0.12
+	var state := {"heading": -view.rotation.y, "next_shot": 0.3}
+	view.set_engines(true)
+	var step := func(t: float) -> void:
+		var p := _catmull(pts, t)
+		var ahead := _catmull(pts, minf(t + 0.02, 1.0))
+		view.position = p
+		var d := ahead - p
+		if d.length() > 0.0005:
+			var heading := atan2(d.z, d.x)
+			var turn := wrapf(heading - float(state["heading"]), -PI, PI)
+			state["heading"] = heading
+			view.face_angle(heading)
+			view.set_maneuver(clampf(-turn * 6.0, -0.9, 0.9), dive * sin(PI * clampf((t - 0.15) / 0.5, 0.0, 1.0)))
+		# Guns on the approach: a stream of short bolts at the target.
+		if t >= float(state["next_shot"]) and t <= 0.5:
+			state["next_shot"] = t + 0.035
+			var jitter := Vector3(randf_range(-0.08, 0.08), randf_range(-0.05, 0.05), randf_range(-0.08, 0.08))
+			_fx.play("projectile", view.nose_point(0.3), to + jitter, color, 0.0)
+	var tw := create_tween()
+	tw.tween_method(step, 0.0, 1.0, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await tw.finished
+	view.position = home
+	view.set_maneuver(0.0, 0.0)
+	view.set_engines(false)
+	face_unit(view.unit_id, target)
+
+
+func _broadside(view: Unit3D, to: Vector3, color: Color) -> void:
+	# Turn side-on to the target (whichever way is the shorter turn), then
+	# ripple-fire from gun ports along the hull.
+	var d := to - view.global_position
+	var bearing := atan2(d.z, d.x)
+	var heading := -view.rotation.y
+	var a := bearing + PI / 2.0
+	var b := bearing - PI / 2.0
+	var goal := a if absf(wrapf(a - heading, -PI, PI)) < absf(wrapf(b - heading, -PI, PI)) else b
+	var tw := create_tween()
+	tw.tween_method(func(h: float) -> void: view.face_angle(h), heading, heading + wrapf(goal - heading, -PI, PI), 0.3) \
+			.set_trans(Tween.TRANS_SINE)
+	await tw.finished
+	var fwd := Vector3(cos(goal), 0, sin(goal))
+	var ports := [-0.32, 0.0, 0.32]
+	for i in ports.size():
+		var from := view.aim_point() + fwd * float(ports[i]) + (to - view.aim_point()).normalized() * 0.18
+		_fx.flash_small(from, color)
+		if i == ports.size() - 1:
+			await _fx.play("projectile", from, to, color, 0.0)
+		else:
+			_fx.play("projectile", from, to + Vector3(0, 0.04 * i, 0), color, 0.0)
+			await get_tree().create_timer(0.09).timeout
+
+
+func _spinal_shot(view: Unit3D, to: Vector3, color: Color) -> void:
+	var nose := view.nose_point(0.55)
+	await _fx.charge(nose, color, 0.28)
+	view.play_recoil(0.14)
+	shake(0.08)
+	await _fx.play("slug", nose, to, color, 0.0)
+
+
+## Catmull-Rom spline through pts, t in 0..1 over the whole path.
+static func _catmull(pts: Array[Vector3], t: float) -> Vector3:
+	var n := pts.size() - 1
+	var f := clampf(t, 0.0, 1.0) * n
+	var i := mini(int(f), n - 1)
+	var u := f - i
+	var p0 := pts[maxi(i - 1, 0)]
+	var p1 := pts[i]
+	var p2 := pts[i + 1]
+	var p3 := pts[mini(i + 2, n)]
+	return 0.5 * ((2.0 * p1) + (-p0 + p2) * u + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * u * u
+			+ (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * u * u * u)
 
 
 func play_sound(key: String) -> void:

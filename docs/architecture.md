@@ -393,6 +393,9 @@ shifted right on hex maps). The engine converts them internally.
 }
 ```
 `visual.sprite` is optional. When it is set and the file exists, it replaces the placeholder shape.
+`visual.model` names the 3D model (data/models/models.json). `visual.attack_style` sets how a ship
+delivers its direct-fire (projectile/beam) weapons on the 3D board: `run` (strafing pass and loop
+back, fighters), `broadside` (turns side-on and ripple-fires), `spinal` (charge, one heavy slug, recoil).
 
 **Ability** (`data/tactical/abilities/*.json`)
 ```jsonc

@@ -32,6 +32,7 @@
     "placeholder": "destroyer",
     "sprite": "res://assets/kenney_space_shooter/ships/playerShip3_{team}.png",
     "size": 1.2,
-    "model": "destroyer"
+    "model": "destroyer",
+    "attack_style": "spinal"
   }
 }

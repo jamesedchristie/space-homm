@@ -31,6 +31,7 @@
     "placeholder": "frigate",
     "sprite": "res://assets/kenney_space_shooter/ships/playerShip2_{team}.png",
     "size": 1.0,
-    "model": "frigate"
+    "model": "frigate",
+    "attack_style": "broadside"
   }
 }

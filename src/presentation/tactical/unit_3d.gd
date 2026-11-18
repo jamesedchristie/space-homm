@@ -163,6 +163,32 @@ func move_along(points: Array[Vector3], step_time: float = 0.16) -> void:
 		_trail.emitting = false
 
 
+## Attack runs and broadsides steer the ship directly: roll (radians) and
+## extra height on top of its cruising altitude.
+func set_maneuver(roll: float, lift: float) -> void:
+	_bank = roll
+	_lift = lift
+
+
+func set_engines(on: bool) -> void:
+	if _trail != null:
+		_trail.emitting = on
+
+
+## Model-space nose of the ship in world space (where forward guns fire from).
+func nose_point(ahead: float = 0.35) -> Vector3:
+	var heading := -rotation.y
+	return aim_point() + Vector3(cos(heading), 0, sin(heading)) * ahead * _model.scale.x
+
+
+## Recoil: the hull kicks back along its heading and settles.
+func play_recoil(amount: float = 0.12) -> void:
+	# The model's forward is local +X (the node itself carries the heading).
+	var tw := create_tween()
+	tw.tween_property(_model, "position:x", -amount, 0.05)
+	tw.tween_property(_model, "position:x", 0.0, 0.35).set_trans(Tween.TRANS_SINE)
+
+
 ## A faint holo line from the ship down to its hex, so height reads as
 ## height rather than as position.
 func _add_tether(color: Color) -> void:
