@@ -33,9 +33,8 @@ and Mass Effect-style hero missions, all built on **one shared tactical engine**
 1. Install **Godot 4.5** (standard build, not .NET): <https://godotengine.org/download>.
    On a Mac, drag it into Applications. It runs natively on Apple Silicon.
 2. Open Godot, click **Import**, and select this folder's `project.godot`.
-3. Press **F5** (or the ▶ button). On the title screen, pick **New campaign** (options:
-   permadeath, a fixed seed) to play *The Drift* as the Patrol Group (blue), or **Continue**
-   the latest save.
+3. Press **F5** (or the ▶ button). On the title screen, pick **New campaign** (choose the
+   campaign, your species, permadeath and an optional seed), or **Continue** the latest save.
 
 **Settings** (title screen, or the in-game menu): fullscreen (also `F11` / `Alt+Enter`),
 volume, and whether the galaxy map and battles open in 3D or 2D. They're remembered between runs.
