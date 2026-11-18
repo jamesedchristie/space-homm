@@ -458,7 +458,7 @@ func fit(area: Rect2) -> void:
 		lo = all_lo
 		hi = all_hi
 	# At least ~9 x 6 hexes, but never more than the map.
-	var min_size := Vector3(15.0, 0, 9.0)
+	var min_size := Vector3(12.0, 0, 7.0)
 	var center := (lo + hi) / 2.0
 	var half := Vector3(maxf(hi.x - lo.x + 2.0, min_size.x), 0, maxf(hi.z - lo.z + 2.0, min_size.z)) / 2.0
 	half = Vector3(minf(half.x, (all_hi.x - all_lo.x) / 2.0), 0, minf(half.z, (all_hi.z - all_lo.z) / 2.0))

@@ -38,7 +38,7 @@ func setup(planet: Planet, data: DataRegistry) -> void:
 	add_child(_system)
 	var star_def: Dictionary = data.star_types.get(planet.star, {})
 	var star_color := Color(star_def.get("color", "#ffd88a"))
-	var star_r := 0.12 * float(star_def.get("size", 1.0))
+	var star_r := 0.15 * float(star_def.get("size", 1.0))
 	_add_star(star_color, star_r)
 
 	var h := absi(hash(planet.id))
@@ -166,7 +166,7 @@ func _add_orbit_line(radius: float) -> void:
 
 
 static func _body_radius(b: Dictionary, data: DataRegistry) -> float:
-	return 0.04 + 0.06 * float(data.body_types.get(b["type"], {}).get("size", 0.6))
+	return 0.05 + 0.08 * float(data.body_types.get(b["type"], {}).get("size", 0.6))
 
 
 func _add_body(b: Dictionary, data: DataRegistry, seed_value: int) -> Node3D:
@@ -177,8 +177,8 @@ func _add_body(b: Dictionary, data: DataRegistry, seed_value: int) -> Node3D:
 	var sphere := SphereMesh.new()
 	sphere.radius = r
 	sphere.height = r * 2.0
-	sphere.radial_segments = 24
-	sphere.rings = 12
+	sphere.radial_segments = 48
+	sphere.rings = 24
 	body.mesh = sphere
 	var mat := ShaderMaterial.new()
 	mat.shader = SURFACE_SHADER
