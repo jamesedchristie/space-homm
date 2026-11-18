@@ -29,6 +29,17 @@ var buildings: Array[String]:
 		return out
 ## Current build: {} when idle, else {"kind": "building"|"unit"|"megaproject", "item": id, "body": body id, "progress": int, "turns": int}
 var queue: Dictionary = {}
+## Civilian ships working in the system (the system map level), deployed from fleets:
+## [{"uid", "unit", "name", "hull", "owner", "loc": body id or "" (arrival),
+##   "job": {} or {"body", "building", "turns_left", "turns"}}]. A ship here is safe from
+## fleets but is lost with the system if an enemy takes it.
+var civilians: Array[Dictionary] = []
+## While a faction's warfleet sits in the system with the garrison beaten and the
+## colony not yet invaded: that faction's id. The system's production is halted.
+var blockade := ""
+## For a major power's undeveloped home system ("colony_ship" starts):
+## {"faction", "buildings": [ids], "pop"}. Its first colony there gets those buildings.
+var capital: Dictionary = {}
 ## Completed megaprojects (data/empire/megaprojects.json) standing in this system.
 ## They pass to whoever captures the system.
 var megaprojects: Array[String] = []
@@ -78,6 +89,18 @@ func population() -> int:
 		if "colony" in b["buildings"]:
 			n += int(b.get("pop", START_POP))
 	return n
+
+
+func is_blockaded() -> bool:
+	return not blockade.is_empty()
+
+
+## The deployed civilian ship with this uid, or {}.
+func civilian(uid: String) -> Dictionary:
+	for c in civilians:
+		if c["uid"] == uid:
+			return c
+	return {}
 
 
 func has_colony() -> bool:

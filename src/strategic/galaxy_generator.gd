@@ -16,6 +16,10 @@ extends RefCounted
 ##              that would cut anything off from the first home is dropped.
 ##   "homes": {faction id: planet def without "at" (id/name/type/buildings/...)},
 ##   "fleets": [fleet defs without "at": placed next to the owner's home],
+## Template level: "start": "colony_ship" makes every major power's home system start unclaimed
+## (its "buildings" become the capital's, see Planet.capital), with its first fleet standing in the
+## home system and the ships listed in "start_ships" (e.g. a colony ship and a constructor) waiting
+## in the system, ready for orders (Planet.civilians).
 ##   "heroes": [hero defs; "planet": "home" means the owner's home world],
 ##   "anomalies": [anomaly defs without "at"],
 ##   "planet_names": [...], "backdrops": [{"a", "b", "density"}]
@@ -58,7 +62,18 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 		var p: Dictionary = homes[fid].duplicate(true)
 		p["at"] = [at.x, at.y]
 		p["owner"] = fid
-		if not p.has("bodies") or not p["bodies"] is Array:
+		if _starts_unfounded(template, fid):
+			# The power arrives by colony ship: an unclaimed system that becomes its capital.
+			p["owner"] = ""
+			p["capital"] = {"faction": fid, "buildings": homes[fid].get("buildings", []), "pop": HOME_POP}
+			var settlers: Array = []
+			for unit_id: String in template.get("start_ships", []):
+				settlers.append({"unit": unit_id, "name": _start_ship_name(data, unit_id), "owner": fid})
+			p["civilians"] = settlers
+			p.erase("buildings")
+			if not p.has("bodies") or not p["bodies"] is Array:
+				p["bodies"] = _home_bodies(data, rng, p, [], false)
+		elif not p.has("bodies") or not p["bodies"] is Array:
 			p["bodies"] = _home_bodies(data, rng, p, homes[fid].get("buildings", []))
 		planets.append(p)
 
@@ -78,11 +93,18 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 
 	# Starting fleets next to their homes.
 	var fleets: Array = []
+	var landed := {}  # faction ids whose first fleet already stands in the home system
 	for f_def: Dictionary in gen.get("fleets", []):
 		var home: Vector2i = home_at.get(f_def["owner"], Vector2i(EDGE, EDGE))
+		var fleet := f_def.duplicate(true)
+		if _starts_unfounded(template, f_def["owner"]) and not landed.has(f_def["owner"]):
+			# The first fleet starts in the home system itself, beside the settlers.
+			landed[f_def["owner"]] = true
+			fleet["at"] = [home.x, home.y]
+			fleets.append(fleet)
+			continue
 		var at := _free_near(grid, home, occupied, rng)
 		occupied[at] = true
-		var fleet := f_def.duplicate(true)
 		fleet["at"] = [at.x, at.y]
 		fleets.append(fleet)
 	out["fleets"] = fleets
@@ -158,17 +180,36 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 ## occupied. Vector2i(-1, -1) if none.
 ## A home system: random bodies around a developed terran capital
 ## (colony + the template's buildings on it).
-static func _home_bodies(data: DataRegistry, rng: RandomNumberGenerator, p: Dictionary, capital_buildings: Array) -> Array:
+static func _home_bodies(data: DataRegistry, rng: RandomNumberGenerator, p: Dictionary, capital_buildings: Array,
+		settled: bool = true) -> Array:
 	var bodies := SystemBuilder.random_bodies(data, rng, p["id"], p.get("name", p["id"]), true)
 	var out: Array = []
+	var named := false
 	for b in bodies:
 		var entry := {"type": b["type"], "name": b["name"]}
-		if b["type"] == "terran" and not out.any(func(x: Dictionary) -> bool: return x.has("buildings")):
+		if b["type"] == "terran" and not named:
+			named = true
 			entry["name"] = p.get("name", b["name"])
-			entry["buildings"] = ["colony"] + capital_buildings.filter(func(x: String) -> bool: return x != "colony")
-			entry["pop"] = HOME_POP
+			if settled:
+				entry["buildings"] = ["colony"] + capital_buildings.filter(func(x: String) -> bool: return x != "colony")
+				entry["pop"] = HOME_POP
 		out.append(entry)
 	return out
+
+
+## Whether this faction starts without a colony, arriving by colony ship (major powers only).
+static func _starts_unfounded(template: Dictionary, faction_id: String) -> bool:
+	if template.get("start", "owned") != "colony_ship":
+		return false
+	for f: Dictionary in template.get("factions", []):
+		if f["id"] == faction_id:
+			return f.get("role", "major") == "major"
+	return false
+
+
+static func _start_ship_name(data: DataRegistry, unit_id: String) -> String:
+	return {"colony_ship": "Pioneer", "constructor": "Foreman", "troop_transport": "Garrison"}.get(unit_id,
+			data.units.get(unit_id, {}).get("name", unit_id))
 
 
 static func _farthest(grid: HexGrid, w: int, h: int, points: Array, occupied: Dictionary,

@@ -283,7 +283,7 @@ func _build() -> void:
 	UiKit.anchor(empire, 0, 0, 1, 1, 40, TOP_H + 16, -RIGHT_W - 40, -BOTTOM_H - 16)
 	add_child(empire)
 	system_view = SystemView.new()
-	UiKit.anchor(system_view, 0, 0, 1, 1, 30, TOP_H + 12, -RIGHT_W - 30, -BOTTOM_H - 12)
+	UiKit.anchor(system_view, 0, 0, 1, 1, 14, TOP_H + 8, -14, -BOTTOM_H - 8)  # the system map takes the whole screen
 	add_child(system_view)
 	tech_tree = TechTreeView.new()
 	UiKit.anchor(tech_tree, 0, 0, 1, 1, 16, TOP_H + 8, -16, -BOTTOM_H - 8)

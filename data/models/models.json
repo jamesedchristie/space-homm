@@ -253,5 +253,55 @@
       {"type": "box", "size": [0.5, 0.05, 0.12], "at": [-0.2, 0.18, 0.4], "material": "hull", "mirror": true},
       {"type": "sphere", "radius": 0.03, "detail": 0, "at": [-0.6, 0.6, 0.2], "material": "beacon", "mirror": true}
     ]
+  },
+  "colony_ship": {
+    "plating": true,
+    "description": "Colony ark: a long habitat spine with a glass dome, a ring of pods and a single big drive.",
+    "parts": [
+      {"type": "hull", "outline": [[0.7, 0], [0.45, 0.26], [-0.55, 0.3], [-0.7, 0.18], [-0.7, -0.18], [-0.55, -0.3], [0.45, -0.26]], "height": 0.26, "bevel": 0.4, "taper": 0.15, "material": "hull"},
+      {"type": "sphere", "radius": 0.2, "detail": 1, "squash": [1.4, 0.8, 1.0], "at": [0.15, 0.3, 0], "material": "glass"},
+      {"type": "cylinder", "radius": 0.34, "length": 0.05, "axis": "x", "at": [-0.15, 0.15, 0], "material": "accent"},
+      {"type": "cylinder", "radius": 0.09, "length": 0.4, "axis": "x", "at": [-0.15, 0.15, 0.36], "material": "accent", "mirror": true},
+      {"type": "box", "size": [0.5, 0.04, 0.06], "at": [0.1, 0.27, 0.0], "material": "stripe"},
+      {"type": "cylinder", "radius": 0.12, "length": 0.22, "axis": "x", "at": [-0.76, 0.12, 0.0], "material": "dark"},
+      {"type": "cylinder", "radius": 0.086, "length": 0.03, "axis": "x", "at": [-0.88, 0.12, 0.0], "material": "engine"},
+      {"type": "sphere", "radius": 0.03, "detail": 0, "at": [-0.3, 0.28, 0], "material": "beacon"}
+    ]
+  },
+  "constructor": {
+    "plating": true,
+    "description": "Constructor: a boxy work tug with a crane arm, cargo pallets and a work light.",
+    "parts": [
+      {"type": "hull", "outline": [[0.5, 0.12], [0.5, -0.12], [0.2, -0.3], [-0.45, -0.3], [-0.55, -0.16], [-0.55, 0.16], [-0.45, 0.3], [0.2, 0.3]], "height": 0.22, "bevel": 0.3, "taper": 0.1, "material": "hull"},
+      {"type": "box", "size": [0.3, 0.14, 0.26], "at": [0.22, 0.25, 0], "material": "glass"},
+      {"type": "box", "size": [0.5, 0.04, 0.5], "at": [-0.2, 0.24, 0], "material": "accent"},
+      {"type": "cylinder", "radius": 0.03, "length": 0.5, "axis": "y", "at": [-0.28, 0.5, 0.0], "material": "dark"},
+      {"type": "box", "size": [0.7, 0.04, 0.04], "at": [0.05, 0.74, 0], "material": "dark"},
+      {"type": "box", "size": [0.1, 0.1, 0.14], "at": [0.42, 0.7, 0], "material": "accent"},
+      {"type": "box", "size": [0.18, 0.12, 0.14], "at": [-0.3, 0.3, 0.2], "material": "dark", "mirror": true},
+      {"type": "sphere", "radius": 0.035, "detail": 0, "at": [0.5, 0.3, 0], "material": "light_green"},
+      {"type": "cylinder", "radius": 0.07, "length": 0.22, "axis": "x", "at": [-0.62, 0.12, 0.17], "material": "dark"},
+      {"type": "cylinder", "radius": 0.05, "length": 0.03, "axis": "x", "at": [-0.74, 0.12, 0.17], "material": "engine"},
+      {"type": "cylinder", "radius": 0.07, "length": 0.22, "axis": "x", "at": [-0.62, 0.12, -0.17], "material": "dark"},
+      {"type": "cylinder", "radius": 0.05, "length": 0.03, "axis": "x", "at": [-0.74, 0.12, -0.17], "material": "engine"}
+    ]
+  },
+  "transport": {
+    "plating": true,
+    "description": "Troop transport: a slab-sided carrier with drop bays, landing struts and armoured flanks.",
+    "parts": [
+      {"type": "hull", "outline": [[0.72, 0], [0.5, 0.3], [-0.6, 0.34], [-0.72, 0.2], [-0.72, -0.2], [-0.6, -0.34], [0.5, -0.3]], "height": 0.3, "bevel": 0.3, "taper": 0.12, "material": "hull"},
+      {"type": "box", "size": [0.7, 0.14, 0.5], "at": [-0.1, 0.34, 0], "material": "accent"},
+      {"type": "box", "size": [0.18, 0.07, 0.2], "at": [0.38, 0.28, 0], "material": "glass"},
+      {"type": "box", "size": [0.36, 0.06, 0.1], "at": [-0.1, 0.42, 0.17], "material": "dark", "mirror": true},
+      {"type": "box", "size": [0.6, 0.025, 0.025], "at": [0.0, 0.14, 0.345], "material": "stripe", "mirror": true},
+      {"type": "box", "size": [0.1, 0.18, 0.1], "at": [0.1, -0.02, 0.3], "material": "dark", "mirror": true},
+      {"type": "sphere", "radius": 0.03, "detail": 0, "at": [-0.5, 0.12, 0.36], "material": "light_red"},
+      {"type": "sphere", "radius": 0.03, "detail": 0, "at": [-0.5, 0.12, -0.36], "material": "light_green"},
+      {"type": "cylinder", "radius": 0.09, "length": 0.22, "axis": "x", "at": [-0.78, 0.12, 0.2], "material": "dark"},
+      {"type": "cylinder", "radius": 0.065, "length": 0.03, "axis": "x", "at": [-0.9, 0.12, 0.2], "material": "engine"},
+      {"type": "cylinder", "radius": 0.09, "length": 0.22, "axis": "x", "at": [-0.78, 0.12, -0.2], "material": "dark"},
+      {"type": "cylinder", "radius": 0.065, "length": 0.03, "axis": "x", "at": [-0.9, 0.12, -0.2], "material": "engine"}
+    ]
   }
 }

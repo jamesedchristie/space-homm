@@ -543,6 +543,21 @@ func _play(events: Array[Dictionary], token: int) -> void:
 				board.refresh_planet(e["planet"])
 				if _visible.has(engine.state.planets[e["planet"]].cell):
 					board.float_text_at_planet(e["planet"], "Plundered!", Palette.BAD)
+			GalaxyEvents.COLONY_FOUNDED, GalaxyEvents.JOB_COMPLETED:
+				board.refresh_planet(e["planet"])
+				if e["faction"] == player_faction and _visible.has(engine.state.planets[e["planet"]].cell):
+					board.float_text_at_planet(e["planet"], "Colony founded" if e["type"] == GalaxyEvents.COLONY_FOUNDED \
+							else data.buildings[e["building"]]["name"], Palette.GOOD)
+			GalaxyEvents.SYSTEM_CLAIMED:
+				board.refresh_planet(e["planet"])
+				if _visible.has(engine.state.planets[e["planet"]].cell) or e["faction"] == player_faction:
+					board.float_text_at_planet(e["planet"], "Claimed", Palette.team_color(engine.state.faction(e["faction"])["team"]))
+			GalaxyEvents.BLOCKADE_STARTED, GalaxyEvents.BLOCKADE_LIFTED:
+				board.refresh_planet(e["planet"])
+				if _visible.has(engine.state.planets[e["planet"]].cell) and e["type"] == GalaxyEvents.BLOCKADE_STARTED:
+					board.float_text_at_planet(e["planet"], "Blockaded", Palette.BAD)
+			GalaxyEvents.SYSTEM_INVADED:
+				board.refresh_planet(e["planet"])
 			GalaxyEvents.PLANET_CAPTURED:
 				board.refresh_planet(e["planet"])
 				if _visible.has(engine.state.planets[e["planet"]].cell) or e["faction"] == player_faction:
@@ -773,6 +788,20 @@ func _refresh_attention(human: bool) -> void:
 		items.append({"text": "In debt: no growth, no repairs, hull loss", "color": Palette.BAD, "action": _toggle_empire})
 	if String(engine.state.research[f]["current"]).is_empty():
 		items.append({"text": "Choose a research project", "color": Palette.ACTIVE, "action": _toggle_tech_tree})
+	# Settlers and workers waiting for orders.
+	var founded := EmpireRules.colony_count(engine, f) > 0
+	for p: Planet in engine.state.planets.values():
+		var pid := p.id
+		for entry in SystemRules.ships_here(engine, p, f):
+			var ship: Dictionary = entry["ship"]
+			if not ship.get("job", {}).is_empty():
+				continue
+			if entry["role"] == "colony" and not SystemRules.colony_targets(engine, p, f).is_empty():
+				items.append({"text": "Found %s with %s" % ["your capital" if not founded else "a colony at " + p.name, ship["name"]],
+						"color": Palette.GOOD, "action": func() -> void: _open_system(pid)})
+			elif entry["role"] == "constructor" and entry["deployed"] and not SystemRules.development_targets(engine, p, f).is_empty():
+				items.append({"text": "%s is idle at %s" % [ship["name"], p.name], "color": Palette.ACTIVE,
+						"action": func() -> void: _open_system(pid)})
 	var idle: Array[Planet] = []
 	for p: Planet in engine.state.planets_of(f):
 		if not p.queue.is_empty():
@@ -818,8 +847,8 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 		if target_fleet != null:
 			text = "Attack %s here" % target_fleet.name
 		elif target_system != null:
-			text = "Assault the defenses of %s (%d platform(s))" % [target_system.name,
-					EmpireRules.defense_units(engine, target_system).size()]
+			text = "Assault %s: %d gun(s) defend it, always a battle. %s" % [target_system.name,
+					EmpireRules.defense_units(engine, target_system).size(), _assault_outcome_text(fleet, target_system)]
 	elif _hover != null and _reach.has(_hover) and _hover != fleet.cell:
 		text = "Move here: %d of %d moves" % [_reach[_hover]["cost"], fleet.moves_left]
 	elif _hover != null and _hover == fleet.cell and _own_system_under_fleet() != null:
@@ -873,13 +902,24 @@ func _ready_fleet_count() -> int:
 	return n
 
 
-## Your system under the selected fleet, or null.
+## The system under the selected fleet that its owner can open: their own, or an unclaimed one
+## (where a Colony Ship or Constructor can start work).
 func _own_system_under_fleet() -> Planet:
 	var fleet: Fleet = engine.state.fleets.get(selected_fleet)
 	if fleet == null or fleet.owner != player_faction:
 		return null
 	var planet := engine.state.planet_at(fleet.cell)
-	return planet if planet != null and planet.owner == player_faction else null
+	return planet if planet != null and planet.owner in [player_faction, ""] else null
+
+
+## Whether clicking this system opens the system map: it is yours, or you have ships working in it.
+func _opens_system(planet: Planet) -> bool:
+	if planet.owner == player_faction:
+		return true
+	for c in planet.civilians:
+		if c["owner"] == player_faction:
+			return true
+	return false
 
 
 func _fit_map() -> void:
@@ -1041,7 +1081,14 @@ func _planet_info(planet: Planet) -> String:
 	text += "\n" + UiKit.color_tag("Click your system or press S to open it.", Palette.TEXT_DIM)
 	var defenses := EmpireRules.defense_units(engine, planet).size()
 	if defenses > 0:
-		text += "\n" + UiKit.color_tag("Defended by %d platform(s): attackers must fight them." % defenses, Palette.BAD)
+		text += "\n" + UiKit.color_tag("Defended by %d gun(s): attackers always have to fight them." % defenses, Palette.BAD)
+	if planet.is_blockaded():
+		text += "\n" + UiKit.color_tag("BLOCKADED by %s: no production, no growth." % engine.state.faction(planet.blockade)["name"], Palette.BAD)
+	var mine_here := planet.civilians.filter(func(c: Dictionary) -> bool: return c["owner"] == player_faction)
+	if not mine_here.is_empty():
+		text += "\n" + UiKit.color_tag("Your ships here: %s (open the system with S)" % ", ".join(mine_here.map(func(c: Dictionary) -> String: return c["name"])), Palette.GOOD)
+	if planet.owner.is_empty():
+		text += "\n" + UiKit.color_tag("Unclaimed: a Colony Ship (on a habitable world) or a Constructor (an outpost) claims it. Flying in doesn't.", Palette.TEXT_DIM)
 	if planet.owner == player_faction:
 		if planet.queue.is_empty():
 			text += "\n" + UiKit.color_tag("Idle: open the system (S) to build.", Palette.TEXT_DIM)
@@ -1065,9 +1112,9 @@ func _battle_preview(b: Dictionary, attacker: Fleet, defender: Fleet) -> String:
 	var lines := PackedStringArray()
 	var planet := engine.state.planet_at(b["cell"])
 	if defender == null:
-		lines.append("[b]%s[/b] attacks the defenses of [b]%s[/b] (%d platform(s))." % [_fleet_name(attacker), planet.name,
-				EmpireRules.defense_units(engine, planet).size()])
-		lines.append(UiKit.color_tag("Win and the fleet takes the planet.", Palette.TEXT_DIM))
+		lines.append("[b]%s[/b] attacks the defenses of [b]%s[/b] (%d gun%s)." % [_fleet_name(attacker), planet.name,
+				EmpireRules.defense_units(engine, planet).size(), "" if EmpireRules.defense_units(engine, planet).size() == 1 else "s"])
+		lines.append(UiKit.color_tag(_assault_outcome_text(attacker, planet), Palette.TEXT_DIM))
 		return "\n".join(lines)
 	if planet != null and planet.owner == defender.owner and not EmpireRules.defense_units(engine, planet).is_empty():
 		lines.append(UiKit.color_tag("%s's defense platforms join the fight." % planet.name, Palette.BAD))
@@ -1089,6 +1136,15 @@ func _battle_preview(b: Dictionary, attacker: Fleet, defender: Fleet) -> String:
 	return "\n".join(lines)
 
 
+## What winning an assault on a system gets the attacker.
+func _assault_outcome_text(fleet: Fleet, planet: Planet) -> String:
+	if planet.colonies().is_empty() or engine.state.faction(planet.owner).get("role", "") == "barbarian":
+		return "Win and the fleet takes the system."
+	if fleet.has_role(data, "transport"):
+		return "Win and the Troop Transport lands: the system changes hands."
+	return "Win and the fleet blockades the system (no production or growth while it stays). Taking a colony needs a Troop Transport in the fleet."
+
+
 func _battle_report(events: Array[Dictionary]) -> String:
 	for e in events:
 		if e["type"] != GalaxyEvents.BATTLE_RESOLVED:
@@ -1105,6 +1161,13 @@ func _battle_report(events: Array[Dictionary]) -> String:
 			lines.append("%s lost %s" % [side[1], ", ".join(lost) if not lost.is_empty() else "nothing"])
 		if e.get("platforms_lost", 0) > 0:
 			lines.append("%d defense platform(s) destroyed" % e["platforms_lost"])
+		for ev in events:
+			match ev["type"]:
+				GalaxyEvents.PLANET_CAPTURED:
+					lines.append(UiKit.color_tag("%s now belongs to %s" % [engine.state.planets[ev["planet"]].name,
+							engine.state.faction(ev["faction"])["name"]], Palette.GOOD if ev["faction"] == player_faction else Palette.BAD))
+				GalaxyEvents.BLOCKADE_STARTED:
+					lines.append(UiKit.color_tag("%s is blockaded: no production or growth while the fleet stays. Bring a Troop Transport to take it." % engine.state.planets[ev["planet"]].name, Palette.ACTIVE))
 		return "\n".join(lines)
 	return ""
 
@@ -1118,6 +1181,43 @@ func _describe(e: Dictionary) -> String:
 		GalaxyEvents.PLANET_CAPTURED:
 			var f := s.faction(e["faction"])
 			return "%s captures %s" % [UiKit.color_tag(f["name"], Palette.team_color(f["team"])), s.planets[e["planet"]].name]
+		GalaxyEvents.COLONY_FOUNDED:
+			if s.planets[e["planet"]].owner != player_faction:
+				return ""
+			var body_name: String = s.planets[e["planet"]].body(e["body"]).get("name", "")
+			return UiKit.color_tag("   %s founded on %s (%s)" % ["Capital" if e["capital"] else "Colony", body_name, s.planets[e["planet"]].name], Palette.GOOD)
+		GalaxyEvents.SYSTEM_CLAIMED:
+			if e["faction"] != player_faction:
+				return ""
+			return UiKit.color_tag("   %s is yours (%s)" % [s.planets[e["planet"]].name, "outpost" if e["how"] == "outpost" else "colony"], Palette.GOOD)
+		GalaxyEvents.JOB_COMPLETED:
+			if e["faction"] != player_faction:
+				return ""
+			return "   %s finished at %s" % [data.buildings[e["building"]]["name"], s.planets[e["planet"]].name]
+		GalaxyEvents.JOB_CANCELLED:
+			if s.planets[e["planet"]].owner != player_faction and s.planets[e["planet"]].owner != "":
+				return ""
+			return UiKit.color_tag("   %s job dropped (%s)" % [data.buildings[e["building"]]["name"], e["reason"]], Palette.TEXT_DIM)
+		GalaxyEvents.CIVILIANS_LOST:
+			if e["faction"] != player_faction:
+				return ""
+			return UiKit.color_tag("   Lost with %s: %s" % [s.planets[e["planet"]].name, ", ".join(e["ships"])], Palette.BAD)
+		GalaxyEvents.BLOCKADE_STARTED:
+			var p: Planet = s.planets[e["planet"]]
+			if e["faction"] != player_faction and p.owner != player_faction:
+				return ""
+			return UiKit.color_tag("   %s is blockaded by %s: no production, no growth%s" % [p.name, s.faction(e["faction"])["name"],
+					"" if e["faction"] != player_faction else ". Bring a Troop Transport to take it"], Palette.BAD if p.owner == player_faction else Palette.ACTIVE)
+		GalaxyEvents.BLOCKADE_LIFTED:
+			var p: Planet = s.planets[e["planet"]]
+			if e["faction"] != player_faction and p.owner != player_faction:
+				return ""
+			return UiKit.color_tag("   The blockade of %s is lifted" % p.name, Palette.GOOD)
+		GalaxyEvents.SYSTEM_INVADED:
+			var p: Planet = s.planets[e["planet"]]
+			if e["faction"] != player_faction and e["previous_owner"] != player_faction:
+				return ""
+			return UiKit.color_tag("   Troops land on %s" % p.name, Palette.ACTIVE)
 		GalaxyEvents.BATTLE_TRIGGERED:
 			var a: Fleet = s.fleets[e["attacker"]]
 			var d: Fleet = s.fleets.get(e["defender"])
@@ -1135,6 +1235,8 @@ func _describe(e: Dictionary) -> String:
 			var winner: String = e["winner"]
 			return "   Battle won by %s (%d rounds)" % [s.faction(winner).get("name", "nobody"), e["rounds"]]
 		GalaxyEvents.FLEET_DESTROYED:
+			if not e.get("by", "").is_empty():
+				return UiKit.color_tag("   %s caught and destroyed without a fight" % e["name"], Palette.BAD)
 			return UiKit.color_tag("   %s destroyed" % e["name"], Palette.BAD)
 		GalaxyEvents.SYSTEM_PLUNDERED:
 			if e["previous_owner"] != player_faction:
@@ -1144,7 +1246,8 @@ func _describe(e: Dictionary) -> String:
 				losses.append("%d credits stolen" % e["credits"])
 			if not e["building"].is_empty():
 				losses.append("%s wrecked" % data.buildings[e["building"]]["name"])
-			losses.append("the system is lost")
+			if e.get("razed", true):
+				losses.append("the system is lost")
 			return UiKit.color_tag("   Raiders plundered %s: %s" % [s.planets[e["planet"]].name, ", ".join(losses)], Palette.BAD)
 		GalaxyEvents.DEN_CLEARED:
 			if e["faction"] != player_faction:
@@ -1197,6 +1300,8 @@ func _describe(e: Dictionary) -> String:
 		GalaxyEvents.SHIP_COMPLETED:
 			if s.planets[e["planet"]].owner != player_faction:
 				return ""
+			if e.get("deployed", false):
+				return "   New %s ready at %s" % [data.units[e["unit"]]["name"], s.planets[e["planet"]].name]
 			return "   New %s launched at %s" % [data.units[e["unit"]]["name"], s.planets[e["planet"]].name]
 		GalaxyEvents.MEGAPROJECT_STARTED:
 			var mp: Dictionary = data.megaprojects[e["megaproject"]]
@@ -1358,7 +1463,7 @@ func _on_left_click() -> void:
 		selected_planet = engine.state.planet_at(cell).id
 		selected_fleet = ""
 		# Like a city screen: clicking your own system opens it.
-		if engine.state.planet_at(cell).owner == player_faction:
+		if _opens_system(engine.state.planet_at(cell)):
 			_refresh()
 			_open_system(selected_planet)
 			return

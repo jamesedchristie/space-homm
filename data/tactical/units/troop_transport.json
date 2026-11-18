@@ -1,0 +1,39 @@
+{
+  "id": "troop_transport",
+  "name": "Troop Transport",
+  "description": "Carries the landing troops that take a colony. Keep it in a warfleet: once the fleet has beaten a system's defenses, a transport lands and is consumed, and the system changes hands. Weakly armed.",
+  "tags": [
+    "ship",
+    "medium",
+    "civilian"
+  ],
+  "stats": {
+    "max_hull": 80,
+    "max_shields": 30,
+    "armor": 2,
+    "initiative": 3,
+    "max_ap": 3
+  },
+  "abilities": [
+    "brace_shields"
+  ],
+  "strategic": {
+    "civilian": true,
+    "role": "transport",
+    "speed": 3,
+    "sensor": 1,
+    "cost": {
+      "alloys": 30,
+      "credits": 35
+    },
+    "build_turns": 3,
+    "upkeep": 1
+  },
+  "visual": {
+    "placeholder": "frigate",
+    "sprite": "res://assets/kenney_space_shooter/ships/playerShip2_{team}.png",
+    "size": 1.0,
+    "model": "transport",
+    "attack_style": "broadside"
+  }
+}

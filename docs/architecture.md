@@ -94,16 +94,20 @@ It reuses `HexGrid` and `Pathfinding`. A galaxy is just a hex map with galaxy te
   `auto_resolve_pending_battle()` does all of that in one call. The battle map comes from
   the location: planet type, then galaxy terrain (`battle_map`), then the campaign default.
   A battle in a star system's hex instead uses a generated system map (below).
-- **Planets** are captured by ending a move on them. A faction with no fleets and no planets
-  is eliminated, and the last faction standing wins.
+- **Systems** are not claimed by entering them: colonies and outposts claim them, and conquest
+  takes them (see [The system layer](#the-system-layer-civilian-ships-claiming-conquest)).
+  A faction with no fleets, no systems and no deployed civilian ships is eliminated, and the last
+  faction standing wins.
 - **Fleets merge and split.** A fleet can move into another of its owner's fleets if the ships
   fit (`EmpireRules.MAX_FLEET_SIZE`) and there's at most one commander: it joins and is removed
   (`FLEETS_MERGED`; the merged fleet keeps the lower moves left). `SplitFleetCommand` detaches
   ships into a new fleet on a free neighbouring system, paying that move from the fleet's
   moves left (`split_targets()`); the commander stays.
-- **AI** (`GalaxyAI`): per fleet, attack a visible fleet it can beat (counting the defense
-  platforms of a planet the target sits on), otherwise retreat to repair when below 50% hull,
-  otherwise head for the nearest planet it doesn't own. Factions can have a personality
+- **AI** (`GalaxyAI`): per fleet, attack a visible fleet it can beat (counting the defenses of a
+  system the target sits on), otherwise retreat to repair when below 50% hull, otherwise head for
+  the nearest enemy system it can take (picking up a Troop Transport first for a colony); small
+  fleets scout unexplored space. Civilian ships have their own rules (see the system layer).
+  Factions can have a personality
   (campaign `ai` entry, see the content schema).
   `CampaignAutoRunner` plays whole campaigns headlessly, for tests and `tools/simulate_campaign.gd`.
 
@@ -141,8 +145,9 @@ style)`; battle teams carry `species`). Campaign factions set `species` and `rol
   only; a campaign can instead set `"victory": {"eliminate": faction}` (The Drift).
 - `barbarian`: always hostile; `barbarian: {spawn_every, max_fleets, fleet, den_loot}`: each den
   (system they hold) launches a raider fleet every `spawn_every` turns; captures become
-  `_plunder` (credits stolen, a building wrecked, system left unclaimed); taking a den pays
-  `den_loot`. The AI only targets systems others hold.
+  `_plunder` (credits stolen, a building wrecked, a pop lost; the system stays with its owner
+  unless nothing is left standing); winning the battle at a den takes it with no troops and pays
+  `den_loot`. The AI only targets systems others hold and builds no civilian ships.
 - `minor`: stays near home (AI expands within 4 of its capital); `EmpireRules.trade_income`
   pays friendly majors at peace.
 The New Campaign screen's species choice rewrites the player's faction (and swaps an AI major
@@ -236,9 +241,68 @@ the original would have (a test plays both to the end and compares). Files go to
 a save can only hold data. Saves are only taken between turns (no pending battle or mission;
 a pending galactic event is saved with the state); the galaxy screen autosaves at the start of
 each human turn. Bump `GalaxySave.VERSION` and migrate in `from_dict()` when the state's shape
-changes. Version 3 adds colony population and growth (inside the bodies), megaprojects on
-systems, temporary modifiers, the event log and pending event, and why the game ended; older
-saves are refused.
+changes. Version 3 added colony population and growth (inside the bodies), megaprojects on
+systems, temporary modifiers, the event log and pending event, and why the game ended. Version 4
+adds the system layer: `Planet.civilians` (deployed ships with their jobs), `blockade` and `capital`;
+older saves are refused.
+
+### The system layer: civilian ships, claiming, conquest
+
+Below the galaxy map is a second level, the **system map**: what happens inside one star system.
+Rules live in `GalaxyEngine` and `SystemRules` (`src/empire/system_rules.gd`); the presentation is
+`SystemView` + `SystemMap` (`src/presentation/strategic/`).
+
+**Civilian ships** are ordinary units with `strategic.civilian: true` and a `role`:
+`colony` (Colony Ship), `constructor` (Constructor) and `transport` (Troop Transport); they are weak
+in battle and `Fleet.is_civilian_only()` fleets can't fight. A ship is *in a fleet* on the galaxy map or
+*deployed* in a system (`Planet.civilians`: `{uid, unit, name, hull, owner, loc: body id or "", job: {} or
+{body, building, turns_left, turns}}`). Colony ships and constructors built by a colony start out
+deployed (`SHIP_COMPLETED` with `deployed: true`); transports launch like warships. One order type drives
+the system map, `CivilianCommand(faction, planet, ship_uid, action, body_id, item_id)`:
+
+| Action | Rule |
+| --- | --- |
+| `move` | to a body of the system, instantly (deploys the ship if it was in a fleet in orbit) |
+| `job` | a constructor starts building `item_id` (a development: a building with `"on"`, not `founded`) on `body_id`. Allowed in a system the faction owns or an unclaimed one; the body must fit and be free; cost is paid up front. It ticks at the start of its owner's turn (paused while blockaded); when done the building is added (replacing an `outpost`), and an unclaimed system becomes the owner's (`SYSTEM_CLAIMED`, `how: "outpost"`). The ship stays and can take another job; a job is cancelled (refunded) if the system changes hands |
+| `found` | a colony ship founds a colony on a habitable body without buildings (unclaimed or own system). The ship is consumed; the colony starts at 1 pop and claims the system (`how: "colony"`). In a power's undeveloped home system (`Planet.capital`, set by the generator for `"start": "colony_ship"`), the faction's first colony is the **capital**: it gets the capital's pop and buildings |
+| `depart` | a deployed idle ship leaves: joins the own fleet in orbit (room permitting) or forms a new fleet |
+| `cancel` | drops a job, refunding `economy.jobs.refund` (half) |
+
+The build queue (`QueueBuildCommand`, one item per system) builds colony buildings, megaprojects and
+ships. `EmpireRules.build_options` no longer lists body developments; `EmpireRules.constructor_options`
+does, for a body. Civilian ships need a colony in the system; a unit with `min_pop`/`pop_cost`
+(Colony Ship) also needs a colony of that size, and the biggest colony gives up the population when the
+item is queued. Deployed ships cost upkeep like fleet ships.
+
+**Claiming.** Entering a system never claims it. A system becomes owned by a colony founded there or a
+constructor job finished there. Discoveries and anomalies work as before.
+
+**Convoys.** A civilian-only fleet treats enemy fleets and hostile systems as walls
+(`reachable_for`), can't attack, and is destroyed without a battle (`FLEET_DESTROYED` with `by`) when an
+enemy warfleet enters its hex or when it flies into a hidden warfleet. Civilian ships inside a warfleet
+fight as weak ships in its battles.
+
+**Conquest.** `GalaxyEngine.is_defended_against(system, faction)`: any system claimed by someone at war
+with the mover, with no fleet of theirs on it, fights: `EmpireRules.defense_units` = the defense buildings
+plus the **base garrison** (`garrison_units`, `economy.garrison`: `base` orbital batteries plus one per
+`pop_per_extra` population of its colonies, up to `max`; none for unclaimed systems). The pending
+assault battle uses the existing flow; a fleet at a system fights alongside its system's defenses.
+After an attacker's win `_conquer` runs: a system with no colony, or a barbarian den, is captured
+(`PLANET_CAPTURED`); a colony needs a Troop Transport in the fleet (`_try_invade`: one transport is
+consumed, `SYSTEM_INVADED`, then the usual capture and pop loss); otherwise the fleet **blockades** it
+(`Planet.blockade = attacker`, `BLOCKADE_STARTED`). Blockaded systems yield nothing, don't grow, don't
+advance their queue or jobs, don't repair fleets and have no garrison; a warfleet of the blockader
+entering (or a transport merging into it) may still invade. `_update_blockades` lifts it when the
+blockader's warfleet is no longer there or the war ends. Raiders (barbarians) beaten at a den lose it
+without troops; raiders winning an assault plunder.
+
+**AI.** Majors only: colony ships found the capital on turn 1 (the best habitable world: pop cap, slots,
+traits), then settle the best world within `CIVILIAN_RANGE` of their systems; constructors take the
+best job (yield value, scarcity-weighted) in the systems they hold or empty explored ones nearby; both
+build when there is work for them (`_choose_civilian_build`), transports when at war with someone who
+has colonies. Civilian-only fleets travel to their goal (`_civilian_goal`), avoid visible warships and
+fall back home when threatened; a warfleet that took a settler along splits it off towards its goal.
+Every command is validated with the engine before it is submitted.
 
 ### System battle maps
 
@@ -444,10 +508,11 @@ having war declared on you (−30) lowers opinion. Gifts (+10) and time at peace
 Events: `WAR_DECLARED`, `PEACE_SIGNED`, `PEACE_REFUSED`, `GIFT_SENT`, `FIRST_CONTACT`,
 `PEACE_OFFERED`, `PEACE_OFFER_REFUSED`.
 
-**Planet defenses:** buildings with a `defense_unit` put immobile units (`"immobile"` tag) into
-any battle at that planet. A fleet entering a defended enemy planet with no fleet on it fights
-the platforms; if it wins and none survive, it moves in and captures the planet. Destroyed
-platforms are removed.
+**System defenses:** buildings with a `defense_unit` put immobile units (`"immobile"` tag) into
+any battle at that system, and so does the base garrison (`orbital_battery`). A fleet entering an enemy system with no fleet on it fights
+the platforms and the base garrison; if it wins and none survive, it moves in and takes the system as
+described under conquest above. Destroyed platforms are removed; the garrison is simply beaten while the
+attacker stays.
 
 **Victory** (`VictoryRules`, `GalaxyEngine._check_eliminations` / `_complete_megaproject` /
 `_end_faction_turn`). A campaign ends when:
@@ -653,7 +718,10 @@ rounds 3, 5 and 7, and `"eliminate_all_wins": false` so clearing the first wave 
   `defense_unit`, `requires_tech`.
 - `techs.json`: `name`, `description`, `cost`, `requires`, `effects` (see the table above).
 
-Units gain `strategic.cost`, `build_turns` and `requires_tech`.
+Units gain `strategic.cost`, `build_turns` and `requires_tech`. Civilian ships (`data/tactical/units/colony_ship.json`,
+`constructor.json`, `troop_transport.json`) add `civilian: true`, `role` (`colony` | `constructor` | `transport`) and,
+for the Colony Ship, `min_pop` / `pop_cost`. `orbital_battery` is the base garrison unit (no `strategic` block);
+`economy.json` has a `garrison` block (`unit`, `base`, `pop_per_extra`, `max`) and `jobs.refund`.
 Campaigns gain `resources: {faction: {credits, alloys}}`,
 `relations: [{factions: [a, b], status: "peace"|"war", opinion}]`, `techs: {faction: [ids]}`,
 system `bodies` (with `buildings`), faction `always_hostile`, and faction `ai` (personality overrides for
@@ -668,16 +736,17 @@ traders are cautious (1.4, range 3) and the raiders only take even-or-better fig
 (`star_types.json`) and `bodies: [{id, name, type, traits, buildings}]`. Body types
 (`body_types.json`) have a `category` (habitable / rock / belt / gas / ice), `size`,
 `colony_slots`, a `bonus` paid once the body is developed and shader `surface` colours.
-Buildings (`data/empire/buildings.json`) are either installations (`"on": [categories]`, one
-per body: colony, mining base, research station, gas refinery) or colony buildings
-(`"needs": "colony"`, up to the colony's slots: shipyard, trade hub, defense platform).
-`EmpireRules.build_options()` lists what fits each body; `QueueBuildCommand` carries the
-`body_id`; yields come only from developed bodies (buildings + bonus + traits) times tech
-multipliers. Campaign systems list `bodies` explicitly or omit them for a seeded random set
+Buildings (`data/empire/buildings.json`) are either developments (`"on": [categories]`, one per body:
+colony, mining base, research station, gas refinery, outpost) built by Constructors (the colony is
+`"founded": true`, made by a Colony Ship) or colony buildings (`"needs": "colony"`, up to the colony's
+slots: shipyard, trade hub, defense platform) built from the queue. `EmpireRules.build_options()` lists
+what the queue can build; `EmpireRules.constructor_options()` what a Constructor can build on a body;
+yields come only from developed bodies (buildings + bonus + traits) times tech multipliers. Campaign systems list `bodies` explicitly or omit them for a seeded random set
 (`SystemBuilder`; `"home": true` guarantees a terran world). Galaxy views draw a system as its
 star with bodies on tilted orbits (`Planet3D`, `PlanetView`); the **system view**
-(`SystemView`, a SubViewport with the same model up close plus a card per body) is where the
-player builds. Saves are version 2; version 1 saves (planets with types) are refused.
+(`SystemView`: a big `SystemMap` with clickable bodies and the ships drawn at them, and a side panel
+with the selected body's actions, the ships in the system and the build queue) is where the player
+works a system.
 
 **Campaign** (`data/strategic/campaigns/*.json`)
 ```jsonc
@@ -692,6 +761,12 @@ player builds. Saves are version 2; version 1 saves (planets with types) are ref
 }
 ```
 The faction's position in `factions` is its team number (and color) in battles.
+
+System-layer campaign keys: `"start": "owned"` (default: homes belong to their powers) or `"colony_ship"`
+(generated campaigns only: every major power's home system starts unclaimed with `Planet.capital =
+{faction, buildings, pop}` and the template's home `buildings` become the capital's; its first fleet starts
+in the home system), `"start_ships": [unit ids]` (deployed in each such home system), and a system entry
+may list `"civilians": [{unit, name?, owner?}]` (ships deployed in it at the start).
 
 ### Empire depth content
 

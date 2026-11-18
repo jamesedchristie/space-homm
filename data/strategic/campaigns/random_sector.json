@@ -3,6 +3,11 @@
   "name": "Random Sector",
   "description": "The main game: a new sector every time. Three powers compete for the stars: you, the Vel'tari Concord and the Kesh Dominion. Raiders prey on everyone; the Free Traders deal with anyone who treats them well.",
   "max_turns": 200,
+  "start": "colony_ship",
+  "start_ships": [
+    "colony_ship",
+    "constructor"
+  ],
   "events": true,
   "victory": {
     "peace": false
@@ -14,7 +19,7 @@
       "min_distance": 2
     }
   },
-  "briefing": "An uncharted frontier sector, different every time. Raiders have dug in somewhere on the far side; the Ceres Free Traders hold a port of their own. At peace with you, at war with the raiders.\n\n[b]Goal:[/b] outlast your rivals. Win by [b]conquest[/b] (be the last major power), by [b]science[/b] (research Ascension Theory and complete the Ascension Gate; everyone sees it being built) or by [b]score[/b] when the turn limit arrives. [b]E[/b] > Victory shows how close everyone is. Grow your colonies, mind your fleet's upkeep and answer the galaxy's events.\n\n[b]Scout first.[/b] Planets may have traits worth fighting for, and the sector is littered with discoveries: derelicts, signals, caches. The first fleet in claims them.\n\n[b]Controls[/b]: click a fleet, then a blue hex. [b]E[/b] Empire, [b]H[/b] Heroes, [b]D[/b] detach ships, [b]Space[/b] end turn, [b]Esc[/b] menu.",
+  "briefing": "An uncharted frontier sector, different every time. Raiders have dug in somewhere on the far side; the Ceres Free Traders hold a port of their own. At peace with you, at war with the raiders.\n\n[b]You arrive with a Colony Ship and a Constructor.[/b] Open your home system (click your fleet, then [b]S[/b]), select a habitable world and found your [b]capital[/b] with the Colony Ship. Nothing is yours until you settle it. Your Constructor then builds mining bases and research stations on the other bodies of a system you hold, or claims an empty system as an outpost. Colonies of 2+ population build more Colony Ships and Constructors; flying a fleet into an empty system claims nothing.\n\n[b]Goal:[/b] outlast your rivals. Win by [b]conquest[/b] (be the last major power), by [b]science[/b] (research Ascension Theory and complete the Ascension Gate; everyone sees it being built) or by [b]score[/b] when the turn limit arrives. [b]E[/b] > Victory shows how close everyone is.\n\n[b]War.[/b] Moving warships into an enemy system always starts a battle against its defenses. Win it and an outpost is yours; a colony also needs a [b]Troop Transport[/b] in your fleet, or you can only [b]blockade[/b] it while you stay. Unescorted civilian ships are destroyed by enemy warships.\n\n[b]Controls[/b]: click a fleet, then a blue hex. [b]S[/b] system map, [b]E[/b] Empire, [b]H[/b] Heroes, [b]D[/b] detach ships, [b]Space[/b] end turn, [b]Esc[/b] menu.",
   "battle_max_rounds": 30,
   "default_battle_map": "open_space",
   "permadeath": false,

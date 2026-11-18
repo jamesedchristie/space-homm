@@ -68,14 +68,15 @@ func test_turns_rotate_and_moves_reset() -> void:
 	assert_eq(f.moves_left, 3)
 
 
-func test_capture_planet() -> void:
+func test_entering_an_unclaimed_system_does_not_claim_it() -> void:
 	var e := Fixtures.galaxy([["a", "test_fast_dummy", 2, 3], ["b", "test_dummy", 9, 0]])
 	var f := _fleet_of(e, "a")
 	var result := e.submit(MoveFleetCommand.new("a", f.id, _cell(e, 5, 3)))
 	assert_true(result.ok, result.error)
-	assert_eq(e.state.planets["middle"].owner, "a")
+	assert_eq(f.cell, _cell(e, 5, 3))
+	assert_eq(e.state.planets["middle"].owner, "", "settlers and workers claim systems, not warships")
 	var types := result.events.map(func(ev: Dictionary) -> String: return ev["type"])
-	assert_true(GalaxyEvents.PLANET_CAPTURED in types)
+	assert_false(GalaxyEvents.PLANET_CAPTURED in types)
 
 
 func test_attack_visible_enemy_starts_battle() -> void:

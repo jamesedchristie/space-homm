@@ -78,6 +78,8 @@ static func unit_unlocked(engine: GalaxyEngine, faction_id: String, unit_id: Str
 ## produce nothing: a world's riches only pay once you build there.
 static func planet_yields(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 	var out := {}
+	if planet.is_blockaded():
+		return out  # an enemy fleet in orbit halts production
 	for b in planet.bodies:
 		_add(out, body_yields(engine, b, planet.owner))
 	for mp_id in planet.megaprojects:
@@ -215,12 +217,17 @@ static func colony_slots(engine: GalaxyEngine, b: Dictionary, faction_id: String
 
 
 ## Why `building_id` can't go on body `b` ("" if it can, ignoring cost and queue).
+## Body developments ("on") are built by Constructors; colony buildings ("needs") are queued.
 static func body_build_error(engine: GalaxyEngine, b: Dictionary, building_id: String, faction_id: String = "") -> String:
 	var def: Dictionary = engine.data.buildings.get(building_id, {})
 	if def.has("on"):
+		if def.get("founded", false):
+			return "Founded by a Colony Ship"
 		if body_category(engine, b) not in def["on"]:
 			return "Can't be built on a %s" % engine.data.body_types.get(b["type"], {}).get("name", b["type"]).to_lower()
-		if not b["buildings"].is_empty():
+		# An outpost is a placeholder claim: a real development may replace it.
+		var only_outpost: bool = b["buildings"].size() == 1 and "outpost" in b["buildings"] and building_id != "outpost"
+		if not b["buildings"].is_empty() and not only_outpost:
 			return "This world is already developed"
 		return ""
 	if def.get("needs", "") == "colony":
@@ -234,6 +241,27 @@ static func body_build_error(engine: GalaxyEngine, b: Dictionary, building_id: S
 	return "Can't be built here"
 
 
+## What a Constructor could start on body `b`: [{"id", "name", "cost", "turns", "ok", "reason"}].
+## Only developments that suit the body are listed; "reason" says what blocks one now.
+static func constructor_options(engine: GalaxyEngine, faction_id: String, b: Dictionary) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for b_id: String in engine.data.buildings:
+		var def: Dictionary = engine.data.buildings[b_id]
+		if not def.has("on") or def.get("founded", false) or body_category(engine, b) not in def["on"]:
+			continue
+		if not building_unlocked(engine, faction_id, b_id):
+			continue
+		var reason := body_build_error(engine, b, b_id, faction_id)
+		if reason.begins_with("This world is already"):
+			continue
+		var cost: Dictionary = def.get("cost", {})
+		if reason.is_empty() and not can_afford(engine, faction_id, cost):
+			reason = "Can't afford it"
+		out.append({"id": b_id, "name": def.get("name", b_id), "cost": cost, "turns": int(def.get("turns", 1)),
+				"ok": reason.is_empty(), "reason": reason})
+	return out
+
+
 static func has_shipyard(engine: GalaxyEngine, planet: Planet) -> bool:
 	for b in planet.buildings:
 		if engine.data.buildings.get(b, {}).get("shipyard", false):
@@ -241,13 +269,40 @@ static func has_shipyard(engine: GalaxyEngine, planet: Planet) -> bool:
 	return false
 
 
-## Unit ids of the planet's defenses (one per defense building).
-static func defense_units(engine: GalaxyEngine, planet: Planet) -> Array[String]:
+## Unit ids of the buildings' defenses (one per defense building).
+static func building_defense_units(engine: GalaxyEngine, planet: Planet) -> Array[String]:
 	var out: Array[String] = []
 	for b in planet.buildings:
 		var unit: String = engine.data.buildings.get(b, {}).get("defense_unit", "")
 		if not unit.is_empty():
 			out.append(unit)
+	return out
+
+
+## The base garrison every claimed system fields: orbital batteries, one plus one
+## per few population (economy.json "garrison"). None while the system is blockaded
+## (the garrison is already beaten) or unclaimed.
+static func garrison_units(engine: GalaxyEngine, planet: Planet) -> Array[String]:
+	var out: Array[String] = []
+	if planet.owner.is_empty() or planet.is_blockaded():
+		return out
+	if engine.state.faction(planet.owner).get("role", "") == "barbarian":
+		return out  # raider dens rely on their own platforms
+	var cfg: Dictionary = engine.data.economy.get("garrison", {})
+	var unit: String = cfg.get("unit", "")
+	if unit.is_empty() or not engine.data.units.has(unit):
+		return out
+	var n := int(cfg.get("base", 1)) + planet.population() / maxi(int(cfg.get("pop_per_extra", 4)), 1)
+	n = mini(n, int(cfg.get("max", 3)))
+	for i in n:
+		out.append(unit)
+	return out
+
+
+## Everything that fights an attacker in the system: defense buildings, then the base garrison.
+static func defense_units(engine: GalaxyEngine, planet: Planet) -> Array[String]:
+	var out := building_defense_units(engine, planet)
+	out.append_array(garrison_units(engine, planet))
 	return out
 
 
@@ -352,6 +407,10 @@ static func fleet_upkeep(engine: GalaxyEngine, faction_id: String) -> int:
 	for f in engine.state.fleets_of(faction_id):
 		for ship in f.ships:
 			n += ship_upkeep(engine, ship["unit"])
+	for p: Planet in engine.state.planets.values():
+		for c in p.civilians:  # workers deployed in a system still cost upkeep
+			if c["owner"] == faction_id:
+				n += ship_upkeep(engine, c["unit"])
 	return n
 
 
@@ -435,26 +494,26 @@ static func megaproject_hidden(engine: GalaxyEngine, mp_id: String) -> bool:
 
 ## Everything the system could start building, with whether it's possible now:
 ## [{"kind", "id", "name", "body": body id or "", "cost", "turns", "ok": bool, "reason": String}]
-## Buildings are only listed for bodies where they make sense.
+## The queue builds colony buildings (shipyard, trade hub...), megaprojects and ships; body
+## developments (mining bases, research stations...) are built by Constructors instead
+## (see constructor_options).
 static func build_options(engine: GalaxyEngine, planet: Planet) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var faction_id := planet.owner
 	var busy := not planet.queue.is_empty()
+	var blockaded := planet.is_blockaded()
 	for b in planet.bodies:
 		for b_id: String in engine.data.buildings:
 			var def: Dictionary = engine.data.buildings[b_id]
+			if def.get("needs", "") != "colony" or "colony" not in b["buildings"]:
+				continue
 			if not building_unlocked(engine, faction_id, b_id):
 				continue
 			var reason := body_build_error(engine, b, b_id, faction_id)
-			# Hide what can never go here; show what's merely blocked for now.
-			if def.has("on") and body_category(engine, b) not in def["on"]:
-				continue
-			if def.get("needs", "") == "colony" and "colony" not in b["buildings"]:
-				continue
-			if reason == "Already built here" or reason == "This world is already developed":
+			if reason == "Already built here":
 				continue
 			var option := _option(engine, planet, "building", b_id, def.get("name", b_id), def.get("cost", {}),
-					int(def.get("turns", 1)), reason, busy)
+					int(def.get("turns", 1)), reason, busy, blockaded)
 			option["body"] = b["id"]
 			out.append(option)
 	if "colony" in planet.buildings:
@@ -466,23 +525,49 @@ static func build_options(engine: GalaxyEngine, planet: Planet) -> Array[Diction
 			if reason.begins_with("Already built") or reason.begins_with("Your empire already"):
 				continue
 			var option := _option(engine, planet, "megaproject", mp_id, mp.get("name", mp_id), mp.get("cost", {}),
-					int(mp.get("turns", 8)), reason, busy)
+					int(mp.get("turns", 8)), reason, busy, blockaded)
 			option["body"] = ""
 			out.append(option)
-	if has_shipyard(engine, planet):
-		for u_id: String in engine.data.units:
-			var strat: Dictionary = engine.data.units[u_id].get("strategic", {})
-			if not strat.has("cost") or not unit_unlocked(engine, faction_id, u_id):
-				continue
-			var option := _option(engine, planet, "unit", u_id, engine.data.units[u_id].get("name", u_id),
-					strat["cost"], int(strat.get("build_turns", 1)), "", busy)
-			option["body"] = ""
-			out.append(option)
+	for u_id: String in engine.data.units:
+		var strat: Dictionary = engine.data.units[u_id].get("strategic", {})
+		if not strat.has("cost") or not unit_unlocked(engine, faction_id, u_id):
+			continue
+		var reason := ""
+		if bool(strat.get("civilian", false)):
+			reason = civilian_build_error(engine, planet, u_id)
+		elif not has_shipyard(engine, planet):
+			continue
+		var option := _option(engine, planet, "unit", u_id, engine.data.units[u_id].get("name", u_id),
+				strat["cost"], int(strat.get("build_turns", 1)), reason, busy, blockaded)
+		option["body"] = ""
+		out.append(option)
 	return out
 
 
+## Civilian ships need a colony; some need people to spare ("min_pop": a colony of at least that size).
+static func civilian_build_error(engine: GalaxyEngine, planet: Planet, unit_id: String) -> String:
+	var strat: Dictionary = engine.data.units[unit_id].get("strategic", {})
+	if planet.colonies().is_empty():
+		return "Needs a colony in the system"
+	var min_pop := int(strat.get("min_pop", 0))
+	if min_pop > 0 and pop_donor(planet, min_pop).is_empty():
+		return "Needs a colony of %d+ population" % min_pop
+	return ""
+
+
+## The colony that gives up population for a ship (the biggest one with at least `min_pop`), or {}.
+static func pop_donor(planet: Planet, min_pop: int) -> Dictionary:
+	var best: Dictionary = {}
+	for b in planet.colonies():
+		if pop(b) >= min_pop and (best.is_empty() or pop(b) > pop(best)):
+			best = b
+	return best
+
+
 static func _option(engine: GalaxyEngine, planet: Planet, kind: String, id: String, item_name: String,
-		cost: Dictionary, turns: int, reason: String, busy: bool) -> Dictionary:
+		cost: Dictionary, turns: int, reason: String, busy: bool, blockaded: bool = false) -> Dictionary:
+	if reason.is_empty() and blockaded:
+		reason = "Blockaded"
 	if reason.is_empty() and busy:
 		reason = "Already building something"
 	if reason.is_empty() and not can_afford(engine, planet.owner, cost):

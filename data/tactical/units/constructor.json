@@ -1,0 +1,39 @@
+{
+  "id": "constructor",
+  "name": "Constructor",
+  "description": "A work ship. Builds mining bases, research stations and refineries on the bodies of a system you own, or of an unclaimed one (which becomes your outpost). Takes another job when it finishes. Unarmed.",
+  "tags": [
+    "ship",
+    "small",
+    "civilian"
+  ],
+  "stats": {
+    "max_hull": 45,
+    "max_shields": 10,
+    "armor": 0,
+    "initiative": 3,
+    "max_ap": 3
+  },
+  "abilities": [
+    "brace_shields"
+  ],
+  "strategic": {
+    "civilian": true,
+    "role": "constructor",
+    "speed": 3,
+    "sensor": 1,
+    "cost": {
+      "alloys": 25,
+      "credits": 30
+    },
+    "build_turns": 2,
+    "upkeep": 1
+  },
+  "visual": {
+    "placeholder": "interceptor",
+    "sprite": "res://assets/kenney_space_shooter/ships/playerShip1_{team}.png",
+    "size": 0.9,
+    "model": "constructor",
+    "attack_style": "run"
+  }
+}

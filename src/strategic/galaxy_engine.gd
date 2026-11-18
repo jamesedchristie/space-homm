@@ -77,6 +77,11 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 		p.star = p_def.get("star", SystemBuilder.random_star(p_data, s.rng))
 		p.bodies = SystemBuilder.bodies_from_def(p_data, p_def, p.name, s.rng)
 		p.description = p_def.get("description", "")
+		p.capital = p_def.get("capital", {}).duplicate(true)
+		for c_def: Dictionary in p_def.get("civilians", []):
+			var unit_def: Dictionary = p_data.units[c_def["unit"]]
+			p.civilians.append({"uid": s.make_uid("ship"), "unit": c_def["unit"], "name": c_def.get("name", unit_def.get("name", c_def["unit"])),
+					"hull": int(unit_def["stats"]["max_hull"]), "owner": c_def.get("owner", p.owner), "loc": "", "job": {}})
 		s.planets[p.id] = p
 
 	var fleet_by_name := {}
@@ -225,6 +230,8 @@ func submit(cmd: GalaxyCommand) -> CommandResult:
 		emit({"type": GalaxyEvents.RESEARCH_SET, "faction": cmd.faction_id, "tech": cmd.tech_id})
 	elif cmd is QueueBuildCommand:
 		_do_queue(cmd)
+	elif cmd is CivilianCommand:
+		_do_civilian(cmd)
 	elif cmd is SplitFleetCommand:
 		_do_split(cmd)
 	elif cmd is DiplomacyCommand:
@@ -283,6 +290,8 @@ func validate(cmd: GalaxyCommand) -> String:
 				if refusal == "Can't build that here":
 					refusal = option["reason"]
 		return refusal
+	elif cmd is CivilianCommand:
+		return SystemRules.command_error(self, cmd)
 	elif cmd is DiplomacyCommand:
 		return _validate_diplomacy(cmd)
 	elif cmd is SplitFleetCommand:
@@ -374,10 +383,11 @@ func fleet_sensor(fleet: Fleet) -> int:
 	return fleet.sensor(data) + int(EmpireRules.modifier(self, fleet.owner, "sensor"))
 
 
-## A planet that will fight `faction_id` if entered: owned by someone at war
-## with them, with defense buildings and no fleet of theirs on it.
+## A system that will fight `faction_id` if entered: claimed by someone at war with them, with
+## nothing of theirs on it and its garrison not already beaten by `faction_id` (blockade). Every
+## claimed system fields at least its base garrison, so entering one always means a battle.
 func is_defended_against(planet: Planet, faction_id: String) -> bool:
-	return planet != null and state.at_war(faction_id, planet.owner) \
+	return planet != null and state.at_war(faction_id, planet.owner) and planet.blockade != faction_id \
 			and not EmpireRules.defense_units(self, planet).is_empty() and state.fleet_at(planet.cell) == null
 
 
@@ -423,18 +433,27 @@ func split_targets(fleet_id: String) -> Array[Vector2i]:
 func reachable_for(fleet_id: String) -> Dictionary:
 	var fleet: Fleet = state.fleets[fleet_id]
 	var vis := visible_cells(fleet.owner)
+	# Civilian-only fleets can't fight: enemy fleets and hostile systems are walls to them
+	# (except systems their own warfleet has already blockaded).
+	var civil := fleet.is_civilian_only(data)
 	return Pathfinding.reachable(state.grid, fleet.cell, fleet.moves_left,
 		func(c: Vector2i) -> bool:
 			var other := state.fleet_at(c)
+			if civil:
+				var planet := state.planet_at(c)
+				if planet != null and state.at_war(fleet.owner, planet.owner) and planet.blockade != fleet.owner:
+					return true
 			if other == null or other == fleet:
 				return false
 			if other.owner == fleet.owner:
 				return not can_merge(fleet, other)
-			return vis.has(c) and not state.at_war(fleet.owner, other.owner),
+			return vis.has(c) and (civil or not state.at_war(fleet.owner, other.owner)),
 		func(c: Vector2i) -> bool:
 			var other := state.fleet_at(c)
 			if other != null and other != fleet and other.owner == fleet.owner:
 				return true  # merging ends the move
+			if civil:
+				return false
 			if other != null and vis.has(c) and state.at_war(fleet.owner, other.owner):
 				return true
 			return is_defended_against(state.planet_at(c), fleet.owner))
@@ -443,10 +462,12 @@ func reachable_for(fleet_id: String) -> Dictionary:
 ## Reachable cells holding a visible enemy fleet.
 func attack_targets(fleet_id: String, reach: Dictionary = {}) -> Array[Vector2i]:
 	var fleet: Fleet = state.fleets[fleet_id]
+	var out: Array[Vector2i] = []
+	if fleet.is_civilian_only(data):
+		return out
 	if reach.is_empty():
 		reach = reachable_for(fleet_id)
 	var vis := visible_cells(fleet.owner)
-	var out: Array[Vector2i] = []
 	for c: Vector2i in reach:
 		var other := state.fleet_at(c)
 		if other != null and vis.has(c) and state.at_war(fleet.owner, other.owner):
@@ -541,11 +562,12 @@ func _battle_side(fleet: Fleet, faction_id: String, slots: Array, planet: Planet
 		names.append(fleet.name if commander == null else "%s (%s)" % [fleet.name, commander.name])
 	if planet != null:
 		var defenses := EmpireRules.defense_units(self, planet)
+		var built := EmpireRules.building_defense_units(self, planet).size()
 		for i in defenses.size():
 			if units.size() >= slots.size():
 				break
-			units.append({"unit": defenses[i], "name": "%s Platform" % planet.name, "at": slots[units.size()],
-					"ref": "platform:%s:%d" % [planet.id, i], "statuses": statuses})
+			units.append({"unit": defenses[i], "name": "%s %s" % [planet.name, "Platform" if i < built else "Battery"],
+					"at": slots[units.size()], "ref": "platform:%s:%d" % [planet.id, i], "statuses": statuses})
 		if not defenses.is_empty():
 			names.append("%s defenses" % planet.name)
 	return {"team": faction["team"], "name": " + ".join(names), "controller": faction["controller"], "units": units,
@@ -593,8 +615,12 @@ func resolve_pending_battle(battle: BattleEngine) -> Array[Dictionary]:
 	var planet := state.planet_at(b["cell"])
 	var platforms_lost := 0
 	if planet != null:
+		# Defense buildings come first in the defender's list, then the base garrison (which
+		# is never lost for good: it is simply beaten if the attacker wins).
+		var built := EmpireRules.building_defense_units(self, planet).size()
 		for u: BattleUnit in battle.state.units.values():
-			if u.ref.begins_with("platform:%s:" % planet.id) and not u.alive:
+			if u.ref.begins_with("platform:%s:" % planet.id) and not u.alive \
+					and int(u.ref.get_slice(":", 2)) < built:
 				platforms_lost += 1
 		for i in platforms_lost:
 			for building_id in planet.buildings:
@@ -626,15 +652,15 @@ func resolve_pending_battle(battle: BattleEngine) -> Array[Dictionary]:
 				_injure(hero)
 			state.fleets.erase(fleet_id)
 			emit({"type": GalaxyEvents.FLEET_DESTROYED, "fleet": fleet_id, "owner": fleet.owner, "name": fleet.name})
-	# Storming a defended planet: if the attacker won and nothing defends it
-	# any more, the attacker moves in and takes it.
+	# Storming a defended system: if the attacker won, the base garrison and every defense
+	# building is beaten. The attacker moves in and takes an outpost or den, lands troops on a
+	# colony (if a Troop Transport is along) or blockades it.
 	if b.has("planet") and winner == attacker.owner and state.fleets.has(attacker.id) \
-			and state.fleet_at(planet.cell) == null and EmpireRules.defense_units(self, planet).is_empty():
-		emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": attacker.id, "path": [attacker.cell, planet.cell] as Array[Vector2i],
-				"moves_left": 0})
-		attacker.cell = planet.cell
-		_capture_planet(planet, attacker)
+			and state.fleet_at(planet.cell) == null and EmpireRules.building_defense_units(self, planet).is_empty() \
+			and state.at_war(attacker.owner, planet.owner):
+		_conquer(planet, attacker)
 	state.pending_battle = {}
+	_update_blockades()
 	_update_explored()
 	_check_eliminations()
 	return _flush()
@@ -876,6 +902,7 @@ func _do_move(cmd: MoveFleetCommand) -> void:
 	var enemy: Fleet = null
 	var defended: Planet = null
 	var ambush := false
+	var civil := fleet.is_civilian_only(data)
 	for i in range(1, planned.size()):
 		var next := planned[i]
 		var occupant := state.fleet_at(next)
@@ -884,12 +911,30 @@ func _do_move(cmd: MoveFleetCommand) -> void:
 			walked.append(next)
 			emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": fleet.id, "path": walked, "moves_left": fleet.moves_left})
 			_merge(fleet, occupant)
+			_try_invade(state.planet_at(occupant.cell), occupant)
 			return
+		var wiped := false
 		if occupant != null and occupant.owner != fleet.owner:
 			if state.at_war(fleet.owner, occupant.owner):
-				enemy = occupant
-				ambush = next != cmd.to
-			break  # a fleet we're at peace with blocks the way
+				if civil:
+					if occupant.is_civilian_only(data):
+						break  # two unarmed convoys just stop short of each other
+					# Unarmed ships flew into a hidden warfleet.
+					if walked.size() > 1:
+						emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": fleet.id, "path": walked, "moves_left": fleet.moves_left})
+					_destroy_fleet(fleet, occupant.owner)
+					return
+				if occupant.is_civilian_only(data):
+					# No battle: warships simply destroy an unescorted convoy and take its place.
+					_destroy_fleet(occupant, fleet.owner)
+					occupant = null
+					wiped = true
+				else:
+					enemy = occupant
+					ambush = next != cmd.to
+					break
+			else:
+				break  # a fleet we're at peace with blocks the way
 		if occupant != null and occupant != fleet:
 			break  # own fleet that can no longer be joined (e.g. a find filled the fleet): stop short
 		if is_defended_against(state.planet_at(next), fleet.owner):
@@ -905,13 +950,20 @@ func _do_move(cmd: MoveFleetCommand) -> void:
 			emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": fleet.id, "path": walked.duplicate(), "moves_left": fleet.moves_left})
 			walked = [next]
 			_claim_discovery(fleet, find)
+		if wiped:
+			break
 	if walked.size() > 1:
 		emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": fleet.id, "path": walked, "moves_left": fleet.moves_left})
 	_detect_contacts()
+	_update_blockades()
 
 	if enemy != null:
 		fleet.moves_left = 0
-		state.pending_battle = {"attacker": fleet.id, "defender": enemy.id, "cell": enemy.cell, "ambush": ambush}
+		var battle := {"attacker": fleet.id, "defender": enemy.id, "cell": enemy.cell, "ambush": ambush}
+		var home := state.planet_at(enemy.cell)
+		if home != null and home.owner == enemy.owner:
+			battle["planet"] = home.id  # the fleet fights alongside its system's defenses
+		state.pending_battle = battle
 		DiplomacyRules.change_opinion(state, enemy.owner, fleet.owner, DiplomacyRules.ATTACKED_OPINION)
 		emit({"type": GalaxyEvents.BATTLE_TRIGGERED, "attacker": fleet.id, "defender": enemy.id,
 				"cell": enemy.cell, "ambush": ambush})
@@ -925,9 +977,13 @@ func _do_move(cmd: MoveFleetCommand) -> void:
 				"cell": defended.cell, "ambush": false})
 		return
 
+	# Entering a system never claims it. At an enemy system whose guns are already silenced
+	# (a blockade of ours, or nothing left to fight) the fleet may land troops.
 	var planet := state.planet_at(fleet.cell)
-	if planet != null and planet.owner != fleet.owner and (planet.owner.is_empty() or state.at_war(fleet.owner, planet.owner)):
-		_capture_planet(planet, fleet)
+	if planet != null and not civil and state.at_war(fleet.owner, planet.owner) and planet.blockade != fleet.owner:
+		_conquer(planet, fleet)  # nothing defends it at all
+	else:
+		_try_invade(planet, fleet)
 
 	# Ending a move on an anomaly offers its mission (if the fleet can field an away team).
 	var anomaly := state.anomaly_at(fleet.cell)
@@ -938,6 +994,17 @@ func _do_move(cmd: MoveFleetCommand) -> void:
 			state.pending_mission = {"anomaly": anomaly["id"], "fleet": fleet.id}
 			emit({"type": GalaxyEvents.MISSION_OFFERED, "anomaly": anomaly["id"], "fleet": fleet.id,
 					"mission": anomaly["mission"]})
+
+
+## Removes a fleet and everything on it (no battle): an unescorted convoy caught by warships.
+func _destroy_fleet(fleet: Fleet, by_faction: String) -> void:
+	var hero := state.commander_of(fleet)
+	if hero != null:
+		_release_command(hero)
+	state.fleets.erase(fleet.id)
+	emit({"type": GalaxyEvents.FLEET_DESTROYED, "fleet": fleet.id, "owner": fleet.owner, "name": fleet.name, "by": by_faction})
+	DiplomacyRules.change_opinion(state, fleet.owner, by_faction, DiplomacyRules.ATTACKED_OPINION)
+	_check_eliminations()
 
 
 ## `fleet` joins `into` (which keeps its name and position) and disappears.
@@ -1053,9 +1120,55 @@ func _do_split(cmd: SplitFleetCommand) -> void:
 	var find := state.discovery_at(detached.cell)
 	if not find.is_empty():
 		_claim_discovery(detached, find)
-	var planet := state.planet_at(detached.cell)
-	if planet != null and planet.owner.is_empty():
-		_capture_planet(planet, detached)
+
+
+## A fleet has beaten (or found no) defense at a system of someone it is at war with. Barbarians
+## plunder. A system with no colony (an outpost), or a barbarian den, falls at once. A colony
+## needs landing troops: a Troop Transport in the fleet is consumed and the system changes hands;
+## without one the fleet blockades the system for as long as it stays.
+func _conquer(planet: Planet, fleet: Fleet) -> void:
+	if fleet.cell != planet.cell:
+		emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": fleet.id, "path": [fleet.cell, planet.cell] as Array[Vector2i],
+				"moves_left": fleet.moves_left})
+		fleet.cell = planet.cell
+	var previous_role: String = state.faction(planet.owner).get("role", "major")
+	if state.faction(fleet.owner).get("role", "") == "barbarian" or previous_role == "barbarian" \
+			or planet.colonies().is_empty():
+		_capture_planet(planet, fleet)
+		return
+	planet.blockade = fleet.owner  # the garrison is beaten; the colony itself holds out
+	if not _try_invade(planet, fleet):
+		emit({"type": GalaxyEvents.BLOCKADE_STARTED, "planet": planet.id, "faction": fleet.owner, "owner": planet.owner,
+				"fleet": fleet.id})
+
+
+## Lands troops if the fleet sits at an enemy colony its own blockade has silenced and carries a
+## Troop Transport (one is used up). Returns whether the system fell.
+func _try_invade(planet: Planet, fleet: Fleet) -> bool:
+	if planet == null or planet.blockade != fleet.owner or planet.cell != fleet.cell \
+			or not state.at_war(fleet.owner, planet.owner) or fleet.is_civilian_only(data):
+		return false
+	for ship in fleet.ships:
+		if Fleet.role_of(data, ship["unit"]) == "transport":
+			fleet.ships.erase(ship)
+			emit({"type": GalaxyEvents.SYSTEM_INVADED, "planet": planet.id, "faction": fleet.owner,
+					"previous_owner": planet.owner, "fleet": fleet.id, "ship": ship["name"]})
+			_capture_planet(planet, fleet)
+			return true
+	return false
+
+
+## Blockades last only while the blockader's warfleet stays in the system and the war goes on.
+func _update_blockades() -> void:
+	for planet: Planet in state.planets.values():
+		if planet.blockade.is_empty():
+			continue
+		var holder := state.fleet_at(planet.cell)
+		var holds := holder != null and holder.owner == planet.blockade and not holder.is_civilian_only(data) \
+				and state.at_war(planet.blockade, planet.owner)
+		if not holds:
+			emit({"type": GalaxyEvents.BLOCKADE_LIFTED, "planet": planet.id, "faction": planet.blockade})
+			planet.blockade = ""
 
 
 func _capture_planet(planet: Planet, fleet: Fleet) -> void:
@@ -1072,6 +1185,8 @@ func _capture_planet(planet: Planet, fleet: Fleet) -> void:
 		emit({"type": GalaxyEvents.DEN_CLEARED, "planet": planet.id, "faction": fleet.owner, "loot": loot})
 	planet.owner = fleet.owner
 	planet.queue = {}
+	planet.blockade = ""
+	_lose_civilians(planet, fleet.owner)
 	if not previous.is_empty():
 		_lose_population(planet, float(data.economy.get("growth", {}).get("capture_pop_loss", 0.25)), 0)
 	_evacuate_heroes(planet, previous)
@@ -1080,6 +1195,22 @@ func _capture_planet(planet: Planet, fleet: Fleet) -> void:
 			"previous_owner": previous, "fleet": fleet.id})
 	_update_explored()
 	_check_eliminations()
+
+
+## Civilian ships deployed in a system that changes hands are lost unless they belong to the new owner.
+func _lose_civilians(planet: Planet, new_owner: String) -> void:
+	var lost: Dictionary = {}
+	for c in planet.civilians.duplicate():
+		if c["owner"] == new_owner:
+			continue
+		planet.civilians.erase(c)
+		if not lost.has(c["owner"]):
+			lost[c["owner"]] = []
+		lost[c["owner"]].append(c["name"])
+		if not c["job"].is_empty():
+			pass  # the job's cost is gone with the ship
+	for faction_id: String in lost:
+		emit({"type": GalaxyEvents.CIVILIANS_LOST, "planet": planet.id, "faction": faction_id, "ships": lost[faction_id]})
 
 
 ## Conquest and plunder cost population: each colony loses `fraction` of its
@@ -1104,6 +1235,7 @@ func _evacuate_heroes(planet: Planet, previous: String) -> void:
 
 func _begin_faction_turn() -> void:
 	var faction_id := current_faction_id()
+	_update_blockades()
 	_run_economy(faction_id)
 	_barbarian_spawns(faction_id)
 	var in_debt := int(state.resources[faction_id].get("credits", 0)) < 0
@@ -1120,7 +1252,7 @@ func _begin_faction_turn() -> void:
 	for fleet in state.fleets_of(faction_id):
 		fleet.moves_left = fleet_speed(fleet)
 		var planet := state.planet_at(fleet.cell)
-		var at_home := planet != null and planet.owner == faction_id
+		var at_home := planet != null and planet.owner == faction_id and not planet.is_blockaded()
 		var rate := REPAIR_RATE if at_home else field_repair
 		if rate > 0.0 and not in_debt:
 			var repaired := 0
@@ -1179,8 +1311,9 @@ func _run_economy(faction_id: String) -> void:
 		r["current"] = ""
 		emit({"type": GalaxyEvents.TECH_RESEARCHED, "faction": faction_id, "tech": current})
 
+	_tick_jobs(faction_id)
 	for planet in state.planets_of(faction_id):
-		if planet.queue.is_empty():
+		if planet.queue.is_empty() or planet.is_blockaded():
 			continue
 		planet.queue["progress"] = mini(int(planet.queue["progress"]) + 1, int(planet.queue["turns"]))
 		if planet.queue["progress"] < planet.queue["turns"]:
@@ -1219,6 +1352,8 @@ func _run_economy(faction_id: String) -> void:
 ## Population growth for a faction's colonies at the start of its turn.
 func _grow_colonies(faction_id: String) -> void:
 	for planet in state.planets_of(faction_id):
+		if planet.is_blockaded():
+			continue  # no growth under blockade
 		for b in planet.colonies():
 			var rate := EmpireRules.growth_rate(self, b, faction_id)
 			if rate <= 0.0:
@@ -1268,8 +1403,9 @@ func _do_resolve_event(cmd: ResolveEventCommand) -> void:
 
 
 ## Barbarians don't hold what they take: they strip a system (credits from
-## its owner, one building wrecked, the build queue lost) and leave it
-## unclaimed.
+## its owner, one building wrecked, a pop lost, the build queue lost) and move on. The system
+## stays with its owner, unless nothing is left standing (an outpost whose only development
+## was wrecked becomes unclaimed again).
 func _plunder(planet: Planet, fleet: Fleet) -> void:
 	var previous := planet.owner
 	var stolen := 0
@@ -1285,12 +1421,16 @@ func _plunder(planet: Planet, fleet: Fleet) -> void:
 	if not wrecked.is_empty():
 		planet.remove_building(wrecked)
 	planet.queue = {}
-	planet.owner = ""
+	var razed := planet.buildings.is_empty()
+	if razed:
+		planet.owner = ""
+		planet.blockade = ""
 	_lose_population(planet, 0.0, int(data.economy.get("growth", {}).get("plunder_pop_loss", 1)))
-	_evacuate_heroes(planet, previous)
+	if razed:
+		_evacuate_heroes(planet, previous)
 	DiplomacyRules.change_opinion(state, previous, fleet.owner, DiplomacyRules.PLANET_TAKEN_OPINION)
 	emit({"type": GalaxyEvents.SYSTEM_PLUNDERED, "planet": planet.id, "faction": fleet.owner, "previous_owner": previous,
-			"credits": stolen, "building": wrecked})
+			"credits": stolen, "building": wrecked, "razed": razed})
 	_update_explored()
 	_check_eliminations()
 
@@ -1327,6 +1467,17 @@ func _barbarian_spawns(faction_id: String) -> void:
 
 ## A finished ship joins the faction's fleet in orbit, or forms a new fleet.
 func _launch_ship(planet: Planet, unit_id: String) -> bool:
+	var role := Fleet.role_of(data, unit_id)
+	if role == "colony" or role == "constructor":
+		# Workers and settlers start out in the system, ready for orders (CivilianCommand).
+		var unit_def: Dictionary = data.units[unit_id]
+		var ship_label: String = unit_def.get("name", unit_id)
+		var ship := {"uid": state.make_uid("ship"), "unit": unit_id, "name": "%s %d" % [ship_label, state.next_uid],
+				"hull": int(unit_def["stats"]["max_hull"]), "owner": planet.owner, "loc": "", "job": {}}
+		planet.civilians.append(ship)
+		emit({"type": GalaxyEvents.SHIP_COMPLETED, "planet": planet.id, "unit": unit_id, "fleet": "", "ship": ship["name"],
+				"uid": ship["uid"], "deployed": true})
+		return true
 	var fleet := state.fleet_at(planet.cell)
 	if fleet != null and (fleet.owner != planet.owner or fleet.ships.size() >= EmpireRules.MAX_FLEET_SIZE):
 		return false
@@ -1364,6 +1515,11 @@ func _do_queue(cmd: QueueBuildCommand) -> void:
 			source = data.units[cmd.item_id].get("strategic", {})
 	var cost: Dictionary = source.get("cost", {})
 	EmpireRules.pay(self, cmd.faction_id, cost)
+	if cmd.kind == "unit" and int(source.get("pop_cost", 0)) > 0:
+		# Settlers come from the people: the biggest colony gives them up.
+		var donor := EmpireRules.pop_donor(planet, int(source.get("min_pop", 1)))
+		donor["pop"] = maxi(EmpireRules.pop(donor) - int(source["pop_cost"]), 1)
+		donor["growth"] = 0.0
 	var turns := int(source.get("turns", source.get("build_turns", 1)))
 	var body_id := cmd.body_id
 	if cmd.kind == "building" and body_id.is_empty():
@@ -1377,6 +1533,178 @@ func _do_queue(cmd: QueueBuildCommand) -> void:
 	if cmd.kind == "megaproject":
 		emit({"type": GalaxyEvents.MEGAPROJECT_STARTED, "planet": planet.id, "megaproject": cmd.item_id,
 				"faction": cmd.faction_id})
+
+
+# =============================================================================
+# The system layer: civilian ships at work
+# =============================================================================
+
+func _has_deployed_civilians(faction_id: String) -> bool:
+	for planet: Planet in state.planets.values():
+		for c in planet.civilians:
+			if c["owner"] == faction_id:
+				return true
+	return false
+
+
+func _do_civilian(cmd: CivilianCommand) -> void:
+	var planet: Planet = state.planets[cmd.planet_id]
+	var entry := SystemRules.find_ship(self, planet, cmd.faction_id, cmd.ship_uid)
+	var ship: Dictionary = entry["ship"]
+	match cmd.action:
+		CivilianCommand.MOVE:
+			if not entry["deployed"]:
+				ship = _deploy(planet, entry["fleet"], ship)
+			ship["loc"] = cmd.body_id
+			emit({"type": GalaxyEvents.CIVILIAN_MOVED, "planet": planet.id, "ship": ship["uid"], "body": cmd.body_id})
+		CivilianCommand.JOB:
+			if not entry["deployed"]:
+				ship = _deploy(planet, entry["fleet"], ship)
+			var def: Dictionary = data.buildings[cmd.item_id]
+			EmpireRules.pay(self, cmd.faction_id, def.get("cost", {}))
+			var turns := int(def.get("turns", 1))
+			ship["loc"] = cmd.body_id
+			ship["job"] = {"body": cmd.body_id, "building": cmd.item_id, "turns_left": turns, "turns": turns}
+			emit({"type": GalaxyEvents.JOB_STARTED, "planet": planet.id, "ship": ship["uid"], "body": cmd.body_id,
+					"building": cmd.item_id, "turns": turns})
+		CivilianCommand.FOUND:
+			if entry["deployed"]:
+				planet.civilians.erase(ship)
+			else:
+				_remove_ship(entry["fleet"], ship)
+			_found_colony(planet, planet.body(cmd.body_id), cmd.faction_id)
+		CivilianCommand.DEPART:
+			_depart(planet, ship)
+		CivilianCommand.CANCEL:
+			var job: Dictionary = ship["job"]
+			var refund := _refund(cmd.faction_id, data.buildings[job["building"]].get("cost", {}))
+			ship["job"] = {}
+			emit({"type": GalaxyEvents.JOB_CANCELLED, "planet": planet.id, "ship": ship["uid"], "building": job["building"],
+					"refund": refund, "reason": "cancelled"})
+
+
+## Moves a ship from a parked fleet into the system (its civilians list). The fleet vanishes
+## if that was its last ship; a commander left without ships waits at the system.
+func _deploy(planet: Planet, fleet: Fleet, ship: Dictionary) -> Dictionary:
+	_remove_ship(fleet, ship)
+	var deployed := ship.duplicate(true)
+	deployed["owner"] = fleet.owner
+	deployed["loc"] = ""
+	deployed["job"] = {}
+	planet.civilians.append(deployed)
+	emit({"type": GalaxyEvents.CIVILIAN_DEPLOYED, "planet": planet.id, "ship": deployed["uid"], "fleet": fleet.id})
+	return deployed
+
+
+## Takes a ship out of a fleet; an emptied fleet is removed (its commander waits at the system).
+func _remove_ship(fleet: Fleet, ship: Dictionary) -> void:
+	fleet.ships.erase(ship)
+	if not fleet.ships.is_empty():
+		return
+	var hero := state.commander_of(fleet)
+	if hero != null:
+		var planet := state.planet_at(fleet.cell)
+		_release_command(hero)
+		hero.planet_id = planet.id if planet != null else ""
+	state.fleets.erase(fleet.id)
+	emit({"type": GalaxyEvents.FLEET_DISBANDED, "fleet": fleet.id, "owner": fleet.owner})
+
+
+## A deployed ship leaves for the galaxy map: joins the fleet in orbit, or forms a new one.
+func _depart(planet: Planet, ship: Dictionary) -> void:
+	planet.civilians.erase(ship)
+	var fleet := state.fleet_at(planet.cell)
+	if fleet == null:
+		fleet = Fleet.new()
+		fleet.id = state.make_uid("fleet")
+		fleet.owner = ship["owner"]
+		fleet.cell = planet.cell
+		fleet.name = ship["name"]
+		state.fleets[fleet.id] = fleet
+		emit({"type": GalaxyEvents.FLEET_CREATED, "fleet": fleet.id, "planet": planet.id})
+	var plain := {"uid": ship["uid"], "unit": ship["unit"], "name": ship["name"], "hull": ship["hull"]}
+	fleet.ships.append(plain)
+	if fleet.ships.size() == 1:
+		fleet.moves_left = fleet_speed(fleet)
+	emit({"type": GalaxyEvents.CIVILIAN_DEPARTED, "planet": planet.id, "ship": ship["uid"], "fleet": fleet.id})
+
+
+func _refund(faction_id: String, cost: Dictionary) -> Dictionary:
+	var share := float(data.economy.get("jobs", {}).get("refund", 0.5))
+	var back := {}
+	for k: String in cost:
+		back[k] = int(floor(float(cost[k]) * share))
+		state.resources[faction_id][k] = int(state.resources[faction_id].get(k, 0)) + int(back[k])
+	return back
+
+
+## A Colony Ship founds a colony: the system becomes the faction's if it was unclaimed, and the
+## body gets a colony of 1 pop. A power's very first colony in its undeveloped home system is the
+## capital: it also gets the campaign's capital buildings and more people.
+func _found_colony(planet: Planet, b: Dictionary, faction_id: String) -> void:
+	var claimed := planet.owner.is_empty()
+	var capital: bool = not planet.capital.is_empty() and planet.capital.get("faction", "") == faction_id \
+			and EmpireRules.colony_count(self, faction_id) == 0
+	if claimed:
+		planet.owner = faction_id
+		planet.queue = {}
+	planet.add_building(b["id"], "colony")
+	if capital:
+		b["pop"] = int(planet.capital.get("pop", 3))
+		for building_id: String in planet.capital.get("buildings", []):
+			if building_id != "colony" and data.buildings.has(building_id) and b["buildings"].size() - 1 < 8:
+				planet.add_building(b["id"], building_id)
+		planet.capital = {}
+	emit({"type": GalaxyEvents.COLONY_FOUNDED, "planet": planet.id, "body": b["id"], "faction": faction_id,
+			"claimed": claimed, "capital": capital})
+	if claimed:
+		emit({"type": GalaxyEvents.SYSTEM_CLAIMED, "planet": planet.id, "faction": faction_id, "how": "colony"})
+	_update_explored()
+
+
+## Constructor jobs advance at the start of their owner's turn; a finished development is built
+## (and claims an unclaimed system as an outpost).
+func _tick_jobs(faction_id: String) -> void:
+	for planet: Planet in state.planets.values():
+		if planet.civilians.is_empty() or planet.is_blockaded():
+			continue
+		for c in planet.civilians.duplicate():
+			if c["owner"] != faction_id or c["job"].is_empty():
+				continue
+			if not SystemRules.may_work_in(planet, faction_id):
+				_cancel_job(planet, c, "the system changed hands")
+				continue
+			c["job"]["turns_left"] = int(c["job"]["turns_left"]) - 1
+			if int(c["job"]["turns_left"]) <= 0:
+				_finish_job(planet, c)
+
+
+func _cancel_job(planet: Planet, c: Dictionary, reason: String) -> void:
+	var job: Dictionary = c["job"]
+	var refund := _refund(c["owner"], data.buildings[job["building"]].get("cost", {}))
+	c["job"] = {}
+	emit({"type": GalaxyEvents.JOB_CANCELLED, "planet": planet.id, "ship": c["uid"], "building": job["building"],
+			"refund": refund, "reason": reason})
+
+
+func _finish_job(planet: Planet, c: Dictionary) -> void:
+	var job: Dictionary = c["job"]
+	var b := planet.body(job["body"])
+	var faction_id: String = c["owner"]
+	c["job"] = {}
+	if b.is_empty():
+		return
+	b["buildings"].erase("outpost")  # a real development replaces the placeholder
+	planet.add_building(b["id"], job["building"])
+	var claimed := planet.owner.is_empty()
+	if claimed:
+		planet.owner = faction_id
+		planet.queue = {}
+	emit({"type": GalaxyEvents.JOB_COMPLETED, "planet": planet.id, "ship": c["uid"], "body": b["id"],
+			"building": job["building"], "faction": faction_id, "claimed": claimed})
+	if claimed:
+		emit({"type": GalaxyEvents.SYSTEM_CLAIMED, "planet": planet.id, "faction": faction_id, "how": "outpost"})
+	_update_explored()
 
 
 func _validate_diplomacy(cmd: DiplomacyCommand) -> String:
@@ -1498,7 +1826,7 @@ func _check_eliminations() -> void:
 		var fid: String = f["id"]
 		if fid in state.eliminated:
 			continue
-		if state.fleets_of(fid).is_empty() and state.planets_of(fid).is_empty():
+		if state.fleets_of(fid).is_empty() and state.planets_of(fid).is_empty() and not _has_deployed_civilians(fid):
 			state.eliminated.append(fid)
 			emit({"type": GalaxyEvents.FACTION_ELIMINATED, "faction": fid})
 	# Only major powers play to win: barbarians and minor powers neither win

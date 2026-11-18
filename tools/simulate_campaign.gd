@@ -41,10 +41,13 @@ func _initialize() -> void:
 	var credits_net := 0
 	var upkeep := 0
 	var wonders := 0
+	## turn -> systems owned by all majors, summed (and how many majors were counted)
+	var sample_sum := {30: 0, 60: 0}
+	var sample_n := {30: 0, 60: 0}
 	var started := Time.get_ticks_msec()
 	for i in runs:
 		var engine := GalaxyEngine.from_campaign(data, campaign_id, first_seed + i)
-		var result := CampaignAutoRunner.run(engine)
+		var result := CampaignAutoRunner.run(engine, 5000, [30, 60] as Array[int])
 		var key: String = result["winner"] if result["winner"] != "" else "draw"
 		wins[key] = wins.get(key, 0) + 1
 		reasons[result["reason"]] = reasons.get(result["reason"], 0) + 1
@@ -54,6 +57,12 @@ func _initialize() -> void:
 		missions += result["missions"]
 		for t: String in result["events"]:
 			totals[t] = int(totals.get(t, 0)) + int(result["events"][t])
+		for t: int in sample_sum:
+			if result["samples"].has(t):
+				for f in engine.state.factions:
+					if f.get("role", "major") == "major" and result["samples"][t].has(f["id"]):
+						sample_sum[t] += int(result["samples"][t][f["id"]])
+						sample_n[t] += 1
 		var line := PackedStringArray()
 		for f in engine.state.factions:
 			if f.get("role", "major") != "major":
@@ -82,6 +91,12 @@ func _initialize() -> void:
 		print("  per major at the end: %.1f techs, %.1f pop in %.1f colonies, net credits %+.1f (upkeep %.1f), %.2f megaprojects" % [
 				float(techs) / majors, float(pop) / majors, float(colonies) / majors, float(credits_net) / majors,
 				float(upkeep) / majors, float(wonders) / majors])
+	print("  systems owned per major: turn 30 %.2f, turn 60 %.2f" % [float(sample_sum[30]) / maxf(sample_n[30], 1), float(sample_sum[60]) / maxf(sample_n[60], 1)])
+	print("  system layer per run: %.1f colonies founded, %.1f systems claimed, %.1f developments built, %.1f blockades, %.1f invasions, %.1f systems captured, %.1f civilian fleets destroyed" % [
+			float(totals.get(GalaxyEvents.COLONY_FOUNDED, 0)) / runs, float(totals.get(GalaxyEvents.SYSTEM_CLAIMED, 0)) / runs,
+			float(totals.get(GalaxyEvents.JOB_COMPLETED, 0)) / runs, float(totals.get(GalaxyEvents.BLOCKADE_STARTED, 0)) / runs,
+			float(totals.get(GalaxyEvents.SYSTEM_INVADED, 0)) / runs, float(totals.get(GalaxyEvents.PLANET_CAPTURED, 0)) / runs,
+			float(totals.get(GalaxyEvents.FLEET_DESTROYED, 0)) / runs])
 	print("  per run: %.1f events answered, %.1f pop growths, %.1f megaprojects completed, %.1f budget crises" % [
 			float(totals.get(GalaxyEvents.EVENT_RESOLVED, 0)) / runs, float(totals.get(GalaxyEvents.POP_GREW, 0)) / runs,
 			float(totals.get(GalaxyEvents.MEGAPROJECT_COMPLETED, 0)) / runs, float(totals.get(GalaxyEvents.BUDGET_CRISIS, 0)) / runs])
