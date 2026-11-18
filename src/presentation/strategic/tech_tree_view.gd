@@ -10,9 +10,9 @@ extends PanelContainer
 signal command_requested(cmd: GalaxyCommand)
 signal closed
 
-const CARD := Vector2(214, 92)
+const CARD := Vector2(214, 104)
 const GAP := Vector2(70, 18)
-const MARGIN := Vector2(24, 40)
+const MARGIN := Vector2(24, 48)
 
 var _canvas: TreeCanvas
 var _scroll: ScrollContainer
@@ -75,6 +75,13 @@ func show_tree(engine: GalaxyEngine, faction_id: String, interactive: bool) -> v
 	var rows := int(layout["rows"])
 	_canvas.custom_minimum_size = MARGIN * 2.0 + Vector2(cols * (CARD.x + GAP.x), rows * (CARD.y + GAP.y))
 	_canvas.links.clear()
+	for e: Dictionary in eras:
+		var era := int(e["era"])
+		e["name"] = ResearchRules.era_name(engine, era)
+		e["open"] = ResearchRules.era_open(engine, faction_id, era)
+		var need: Dictionary = data.eras.get(str(era), {}).get("requires", {})
+		e["need"] = "" if need.is_empty() else "needs %d %s techs (%d known)" % [int(need["count"]),
+				ResearchRules.era_name(engine, int(need["era"])), ResearchRules.known_in_era(engine, faction_id, int(need["era"]))]
 	_canvas.eras = eras
 	var rects := {}
 	for tech_id: String in cells:
@@ -219,8 +226,11 @@ class TreeCanvas:
 			var e: Dictionary = eras[i]
 			var band := Rect2(Vector2(float(e["x0"]), 0), Vector2(float(e["x1"]) - float(e["x0"]), size.y))
 			draw_rect(band, Color(1, 1, 1, 0.025 if i % 2 == 0 else 0.0))
-			draw_string(font, Vector2(band.position.x + 12, 22), "ERA %d" % int(e["era"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 13,
-					Color(Palette.ACTIVE, 0.7))
+			var open: bool = e.get("open", true)
+			draw_string(font, Vector2(band.position.x + 12, 22), String(e.get("name", "Era %d" % int(e["era"]))).to_upper(),
+					HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(Palette.ACTIVE, 0.8) if open else Color(Palette.TEXT_DIM, 0.8))
+			if not open and not String(e.get("need", "")).is_empty():
+				draw_string(font, Vector2(band.position.x + 12, 36), String(e["need"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Palette.TEXT_DIM)
 		for link: Dictionary in links:
 			var a: Rect2 = link["from"]
 			var b: Rect2 = link["to"]

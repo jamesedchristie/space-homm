@@ -5,6 +5,7 @@ extends Control
 
 signal end_turn_pressed
 signal next_fleet_pressed
+signal research_pressed
 signal heroes_pressed
 signal empire_pressed
 signal menu_pressed
@@ -19,7 +20,12 @@ const INFO_H := 250.0
 
 var _turn_label: Label
 var _faction_label: Label
-var _resources_label: RichTextLabel
+## Resource id -> {"value": Label, "delta": Label, "panel": Control}.
+var _chips: Dictionary = {}
+var _chip_row: HBoxContainer
+var _research_button: Button
+var _attention: VBoxContainer
+var _attention_key := "-"
 var _end_turn_button: Button
 var _next_fleet_button: Button
 var _info: RichTextLabel
@@ -32,12 +38,20 @@ var roster: HeroRoster
 var empire: EmpirePanel
 ## A star system up close: bodies and building.
 var system_view: SystemView
+## Technology tree overlay.
+var tech_tree: TechTreeView
 
 
 func _ready() -> void:
 	mouse_filter = MOUSE_FILTER_IGNORE
 	theme = GameTheme.get_theme()
 	_build()
+
+
+func _process(_delta: float) -> void:
+	# The attention list steps aside for any overlay or dialog.
+	_attention.visible = _attention.get_child_count() > 0 and not (empire.visible or roster.visible
+			or system_view.visible or tech_tree.visible or is_dialog_open() or is_settings_open())
 
 
 func map_area() -> Rect2:
@@ -51,15 +65,86 @@ func set_turn(turn: int, faction_name: String, color: Color) -> void:
 	_faction_label.add_theme_color_override("font_color", color)
 
 
-## The campaign objective, shown as the resource bar's tooltip.
+## The campaign objective, shown as the turn counter's tooltip.
 func set_objective(text: String) -> void:
-	_resources_label.tooltip_text = text
+	_turn_label.tooltip_text = text
+	_turn_label.mouse_filter = Control.MOUSE_FILTER_STOP
 
 
-## Stockpiles and research status for the top bar (BBCode).
-func set_resources(bbcode: String) -> void:
-	_resources_label.clear()
-	_resources_label.append_text(bbcode)
+## One chip per resource in the top bar: a coloured pip, the stockpile and the
+## per-turn change, with a breakdown as the tooltip. Chips are created on
+## first use and keep their order.
+func set_resource_chip(id: String, color: Color, value: int, delta: int, tooltip: String) -> void:
+	if not _chips.has(id):
+		var chip := UiKit.panel(Color(0.06, 0.08, 0.13, 0.9), Color(color, 0.45))
+		chip.mouse_filter = Control.MOUSE_FILTER_STOP
+		var box := HBoxContainer.new()
+		box.add_theme_constant_override("separation", 5)
+		chip.add_child(box)
+		var pip := Pip.new()
+		pip.color = color
+		pip.custom_minimum_size = Vector2(10, 10)
+		pip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		box.add_child(pip)
+		var value_label := UiKit.label("", 14, Palette.TEXT)
+		box.add_child(value_label)
+		var delta_label := UiKit.label("", 12, Palette.TEXT_DIM)
+		delta_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		box.add_child(delta_label)
+		_chip_row.add_child(chip)
+		_chips[id] = {"value": value_label, "delta": delta_label, "panel": chip}
+	var c: Dictionary = _chips[id]
+	(c["value"] as Label).text = str(value)
+	var dl: Label = c["delta"]
+	dl.text = "%+d" % delta
+	dl.add_theme_color_override("font_color", Palette.BAD if delta < 0 else (Palette.GOOD.darkened(0.15) if delta > 0 else Palette.TEXT_DIM))
+	(c["panel"] as Control).tooltip_text = tooltip
+
+
+## Civ-style "needs your attention" list at the top left of the map: each
+## item is {"text", "color", "action": Callable}. Empty hides it.
+func set_attention(items: Array[Dictionary]) -> void:
+	var texts := PackedStringArray()
+	for item in items:
+		texts.append(item["text"])
+	var key := "|".join(texts)
+	if key == _attention_key:
+		return  # unchanged (refresh runs on every hover)
+	_attention_key = key
+	for c in _attention.get_children():
+		c.queue_free()
+	for item in items:
+		var b := Button.new()
+		b.focus_mode = Control.FOCUS_NONE
+		b.text = item["text"]
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.clip_text = true
+		b.custom_minimum_size = Vector2(250, 26)
+		b.add_theme_font_size_override("font_size", 12)
+		var color: Color = item.get("color", Palette.ACTIVE)
+		b.add_theme_color_override("font_color", color)
+		b.add_theme_color_override("font_hover_color", color.lightened(0.3))
+		for state_name in ["normal", "hover", "pressed"]:
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = Color(0.03, 0.05, 0.09, 0.88) if state_name == "normal" else Color(0.07, 0.1, 0.16, 0.95)
+			sb.border_color = Color(color, 0.7)
+			sb.border_width_left = 3
+			sb.set_corner_radius_all(4)
+			sb.content_margin_left = 10
+			sb.content_margin_right = 8
+			b.add_theme_stylebox_override(state_name, sb)
+		var action: Callable = item["action"]
+		b.pressed.connect(action)
+		_attention.add_child(b)
+
+
+## The research chip: what's being researched (or a prompt to choose).
+## Clicking it opens the tech tree.
+func set_research_chip(text: String, color: Color, tooltip: String, needs_choice: bool) -> void:
+	_research_button.text = text
+	_research_button.tooltip_text = tooltip
+	_research_button.add_theme_color_override("font_color", Palette.ACTIVE if needs_choice else color)
+	_research_button.add_theme_color_override("font_hover_color", Palette.ACTIVE if needs_choice else color.lightened(0.3))
 
 
 func set_end_turn_enabled(enabled: bool) -> void:
@@ -68,7 +153,7 @@ func set_end_turn_enabled(enabled: bool) -> void:
 
 ## How many of your fleets can still move this turn (Next Fleet button).
 func set_ready_fleets(count: int, enabled: bool) -> void:
-	_next_fleet_button.text = "Next Fleet (%d)  [Tab]" % count if count > 0 else "All fleets moved"
+	_next_fleet_button.text = "Next Fleet (%d)" % count if count > 0 else "All moved"
 	_next_fleet_button.disabled = not enabled or count == 0
 
 
@@ -129,21 +214,41 @@ func _build() -> void:
 	row.add_child(_turn_label)
 	_faction_label = UiKit.header("", 15, Palette.TEXT)
 	row.add_child(_faction_label)
-	_resources_label = UiKit.rich_text(13)
-	_resources_label.scroll_following = false
-	_resources_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_resources_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_resources_label.custom_minimum_size = Vector2(0, 22)
-	_resources_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(_resources_label)
-	row.add_child(UiKit.button("Empire  [E]", func() -> void: empire_pressed.emit()))
-	row.add_child(UiKit.button("Heroes  [H]", func() -> void: heroes_pressed.emit()))
-	_next_fleet_button = UiKit.button("Next Fleet  [Tab]", func() -> void: next_fleet_pressed.emit())
-	_next_fleet_button.tooltip_text = "Select your next fleet that can still move this turn"
+	_faction_label.clip_text = true
+	_faction_label.custom_minimum_size = Vector2(150, 0)
+	_chip_row = HBoxContainer.new()
+	_chip_row.add_theme_constant_override("separation", 6)
+	row.add_child(_chip_row)
+	_research_button = UiKit.button("Research", func() -> void: research_pressed.emit())
+	_research_button.clip_text = true
+	_research_button.custom_minimum_size = Vector2(150, 0)
+	_research_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_research_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_research_button.add_theme_stylebox_override("normal", _flat_style(Color(0.06, 0.08, 0.13, 0.9)))
+	_research_button.add_theme_stylebox_override("hover", _flat_style(Color(0.1, 0.13, 0.2, 0.95)))
+	_research_button.add_theme_stylebox_override("pressed", _flat_style(Color(0.1, 0.13, 0.2, 0.95)))
+	row.add_child(_research_button)
+	var empire_button := UiKit.button("Empire", func() -> void: empire_pressed.emit())
+	empire_button.tooltip_text = "Systems, research, diplomacy and victory (E)"
+	row.add_child(empire_button)
+	var heroes_button := UiKit.button("Heroes", func() -> void: heroes_pressed.emit())
+	heroes_button.tooltip_text = "Gear, levels and fleet commanders (H)"
+	row.add_child(heroes_button)
+	_next_fleet_button = UiKit.button("Next Fleet", func() -> void: next_fleet_pressed.emit())
+	_next_fleet_button.tooltip_text = "Select your next fleet that can still move this turn (Tab)"
 	row.add_child(_next_fleet_button)
-	_end_turn_button = UiKit.button("End Turn  [Space]", func() -> void: end_turn_pressed.emit())
+	_end_turn_button = UiKit.button("End Turn", func() -> void: end_turn_pressed.emit())
+	_end_turn_button.tooltip_text = "End your turn (Space)"
 	row.add_child(_end_turn_button)
-	row.add_child(UiKit.button("Menu  [Esc]", func() -> void: menu_pressed.emit()))
+	var menu_button := UiKit.button("Menu", func() -> void: menu_pressed.emit())
+	menu_button.tooltip_text = "Save, load, settings (Esc)"
+	row.add_child(menu_button)
+
+	_attention = VBoxContainer.new()
+	_attention.add_theme_constant_override("separation", 4)
+	UiKit.anchor(_attention, 0, 0, 0, 0, 10, TOP_H + 10, 270, TOP_H + 200)
+	_attention.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_attention)
 
 	var info_panel := UiKit.panel()
 	UiKit.anchor(info_panel, 1, 0, 1, 0, -RIGHT_W, TOP_H, 0, TOP_H + INFO_H)
@@ -174,8 +279,34 @@ func _build() -> void:
 	system_view = SystemView.new()
 	UiKit.anchor(system_view, 0, 0, 1, 1, 30, TOP_H + 12, -RIGHT_W - 30, -BOTTOM_H - 12)
 	add_child(system_view)
+	tech_tree = TechTreeView.new()
+	UiKit.anchor(tech_tree, 0, 0, 1, 1, 16, TOP_H + 8, -16, -BOTTOM_H - 8)
+	add_child(tech_tree)
 
 	_dialog = DialogPanel.new()
 	_dialog.place(520, 330)
 	_dialog.choice_made.connect(func(id: String) -> void: dialog_choice.emit(id))
 	add_child(_dialog)
+
+
+static func _flat_style(bg: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.border_color = Color(Palette.PANEL_BORDER, 0.6)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(6)
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
+	return sb
+
+
+## A small round colour pip (resource chips).
+class Pip:
+	extends Control
+	var color := Color.WHITE
+
+	func _draw() -> void:
+		draw_circle(size / 2.0, minf(size.x, size.y) / 2.0, color)
+		draw_arc(size / 2.0, minf(size.x, size.y) / 2.0, 0, TAU, 16, Color(1, 1, 1, 0.35), 1.0, true)

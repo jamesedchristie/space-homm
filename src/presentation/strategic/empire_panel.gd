@@ -9,6 +9,8 @@ signal command_requested(cmd: GalaxyCommand)
 signal closed
 ## "Open" on a system in the Colonies tab.
 signal system_requested(planet_id: String)
+## "Tech tree" in the Research tab.
+signal tech_tree_requested
 
 const TABS := ["Systems", "Research", "Diplomacy", "Victory"]
 
@@ -125,6 +127,7 @@ func _build_research(engine: GalaxyEngine, faction_id: String, interactive: bool
 	else:
 		list.add_child(_text("Researching [b]%s[/b]: %d / %d (+%d per turn)" % [data.techs[r["current"]]["name"],
 				r["progress"], ResearchRules.cost(engine, r["current"]), per_turn]))
+	list.add_child(UiKit.button("Open the tech tree  [T]", func() -> void: tech_tree_requested.emit()))
 	var era := ResearchRules.current_era(engine, faction_id)
 	list.add_child(_text(UiKit.color_tag("Current era: %s. Each era opens once enough techs of the one before are known." % ResearchRules.era_name(engine, era), Palette.TEXT_DIM)))
 	var shown_era := 0

@@ -79,6 +79,10 @@ func _ready() -> void:
 	hud.roster.closed.connect(_refresh)
 	hud.system_view.command_requested.connect(_on_system_command)
 	hud.system_view.closed.connect(_refresh)
+	hud.research_pressed.connect(_toggle_tech_tree)
+	hud.tech_tree.command_requested.connect(_on_tech_command)
+	hud.tech_tree.closed.connect(_refresh)
+	hud.empire.tech_tree_requested.connect(_toggle_tech_tree)
 	hud.empire.system_requested.connect(func(planet_id: String) -> void:
 		hud.empire.visible = false
 		_open_system(planet_id))
@@ -412,7 +416,27 @@ func _on_system_command(cmd: GalaxyCommand) -> void:
 		hud.system_view.show_system(engine, engine.state.planets[shown], player_faction, not _busy and _is_human_turn())
 
 
+func _toggle_tech_tree() -> void:
+	if hud.tech_tree.visible:
+		hud.tech_tree.visible = false
+		_refresh()
+		return
+	hud.empire.visible = false
+	hud.roster.visible = false
+	hud.tech_tree.show_tree(engine, player_faction, not _busy and _is_human_turn())
+
+
+func _on_tech_command(cmd: GalaxyCommand) -> void:
+	if _busy or not _is_human_turn():
+		return
+	var result := engine.submit(cmd)
+	if not result.ok:
+		hud.set_hint(result.error)
+	_refresh_resources()
+
+
 func _toggle_empire() -> void:
+	hud.tech_tree.visible = false
 	if hud.empire.visible:
 		hud.empire.visible = false
 		_refresh()
@@ -443,15 +467,28 @@ func _refresh_resources() -> void:
 	var f := player_faction
 	var stock: Dictionary = engine.state.resources[f]
 	var income := EmpireRules.income(engine, f)
+	var trade := EmpireRules.trade_income(engine, f)
+	var gross := int(income.get("gross_credits", income["credits"]))
+	var upkeep := int(income.get("upkeep", 0))
+	var credit_tip := "Credits: %d in the treasury.\nPer turn: +%d from systems%s, -%d ship upkeep = %+d." % [
+			stock["credits"], gross - trade, (", +%d from trade" % trade) if trade > 0 else "", upkeep, income["credits"]]
+	if int(stock["credits"]) < 0:
+		credit_tip += "\nIn debt: colonies don't grow, fleets don't repair and ships lose hull each turn."
+	hud.set_resource_chip("credits", Color(data.resources["credits"]["color"]), stock["credits"], income["credits"], credit_tip)
+	hud.set_resource_chip("alloys", Color(data.resources["alloys"]["color"]), stock["alloys"], income["alloys"],
+			"Alloys: %d in store, %+d per turn from mining bases and refineries.\nShips, buildings and wonders need them." % [stock["alloys"], income["alloys"]])
 	var r: Dictionary = engine.state.research[f]
-	var research := "choose research (E)" if r["current"].is_empty() else "%s %d/%d" % [
-			data.techs[r["current"]]["name"], r["progress"], ResearchRules.cost(engine, r["current"])]
-	var dim := Palette.hex(Palette.TEXT_DIM)
-	var upkeep_note := ", upkeep %d" % income["upkeep"] if int(income["upkeep"]) > 0 else ""
-	hud.set_resources("%s %d [color=#%s](%+d%s)[/color]    %s %d [color=#%s](%+d)[/color]    %s %+d: %s" % [
-			UiKit.color_tag("Credits", Color(data.resources["credits"]["color"])), stock["credits"], dim, income["credits"], upkeep_note,
-			UiKit.color_tag("Alloys", Color(data.resources["alloys"]["color"])), stock["alloys"], dim, income["alloys"],
-			UiKit.color_tag("Research", Color(data.resources["research"]["color"])), income["research"], research])
+	var per_turn := int(income["research"])
+	var color := Color(data.resources["research"]["color"])
+	if String(r["current"]).is_empty():
+		hud.set_research_chip("Choose research  (+%d)" % per_turn, color,
+				"Nothing is being researched: points are banked until you choose (%d banked). Click or press T." % r["progress"], true)
+	else:
+		var cost := ResearchRules.cost(engine, r["current"])
+		var turns := ceili(float(cost - int(r["progress"])) / maxf(1.0, per_turn))
+		hud.set_research_chip("%s  %d/%d · %dt" % [data.techs[r["current"]]["name"], r["progress"], cost, turns], color,
+				"Researching %s: %d of %d (+%d per turn, %d turn(s) left). Click or press T for the tech tree." % [
+				data.techs[r["current"]]["name"], r["progress"], cost, per_turn, turns], false)
 
 
 func _toggle_roster() -> void:
@@ -636,6 +673,45 @@ func _refresh() -> void:
 	else:
 		hud.set_info(UiKit.color_tag("Select a fleet or planet.", Palette.TEXT_DIM))
 	hud.set_hint(_hint_text(human, fleet if mine else null))
+	_refresh_attention(human)
+
+
+## What needs the player this turn, Civ-style: research to choose, systems
+## building nothing, heroes waiting for a ride, debt. Each item jumps there.
+func _refresh_attention(human: bool) -> void:
+	var items: Array[Dictionary] = []
+	if not human or engine.state.is_over or hud.empire.visible or hud.roster.visible or hud.tech_tree.visible \
+			or hud.system_view.visible:
+		hud.set_attention(items)
+		return
+	var f := player_faction
+	if int(engine.state.resources[f]["credits"]) < 0:
+		items.append({"text": "In debt: no growth, no repairs, hull loss", "color": Palette.BAD, "action": _toggle_empire})
+	if String(engine.state.research[f]["current"]).is_empty():
+		items.append({"text": "Choose a research project", "color": Palette.ACTIVE, "action": _toggle_tech_tree})
+	var idle: Array[Planet] = []
+	for p: Planet in engine.state.planets_of(f):
+		if not p.queue.is_empty():
+			continue
+		var can_build := false
+		for o: Dictionary in EmpireRules.build_options(engine, p):
+			if o.get("ok", false):
+				can_build = true
+				break
+		if can_build:
+			idle.append(p)
+	for i in mini(idle.size(), 3):
+		var pid := idle[i].id
+		items.append({"text": "%s is building nothing" % idle[i].name, "color": Palette.SHIELDS,
+				"action": func() -> void: _open_system(pid)})
+	if idle.size() > 3:
+		items.append({"text": "+%d more idle systems" % (idle.size() - 3), "color": Palette.SHIELDS, "action": _toggle_empire})
+	for hero: Hero in engine.state.heroes.values():
+		if hero.owner == f and hero.status == Hero.READY and hero.fleet_id.is_empty() and not hero.planet_id.is_empty() \
+				and engine.state.planets.has(hero.planet_id):
+			items.append({"text": "%s is waiting at %s" % [hero.name, engine.state.planets[hero.planet_id].name],
+					"color": Palette.GOOD, "action": _toggle_roster})
+	hud.set_attention(items)
 
 
 func _hint_text(human: bool, fleet: Fleet) -> String:
@@ -1092,6 +1168,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
 		_toggle_empire()
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_T:
+		_toggle_tech_tree()
+		return
+	if hud.tech_tree.visible:
+		if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+			_toggle_tech_tree()
 		return
 	if hud.system_view.visible:
 		if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_ESCAPE, KEY_S]:
