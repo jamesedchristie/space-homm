@@ -22,6 +22,9 @@ extends RefCounted
 
 const PLUME := preload("res://src/presentation/shaders/engine_plume.gdshader")
 const NAV_LIGHT := preload("res://src/presentation/shaders/nav_light.gdshader")
+const PLATING := preload("res://src/presentation/shaders/ship_plating.gdshader")
+## Materials that get hull plating on models marked "plating": true.
+const PLATED := {"hull": 0.14, "dark": 0.0}
 ## Blinking light materials: [color, period, phase].
 const LIGHTS := {
 	"light_red": [Color(1.0, 0.18, 0.15), 1.4, 0.0],
@@ -44,10 +47,14 @@ static func build(data: DataRegistry, model_id: String, team_color: Color, style
 	root.name = model_id
 	var style_def: Dictionary = data.species.get(style, {}).get("style", {})
 	var meshes := _meshes_for(data, model_id, style if not style_def.is_empty() else "")
+	var plated := bool(data.models.get(model_id, {}).get("plating", false))
 	for material_name: String in meshes:
 		var mi := MeshInstance3D.new()
 		mi.mesh = meshes[material_name]
-		mi.material_override = _styled_material(material_name, team_color, style_def)
+		var mat := _styled_material(material_name, team_color, style_def)
+		if plated and PLATED.has(material_name) and mat is StandardMaterial3D:
+			mat = _plated(mat as StandardMaterial3D, float(PLATED[material_name]))
+		mi.material_override = mat
 		root.add_child(mi)
 	_add_plumes(root, data, model_id, team_color)
 	return root
@@ -177,8 +184,9 @@ static func material(material_name: String, team_color: Color = Color.WHITE) -> 
 			m.emission = team_color.lightened(0.15)
 			m.emission_energy_multiplier = 1.6
 		"rock":
-			m.albedo_color = Color("6e6258")
-			m.roughness = 0.95
+			m.albedo_color = Color("4d453f")
+			m.roughness = 1.0
+			m.metallic = 0.0
 		"hazard":
 			m.albedo_color = Color("d9b026")
 			m.roughness = 0.7
@@ -233,6 +241,24 @@ static func _styled_material(material_name: String, team_color: Color, style_def
 	m.albedo_color = Color(style_def[material_name])
 	if m.emission_enabled:
 		m.emission = Color(style_def[material_name])
+	_material_cache[key] = m
+	return m
+
+
+## The plating shader carrying a standard material's colour and finish.
+static func _plated(base: StandardMaterial3D, windows: float) -> ShaderMaterial:
+	var key := "plated:%s:%s:%s" % [base.albedo_color.to_html(), base.emission.to_html() if base.emission_enabled else "-", windows]
+	if _material_cache.has(key):
+		return _material_cache[key]
+	var m := ShaderMaterial.new()
+	m.shader = PLATING
+	m.set_shader_parameter("albedo", base.albedo_color)
+	m.set_shader_parameter("metallic", base.metallic)
+	m.set_shader_parameter("roughness", base.roughness)
+	if base.emission_enabled:
+		m.set_shader_parameter("emission_color", base.emission)
+		m.set_shader_parameter("emission_energy", base.emission_energy_multiplier)
+	m.set_shader_parameter("window_density", windows)
 	_material_cache[key] = m
 	return m
 

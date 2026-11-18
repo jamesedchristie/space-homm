@@ -1,5 +1,6 @@
 {
   "frigate": {
+    "plating": true,
     "description": "Workhorse warship: broad armoured hull, dorsal turret, twin engines.",
     "parts": [
       {"type": "hull", "outline": [[0.78, 0], [0.4, 0.3], [-0.5, 0.36], [-0.68, 0.22], [-0.68, -0.22], [-0.5, -0.36], [0.4, -0.3]], "height": 0.24, "bevel": 0.32, "taper": 0.2, "material": "hull"},
@@ -20,6 +21,7 @@
     ]
   },
   "interceptor": {
+    "plating": true,
     "description": "Fast dart: needle hull, swept wings, single big engine.",
     "parts": [
       {"type": "hull", "outline": [[0.72, 0], [-0.42, 0.15], [-0.55, 0], [-0.42, -0.15]], "height": 0.14, "bevel": 0.4, "material": "hull"},
@@ -34,6 +36,7 @@
     ]
   },
   "destroyer": {
+    "plating": true,
     "description": "Heavy warship: long armoured hull, raised bridge, twin turrets, triple engines.",
     "parts": [
       {"type": "hull", "outline": [[0.98, 0], [0.62, 0.28], [-0.62, 0.42], [-0.86, 0.3], [-0.86, -0.3], [-0.62, -0.42], [0.62, -0.28]], "height": 0.3, "bevel": 0.28, "taper": 0.2, "material": "hull"},
@@ -57,6 +60,7 @@
     ]
   },
   "station": {
+    "plating": true,
     "description": "Defense platform: armoured hub, cross of gun arms, glowing core.",
     "parts": [
       {"type": "cylinder", "radius": 0.42, "length": 0.22, "axis": "y", "segments": 8, "at": [0, 0.22, 0], "material": "hull"},
