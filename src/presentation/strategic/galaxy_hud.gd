@@ -40,6 +40,8 @@ var empire: EmpirePanel
 var system_view: SystemView
 ## Technology tree overlay.
 var tech_tree: TechTreeView
+## Full-screen conversation with another faction's leader.
+var diplomacy: DiplomacyScreen
 
 
 func _ready() -> void:
@@ -51,7 +53,7 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	# The attention list steps aside for any overlay or dialog.
 	_attention.visible = _attention.get_child_count() > 0 and not (empire.visible or roster.visible
-			or system_view.visible or tech_tree.visible or is_dialog_open() or is_settings_open())
+			or system_view.visible or tech_tree.visible or diplomacy.visible or is_dialog_open() or is_settings_open())
 
 
 func map_area() -> Rect2:
@@ -185,6 +187,10 @@ func is_dialog_open() -> bool:
 	return _dialog.is_open()
 
 
+func is_diplomacy_open() -> bool:
+	return diplomacy.visible
+
+
 func set_dialog_body(body_bbcode: String) -> void:
 	_dialog.set_body(body_bbcode)
 
@@ -287,6 +293,8 @@ func _build() -> void:
 	_dialog.place(520, 330)
 	_dialog.choice_made.connect(func(id: String) -> void: dialog_choice.emit(id))
 	add_child(_dialog)
+	diplomacy = DiplomacyScreen.new()
+	add_child(diplomacy)
 
 
 static func _flat_style(bg: Color) -> StyleBoxFlat:

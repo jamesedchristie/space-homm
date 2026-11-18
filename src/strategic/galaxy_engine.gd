@@ -901,6 +901,7 @@ func _do_move(cmd: MoveFleetCommand) -> void:
 			_claim_discovery(fleet, find)
 	if walked.size() > 1:
 		emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": fleet.id, "path": walked, "moves_left": fleet.moves_left})
+	_detect_contacts()
 
 	if enemy != null:
 		fleet.moves_left = 0
@@ -1445,25 +1446,27 @@ func _reveal_around(fleet: Fleet) -> void:
 
 
 func _update_explored() -> void:
-	var seen := {}
 	for f in state.factions:
 		var explored: Dictionary = state.explored[f["id"]]
-		var vis := visible_cells(f["id"])
-		for c: Vector2i in vis:
+		for c: Vector2i in visible_cells(f["id"]):
 			explored[c] = true
-		seen[f["id"]] = vis
-	_detect_contacts(seen)
+	_detect_contacts()
 
 
 ## First contact: the first time a fleet or system of one faction is in view of the other
 ## (either way round), the pair is recorded in state.met and FIRST_CONTACT is emitted once.
-func _detect_contacts(seen: Dictionary) -> void:
+## Cheap once everyone has met (it returns before computing any vision).
+func _detect_contacts() -> void:
+	var seen := {}
 	for i in state.factions.size():
 		for j in range(i + 1, state.factions.size()):
 			var a: String = state.factions[i]["id"]
 			var b: String = state.factions[j]["id"]
 			if state.has_met(a, b) or state.is_eliminated(a) or state.is_eliminated(b):
 				continue
+			for id in [a, b]:
+				if not seen.has(id):
+					seen[id] = visible_cells(id)
 			if _sees_any(seen[a], b) or _sees_any(seen[b], a):
 				state.met[GalaxyState.relation_key(a, b)] = state.turn_number
 				emit({"type": GalaxyEvents.FIRST_CONTACT, "factions": [a, b]})

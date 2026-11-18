@@ -11,6 +11,8 @@ signal closed
 signal system_requested(planet_id: String)
 ## "Tech tree" in the Research tab.
 signal tech_tree_requested
+## "Contact" on a faction in the Diplomacy tab: open the leader's screen.
+signal contact_requested(faction_id: String)
 
 const TABS := ["Systems", "Research", "Diplomacy", "Victory"]
 
@@ -202,6 +204,11 @@ func _build_diplomacy(engine: GalaxyEngine, faction_id: String, interactive: boo
 				("\n" + UiKit.color_tag("%s: %s" % [sp["name"], sp.get("bonus_text", "")], Palette.TEXT_DIM)) if not sp.is_empty() else ""]))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
+		var met := s.has_met(faction_id, other)
+		var contact := UiKit.button("Contact", func() -> void: contact_requested.emit(other))
+		contact.disabled = not met
+		contact.tooltip_text = "Speak with their leader" if met else "You haven't met them yet: find one of their fleets or systems first."
+		row.add_child(contact)
 		var peace := UiKit.button("Propose peace", func() -> void:
 			command_requested.emit(DiplomacyCommand.new(faction_id, other, "propose_peace")))
 		peace.disabled = not interactive or not war or f.get("always_hostile", false) or f["controller"] == "player"

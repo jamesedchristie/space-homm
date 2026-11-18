@@ -265,7 +265,7 @@ func _build_head(p: Dictionary, look: String, shape: Dictionary) -> void:
 		var iris_outer: Material = PortraitKit.glow(iris_col.darkened(0.25), 1.2) if iris_glow else PortraitKit.mat(iris_col.darkened(0.3), 0.4)
 		var iris_inner: Material = PortraitKit.glow(iris_col.lightened(0.25), 1.8) if (iris_glow or cyber) else PortraitKit.mat(iris_col.lightened(0.12), 0.4)
 		# The iris is a cap hugging the eyeball: a dark limbal ring, a lighter body, then the pupil.
-		for layer in [[1.0, 1.004, iris_outer], [0.8, 1.006, iris_inner], [0.38, 1.008, pupil_mat]]:
+		for layer in [[1.0, 1.004, iris_outer], [0.8, 1.006, iris_inner], [0.2 if iris_glow else 0.38, 1.008, pupil_mat]]:
 			var cap := PortraitKit.add(gaze, PortraitKit.dome_mesh(eye_r * float(layer[1]), cap_reach * float(layer[0]), 28, 6), layer[2])
 			cap.rotation_degrees = Vector3(90, 0, 0)
 		var glint := PortraitKit.sphere(gaze, ir * 0.2, glint_mat, Vector3(-side * ir * 0.3 + ir * 0.25, ir * 0.42, eye_r * 1.004), Vector3(1, 1, 0.5), Vector3.ZERO, 10)

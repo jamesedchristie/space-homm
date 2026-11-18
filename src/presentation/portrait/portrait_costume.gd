@@ -20,8 +20,8 @@ static func build(torso: Node3D, head: Node3D, look: String, p: Dictionary, team
 
 static func _body(torso: Node3D, cloth: Material, arm_cloth: Material = null, width: float = 1.0) -> void:
 	var arm := arm_cloth if arm_cloth != null else cloth
-	PortraitKit.box(torso, Vector3(0.34 * width, 0.46, 0.24), cloth, Vector3(0, -0.3, 0.0))
-	PortraitKit.sphere(torso, 1.0, cloth, Vector3(0, -0.062, -0.002), Vector3(0.18 * width, 0.085, 0.122), Vector3.ZERO, 32)
+	PortraitKit.box(torso, Vector3(0.34 * width, 0.4, 0.24), cloth, Vector3(0, -0.36, 0.0))
+	PortraitKit.sphere(torso, 1.0, cloth, Vector3(0, -0.13, -0.002), Vector3(0.185 * width, 0.15, 0.122), Vector3.ZERO, 32)
 	PortraitKit.capsule(torso, 0.058, 0.44 * width, cloth, Vector3(0, -0.032, 0), Vector3(0, 0, 90))
 	for side: float in [-1.0, 1.0]:
 		# Sloping trapezius, rounded shoulder and a tapering arm.

@@ -51,6 +51,10 @@ var player_species := ""
 var permadeath_override: Variant = null
 
 var _busy := false
+## First contacts made during an AI turn, shown when the player's turn starts.
+var _queued_contacts: Array[String] = []
+## Peace offers already presented ("from>to@turn").
+var _offers_shown: Dictionary = {}
 var _last_autosave_turn := -1
 ## Ships picked for detaching (D); while non-empty, clicks place the new fleet.
 var _split_ships: Array[String] = []
@@ -83,6 +87,8 @@ func _ready() -> void:
 	hud.tech_tree.command_requested.connect(_on_tech_command)
 	hud.tech_tree.closed.connect(_refresh)
 	hud.empire.tech_tree_requested.connect(_toggle_tech_tree)
+	hud.empire.contact_requested.connect(_on_contact_requested)
+	hud.diplomacy.command_requested.connect(_on_diplomacy_command)
 	hud.empire.system_requested.connect(func(planet_id: String) -> void:
 		hud.empire.visible = false
 		_open_system(planet_id))
@@ -145,6 +151,9 @@ func _begin(new_engine: GalaxyEngine) -> int:
 	_last_autosave_turn = -1
 	hud.roster.visible = false
 	hud.empire.visible = false
+	hud.diplomacy.visible = false
+	_queued_contacts.clear()
+	_offers_shown.clear()
 	hud.close_dialog()
 	ai = GalaxyAI.new()
 	engine = new_engine
@@ -216,6 +225,9 @@ func _continue(token: int) -> void:
 			await _resolve_event(token)
 			continue
 		if _is_human_turn():
+			await _flush_diplomacy(token)
+			if token != _token:
+				return
 			break
 		var result := engine.submit(ai.decide(engine))
 		if not result.ok:
@@ -568,10 +580,82 @@ func _play(events: Array[Dictionary], token: int) -> void:
 							data.megaprojects[e["megaproject"]]["name"], engine.state.planets[e["planet"]].name,
 							data.megaprojects[e["megaproject"]].get("description", "")], [{"id": "ok", "label": "Continue"}])
 					await hud.dialog_choice
+			GalaxyEvents.FIRST_CONTACT:
+				var met := _contact_partner(e["factions"])
+				if not met.is_empty() and not autoplay:
+					if engine.current_faction_id() == player_faction:
+						await _show_diplomacy(met, "first_contact")
+					else:
+						_queued_contacts.append(met)
+			GalaxyEvents.WAR_DECLARED:
+				if e["target"] == player_faction and not autoplay and not engine.state.is_over:
+					await _show_diplomacy(e["faction"], "war_on_you")
 			GalaxyEvents.CAMPAIGN_ENDED:
 				_sync_views()
 				_game_over()
 	_sync_views()
+
+
+# --- Diplomacy screens ---------------------------------------------------------
+
+## The faction the player met in a FIRST_CONTACT pair, or "" if the player isn't in it.
+func _contact_partner(pair: Array) -> String:
+	if player_faction not in pair:
+		return ""
+	return pair[1] if pair[0] == player_faction else pair[0]
+
+
+## Opens the leader screen and waits until it is closed. Skipped in autoplay.
+func _show_diplomacy(other: String, mode: String) -> void:
+	if autoplay or engine.state.is_over or hud.diplomacy.visible or not engine.state.faction(other).has("id"):
+		return
+	var can_act := engine.current_faction_id() == player_faction and engine.state.pending_event.is_empty()
+	hud.diplomacy.open(engine, player_faction, other, mode, can_act)
+	await hud.diplomacy.closed
+	_refresh()
+
+
+## At the start of the player's turn: first contacts made during AI turns, then any
+## peace offers waiting for an answer.
+func _flush_diplomacy(token: int) -> void:
+	if autoplay:
+		_queued_contacts.clear()
+		return
+	while not _queued_contacts.is_empty() and token == _token:
+		var met: String = _queued_contacts.pop_front()
+		if not engine.state.is_eliminated(met):
+			await _show_diplomacy(met, "first_contact")
+	for offer: Dictionary in engine.state.peace_offers.values().duplicate():
+		if token != _token or engine.state.is_over:
+			return
+		var key := "%s>%s@%d" % [offer["from"], offer["to"], int(offer["turn"])]
+		if offer["to"] != player_faction or _offers_shown.has(key) \
+				or DiplomacyRules.pending_offer(engine.state, offer["from"], player_faction).is_empty():
+			continue
+		_offers_shown[key] = true
+		await _show_diplomacy(offer["from"], "peace_offer")
+
+
+func _on_contact_requested(other: String) -> void:
+	if _busy or engine == null or not _is_human_turn():
+		return
+	await _show_diplomacy(other, "hail")
+	if hud.empire.visible:
+		hud.empire.show_panel(engine, player_faction, not _busy and _is_human_turn())
+
+
+## A button on the leader screen: run the command, then let the leader answer.
+func _on_diplomacy_command(cmd: GalaxyCommand) -> void:
+	var result := engine.submit(cmd)
+	if not result.ok:
+		hud.diplomacy.show_result([], result.error)
+		return
+	var token := _token
+	await _play(result.events, token)
+	if token != _token:
+		return
+	hud.diplomacy.show_result(result.events)
+	_refresh_resources()
 
 
 func _animate_move(e: Dictionary) -> void:
@@ -1143,6 +1227,19 @@ func _describe(e: Dictionary) -> String:
 			return UiKit.color_tag("[b]Peace: %s and %s[/b]" % [s.faction(e["factions"][0])["name"], s.faction(e["factions"][1])["name"]], Palette.GOOD)
 		GalaxyEvents.PEACE_REFUSED:
 			return UiKit.color_tag(e["reason"], Palette.TEXT_DIM) if e["faction"] == player_faction else ""
+		GalaxyEvents.FIRST_CONTACT:
+			if player_faction not in e["factions"]:
+				return ""
+			var other := _contact_partner(e["factions"])
+			return UiKit.color_tag("[b]First contact: %s[/b]" % s.faction(other)["name"], Palette.ACTIVE)
+		GalaxyEvents.PEACE_OFFERED:
+			if e["target"] != player_faction:
+				return ""
+			return UiKit.color_tag("[b]%s offers you peace[/b]" % s.faction(e["faction"])["name"], Palette.GOOD)
+		GalaxyEvents.PEACE_OFFER_REFUSED:
+			if e["faction"] != player_faction:
+				return ""
+			return UiKit.color_tag("You refuse peace with %s" % s.faction(e["target"])["name"], Palette.TEXT_DIM)
 		GalaxyEvents.GIFT_SENT:
 			if e["faction"] != player_faction and e["target"] != player_faction:
 				return ""
@@ -1153,7 +1250,7 @@ func _describe(e: Dictionary) -> String:
 # --- Input --------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	if engine == null or hud.is_dialog_open() or hud.is_settings_open():
+	if engine == null or hud.is_dialog_open() or hud.is_settings_open() or hud.is_diplomacy_open():
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:

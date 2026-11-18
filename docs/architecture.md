@@ -155,6 +155,46 @@ order) and their ships, and its heroes (in order; ids, class and gear stay), and
 is built, so it is testable without the UI. Ships built later are named from the owner species'
 `ship_names` (`GalaxyEngine._launch_ship`).
 
+### Leaders and diplomacy screens
+
+`data/strategic/leaders.json` has one entry per species (`human`, `veltari`, `kesh`, `sorn`) plus
+`raider_warlord` (role `barbarian`) and `trader_factor` (role `minor`); `LeaderRules.leader_id`
+maps a faction to its leader (role first, then species, so a species swap in the New Campaign
+screen also swaps leaders). An entry holds `name`, `title`, `personality`, a `portrait` block
+(`look`: which species model; skin/lips/eyes/hair colours, `hair_style`, costume colours
+`primary`/`secondary`/`accent`, `glow`, `backdrop`, and shape knobs like `jaw`, `brow`, `crest`,
+`horns`) and `lines`: 2 or 3 variants for each of `LeaderRules.LINE_KEYS` (`first_contact`,
+`greeting`, `hail_war`, `war_on_you`, `you_declare_war`, `peace_accepted`, `peace_refused`,
+`peace_offer`, `offer_declined`, `gift`, `farewell`), with `{player}` (the addressed empire),
+`{empire}` and `{leader}` placeholders. `DataRegistry` validates that every species and every
+shipped campaign faction resolves to a complete leader.
+
+Engine side (small, confined to diplomacy): `GalaxyState.met` ("a|b" -> turn) records first
+contact; `GalaxyEngine._detect_contacts` emits `FIRST_CONTACT {factions}` once per pair when a
+fleet or system of one is within the other's vision (after each move and in
+`_update_explored`). AI-to-player peace uses `GalaxyState.peace_offers` ("from>to" -> {turn,
+status}): the AI issues `DiplomacyCommand` `offer_peace` (see
+`DiplomacyRules.wants_to_offer_peace`: at war 3+ turns, losing or war-weary, 8-turn
+cooldown) which emits `PEACE_OFFERED`; the player answers on their turn with `accept_peace`
+(`PEACE_SIGNED`) or `refuse_peace` (`PEACE_OFFER_REFUSED`); offers lapse after
+`DiplomacyRules.OFFER_TTL` turns, and an AI-driven player faction (autoplay) answers them in
+`GalaxyAI._diplomacy`. `met` and `peace_offers` are saved in `GalaxySave` without a version bump
+(older saves count everyone as met).
+
+Presentation: `LeaderPortrait` (`src/presentation/portrait/`) renders a procedural bust in its own
+`SubViewport`: a displaced-sphere head (`PortraitHead`: jaw, brow ridge, cheekbones, crest) with
+a soft wrap-lit skin shader, eyes with iris caps and blinking lids, brows, nose, lips, ears,
+species prosthetics (Vel'tari crystal crown and temple ridges, Kesh cheek ridges, tusks, horns
+and braids, Sorn crest and neck ridges), a costume per look (`PortraitCostume`), a painted
+backdrop (`PortraitBackdrop`), and three-point lighting with coloured rims. Idle animation:
+breathing, sway, blinks, glances; `set_speaking` moves the mouth, `set_mood` changes brows and
+smile. It needs no shadows or post effects, so it runs on GL Compatibility / Web.
+`DiplomacyScreen` (`src/presentation/strategic/diplomacy_screen.gd`) is the full-screen modal
+(modes `first_contact`, `hail`, `war_on_you`, `peace_offer`): it reads the engine, types out the
+leader's line, offers replies and emits `DiplomacyCommand`s; `GalaxyScreen` submits them and
+passes the events back with `show_result` so the leader answers. First contacts and offers that
+arrive during AI turns wait until the player's turn; autoplay skips all screens.
+
 ### Randomness: discoveries and planet traits
 
 A campaign's `"random"` entry adds seeded variety (`GalaxyEngine._roll_random_features`, using
@@ -345,7 +385,8 @@ tick down, and opinions of factions at peace drift up. Then fleets repair, comma
 Fleet Academy XP and, for a major power in a campaign with events, a galactic event may be offered.
 
 **Commands:** `SetResearchCommand`, `QueueBuildCommand` (paid up front, one item per planet),
-`DiplomacyCommand` (`propose_peace`, `declare_war`, `gift`).
+`DiplomacyCommand` (`propose_peace`, `declare_war`, `gift`; `offer_peace`, `accept_peace`,
+`refuse_peace` for AI offers to the player, see Leaders and diplomacy screens).
 
 **Tech effects** (`data/empire/techs.json`):
 
@@ -370,6 +411,8 @@ can't attack or pass through each other and planets can't be captured. An AI acc
 its opinion of you is at least 10 or it's clearly losing, but never within 3 turns of the war
 starting, and never if it's `always_hostile`. Being attacked (−15), losing a planet (−20) or
 having war declared on you (−30) lowers opinion. Gifts (+10) and time at peace (+1/turn) raise it.
+Events: `WAR_DECLARED`, `PEACE_SIGNED`, `PEACE_REFUSED`, `GIFT_SENT`, `FIRST_CONTACT`,
+`PEACE_OFFERED`, `PEACE_OFFER_REFUSED`.
 
 **Planet defenses:** buildings with a `defense_unit` put immobile units (`"immobile"` tag) into
 any battle at that planet. A fleet entering a defended enemy planet with no fleet on it fights
