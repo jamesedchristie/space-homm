@@ -21,7 +21,7 @@
     "placeholder": "boarder",
     "sprite": "",
     "size": 0.95,
-    "model": "boarder"
+    "model": "smuggler"
   },
   "stat_names": {
     "hull": "Health",

@@ -103,6 +103,16 @@ func play_ability(kind: String, source_id: String, target: Vector2i, color: Colo
 	var to := map_view.cell_center(target)
 	if kind != "self":
 		source.face_towards(to)
+	if kind == "melee":
+		# Lunge at the target, land the blow, step back.
+		var home := source.position
+		var tw := create_tween()
+		tw.tween_property(source, "position", home.lerp(to, 0.6), 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.tween_callback(fx.play.bind("melee", source.position, to, color, 0.0, laser))
+		tw.tween_callback(shake.bind(3.0))
+		tw.tween_property(source, "position", home, 0.2).set_trans(Tween.TRANS_SINE)
+		await tw.finished
+		return
 	await fx.play(kind, source.position, to, color, radius * GridMapView.CELL_SIZE * 1.8, laser)
 
 

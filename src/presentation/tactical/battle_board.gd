@@ -63,7 +63,7 @@ func float_text(_unit_id: String, _text: String, _color: Color, _rise: float = 0
 	pass
 
 
-## kind: projectile | beam | torpedo | pulse | self. radius in cells.
+## kind: projectile | beam | torpedo | pulse | self | melee (lunge at an adjacent target). radius in cells.
 func play_ability(_kind: String, _source_id: String, _target: Vector2i, _color: Color, _radius: int, _laser: String) -> void:
 	pass
 

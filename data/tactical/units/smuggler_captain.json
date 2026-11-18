@@ -16,13 +16,14 @@
   "abilities": [
     "boarder_shotgun",
     "rifle_burst",
+    "combat_knife",
     "overwatch"
   ],
   "visual": {
     "placeholder": "boarder",
     "sprite": "",
     "size": 1.05,
-    "model": "boarder"
+    "model": "smuggler"
   },
   "stat_names": {
     "hull": "Health",

@@ -17,6 +17,8 @@ func play(kind: String, from: Vector3, to: Vector3, color: Color, blast_radius: 
 		"pulse":
 			await _beam(from, to, color, 0.02)
 			await _ring(to, 0.7, color)
+		"melee":
+			melee_impact(to, color)
 		"self":
 			_flash(from, 0.4, color)
 			await _ring(from - Vector3(0, from.y - 0.05, 0), 0.9, color)
@@ -25,8 +27,34 @@ func play(kind: String, from: Vector3, to: Vector3, color: Color, blast_radius: 
 			_flash(to, 0.2, color)
 
 
+## Hand-to-hand contact: a white-hot flash, a spray of sparks and two
+## crossing slash streaks at `at`. Returns immediately (it is part of the lunge).
+func melee_impact(at: Vector3, color: Color) -> void:
+	_flash(at, 0.09, Color(1.0, 0.95, 0.8), 1.0)
+	_sparks(at, 0.6, color)
+	for angle in [35.0, -40.0]:
+		var streak := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.7, 0.025, 0.025)
+		streak.mesh = box
+		streak.material_override = _additive(color.lightened(0.5))
+		streak.position = at
+		streak.rotation_degrees = Vector3(randf_range(-20.0, 20.0), randf_range(0.0, 180.0), angle)
+		streak.scale = Vector3(0.2, 1.0, 1.0)
+		add_child(streak)
+		var tw := create_tween().set_parallel()
+		tw.tween_property(streak, "scale", Vector3(1.0, 1.0, 1.0), 0.1).set_ease(Tween.EASE_OUT)
+		tw.tween_property(streak.material_override, "albedo_color", Color.BLACK, 0.22)
+		tw.chain().tween_callback(streak.queue_free)
+
+
 func explode(at: Vector3, size: float = 1.0, tint: Color = Color(1.0, 0.6, 0.25)) -> void:
 	_flash(at, 0.45 * size, Color(1.0, 0.85, 0.6))
+	_sparks(at, size, tint)
+	_ring(at, 1.1 * size, tint)
+
+
+func _sparks(at: Vector3, size: float, tint: Color) -> void:
 	var sparks := CPUParticles3D.new()
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.035
@@ -59,7 +87,6 @@ func explode(at: Vector3, size: float = 1.0, tint: Color = Color(1.0, 0.6, 0.25)
 	add_child(sparks)
 	sparks.emitting = true
 	get_tree().create_timer(1.6).timeout.connect(sparks.queue_free)
-	_ring(at, 1.1 * size, tint)
 
 
 func _bolt(from: Vector3, to: Vector3, color: Color, radius: float, speed: float) -> void:
@@ -107,7 +134,7 @@ func _beam(from: Vector3, to: Vector3, color: Color, radius: float) -> void:
 		mi.queue_free()
 
 
-func _flash(at: Vector3, radius: float, color: Color) -> void:
+func _flash(at: Vector3, radius: float, color: Color, energy: float = 3.0) -> void:
 	var ball := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = radius
@@ -118,7 +145,7 @@ func _flash(at: Vector3, radius: float, color: Color) -> void:
 	add_child(ball)
 	var light := OmniLight3D.new()
 	light.light_color = color
-	light.light_energy = 3.0
+	light.light_energy = energy
 	light.omni_range = radius * 10.0
 	ball.add_child(light)
 	var tw := create_tween().set_parallel()

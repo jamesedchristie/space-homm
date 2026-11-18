@@ -264,6 +264,16 @@ func play_ability(kind: String, source_id: String, target: Vector2i, color: Colo
 	var target_unit := engine.state.unit_at(target)
 	var to: Vector3 = views[target_unit.id].aim_point() if target_unit != null and views.has(target_unit.id) \
 			else world(target, _floor_y + 0.3)
+	if kind == "melee":
+		# Lunge at the target; the blow lands (flash, sparks, thud, flinch) mid-animation.
+		var victim: Unit3D = views.get(target_unit.id) if target_unit != null else null
+		await source.play_melee(world(target, _floor_y), func() -> void:
+			_fx2d.play_sound("melee")
+			_fx.play("melee", source.aim_point(), to, color, 0.0)
+			if victim != null:
+				victim.recoil(source.position)
+			_rig.shake(0.12))
+		return
 	_fx2d.play_sound(kind)
 	var blast := float(radius) * engine.state.grid.to_pixel(Vector2i(1, 0), GridMapView.CELL_SIZE).length() * SCALE
 	await _fx.play(kind, source.aim_point(), to, color, blast)
