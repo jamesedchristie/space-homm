@@ -31,6 +31,11 @@ and Mass Effect-style hero missions, all built on **one shared tactical engine**
   ships cost **upkeep**, the tech tree has 32 techs in three **eras**, five **megaprojects**
   (wonders) can be built, there are three ways to win (conquest, **science**, **score**) and
   twenty **galactic events** ask you to make choices.
+- **Step 6 (done):** the system layer. Inside a star system you work on a **system map**:
+  **Colony Ships** found colonies, **Constructors** build developments on the bodies, and nothing is
+  claimed by flying a fleet in. Every system fights back, colonies need **Troop Transports** (or fall
+  into a **blockade**), and in *Random Sector* every power starts with a colony ship and must found its
+  capital.
 
 ## Running it
 
@@ -57,8 +62,8 @@ and press **F6** (run current scene).
 | --- | --- |
 | Click your fleet | Select it (blue hexes = move, red = attack) |
 | Click a blue / red hex | Move there / attack the fleet there |
-| Click a planet or visible enemy | Show info (click your own system to open it) |
-| Click your selected fleet again / `S` | Open the system it's parked in |
+| Click a planet or visible enemy | Show info (click your own system, or one you have ships working in, to open the system map) |
+| Click your selected fleet again / `S` | Open the system it's parked in (yours, or an unclaimed one to settle or claim it) |
 | `Tab` / **Next Fleet** | Next fleet with moves left (the button counts them; fleets that can still move have a bouncing arrow, spent ones fade) |
 | Click your other fleet | Merge into it (asks first; up to 6 ships, one commander) |
 | `D` | Detach ships into a new fleet on a neighbouring system |
@@ -81,8 +86,11 @@ can decide whether to fight it yourself.
 Two campaigns:
 - **Random Sector** (the main game): a new generated sector every game. You and two AI empires
   (the Vel'tari Concord and the Kesh Dominion) compete for the stars; raiders prey on everyone;
-  the Free Traders deal with whoever treats them well. Enter a seed to replay a sector.
-- **The Drift (scenario)**: a short hand-made scenario: clear the raider dens out of the Drift.
+  the Free Traders deal with whoever treats them well. Enter a seed to replay a sector. Every major
+  power starts in its (still unclaimed) home system with its warfleet, a **Colony Ship** and a
+  **Constructor**: found your capital first (the attention list at the top left points you there).
+- **The Drift (scenario)**: a short hand-made scenario: clear the raider dens out of the Drift. You
+  start with your home colony already founded.
 
 **Species.** Pick who you play on the New Campaign screen. All are humanoid; the differences
 are deliberately subtle:
@@ -112,21 +120,50 @@ gases, vast continents, subsurface ocean, hostile biosphere) that pay once you d
 
 **Star systems.** The map's systems each have a star and a few bodies: habitable worlds
 (terran, ocean, desert, arctic), rocks (barren, volcanic), asteroid belts, gas giants and ice
-moons. Move a fleet in to claim a system; enemy systems are captured the same way (defended
-ones fight back). Then develop it body by body: click your system (or select one and press
-**S**) to open the **system view**. Habitable worlds take a **colony** (taxes, some research,
-and slots for a shipyard, trade hub and defenses), rocks and belts a **mining base**, ice moons
-and gas giants a **research station** (gas giants also a **gas refinery**). Undeveloped worlds
-produce nothing, so a system with a habitable world and rich rocks is worth fighting over.
-One build at a time per system; ships need a shipyard. Friendly fleets in your systems repair
-25% hull per turn. Nebulae and asteroid fields cost 2 moves, and battles there are fought on
-matching battle maps.
+moons. **Flying a fleet into an empty system claims nothing.** A system becomes yours when a
+**Colony Ship** founds a colony on one of its habitable worlds, or when a **Constructor** finishes a
+development there (the system becomes an **outpost**). Undeveloped bodies produce nothing, so a system
+with a habitable world and rich rocks is worth fighting over.
+
+*The system map.* Click your system (or select a fleet or system and press **S**) to open it: a big
+3D view of the star and its bodies. Click a body to select it (or `Tab` / arrow keys / `1`-`9`); the
+side panel shows its type, traits, buildings and yield, and what your ships can do there. Your
+civilian ships are drawn beside the bodies they are at (a hex for a Colony Ship, a diamond for a
+Constructor, with a progress arc while they work).
+
+- **Colony Ship** (a colony of 2+ pop builds it and gives up 1 pop): *Found a colony here* (`F`) on an
+  unclaimed or your own habitable world. The ship is used up; the colony starts at 1 pop and, if the
+  system was unclaimed, claims it. A habitable world can only be settled this way.
+- **Constructor** (any colony builds it): builds **mining bases** (rocks, belts), **research stations**
+  (ice, gas, barren rocks), **gas refineries** and cheap **outposts** on a body in a system you own or
+  an unclaimed one (which it claims when it finishes). It works for the building's build time, keeps
+  its place and takes another job when done. A real development may replace an outpost.
+- **Colony buildings** (shipyard, trade hub, academy, defenses...) and **megaprojects** stay in the
+  system's one-at-a-time build queue, along with ships: civilian ships need a colony, warships a
+  shipyard. A new Colony Ship or Constructor waits in the system (**Depart** sends it out on the galaxy
+  map as a fleet of its own, or into the fleet in orbit).
+- **Civilian fleets are unarmed.** Enemy warships entering a hex with an unescorted civilian fleet destroy
+  it without a battle; an enemy fleet is a wall to them. Put them in a warfleet to escort them (they
+  fight as weak ships) or keep them behind your lines.
+
+*Conquest.* Moving warships into a system of someone you are at war with **always starts a battle**:
+every claimed system fields its defense platforms plus a **base garrison** of orbital batteries (one,
+plus one per 4 population of its colonies, at most three). Win it and: an **outpost** (no colony), or a
+raider den, is yours at once; a **colony** needs a **Troop Transport** in the winning fleet (it lands and
+is used up, the system changes hands and loses a quarter of its people). Without troops your fleet
+**blockades** the system for as long as it stays: no production, no growth, repairs and the build queue
+paused; a Transport that arrives later (join the blockading fleet) takes it. If the fleet leaves, the
+blockade lifts and the garrison is back. Raiders still plunder rather than hold systems (and a colony
+stays with its owner).
+
+Friendly fleets in your systems repair 25% hull per turn. Nebulae and asteroid fields cost 2 moves, and
+battles there are fought on matching battle maps.
 
 Empire (E): four tabs. **Systems** (every system's output, population and growth, upkeep, active
 effects, wonders), **Research** (the tech tree by era; points flow into the tech you pick),
 **Diplomacy** and **Victory** (how close every major power is to each way of winning).
 Diplomacy: The Free Traders start at peace with you and at war with
-the raiders. At peace you can't attack each other or take each other's planets. Propose peace,
+the raiders. At peace you can't attack each other or take each other's systems. Propose peace,
 declare war or send gifts in the Diplomacy tab. The raiders never negotiate. The war ends when
 nobody left is at war (the highest score wins) or when one faction stands alone.
 
@@ -253,12 +290,17 @@ CI runs the tests and both smoke tests on every push (`.github/workflows/tests.y
 
 ## Adding content (no code)
 
-- **New ship:** add `data/tactical/units/<id>.json` (including `strategic.speed` / `sensor`).
+- **New ship:** add `data/tactical/units/<id>.json` (including `strategic.speed` / `sensor`). A civilian
+  ship adds `"civilian": true` and a `role` (`colony`, `constructor` or `transport`) to `strategic`;
+  `min_pop` / `pop_cost` make a colony give up people for it. The base garrison unit is named in
+  `data/empire/economy.json` (`garrison`).
 - **New ability:** add `data/tactical/abilities/<id>.json`, composing existing effect types
   (`damage`, `heal`, `apply_status`), then list it on a unit.
 - **New status:** `data/tactical/statuses/<id>.json` with `modifiers`, `flags` and/or `on_turn_start` effects.
 - **New battle map:** `data/tactical/maps/<id>.json`, with `deployment.west`/`east` if galaxy battles use it.
-- **New campaign:** `data/strategic/campaigns/<id>.json` (map, factions, planets, fleets).
+- **New campaign:** `data/strategic/campaigns/<id>.json` (map, factions, planets, fleets). `"start":
+  "colony_ship"` (with `"start_ships"`) makes generated major powers begin unclaimed with settlers instead of
+  owning their homes; systems can list `"civilians"` to start with ships deployed.
 - **Galaxy terrain, stars, bodies:** `data/strategic/terrain.json`, `star_types.json`,
   `body_types.json` (category, size, colony slots, bonus yields, shader colours), `planet_traits.json`.
 - **Heroes:** classes, items, traits and XP thresholds in `data/heroes/`; named heroes, starting
