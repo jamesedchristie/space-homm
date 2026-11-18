@@ -19,9 +19,17 @@ func _draw() -> void:
 	var items: Array[Dictionary] = []
 	var boxes: Array[Rect2] = []
 	for pv: Planet3D in board.planet_views.values():
-		if pv.visible:
-			_add_text_item(items, boxes, pv, pv.label_height, pv.display_name, 12,
-					pv.owner_color.lightened(0.25) if pv.owned else Palette.TEXT_DIM)
+		if not pv.visible:
+			continue
+		if pv.owned:
+			# Above the system, like a city banner.
+			var at: Variant = _project(pv, pv.label_height + 0.35)
+			if at != null:
+				var w := _banner_width(pv)
+				items.append({"banner": pv, "at": at})
+				boxes.append(Rect2(at + Vector2(-w / 2.0, -16), Vector2(w, 22)))
+		else:
+			_add_text_item(items, boxes, pv, pv.label_height, pv.display_name, 12, Palette.TEXT_DIM)
 	for av: Anomaly3D in board.anomaly_views.values():
 		if av.visible:
 			_add_text_item(items, boxes, av, av.label_height, av.display_name, 11, Anomaly3D.COLOR.lightened(0.35))
@@ -46,8 +54,65 @@ func _draw() -> void:
 			draw_line(anchor + Vector2(0, 4), p + Vector2(0, 6), Color(1, 1, 1, 0.22), 1.0)
 		if item.has("fleet"):
 			_draw_fleet(item["fleet"], p)
+		elif item.has("banner"):
+			_draw_banner(item["banner"], p)
 		else:
 			_text(p + Vector2(-70, 0), item["text"], 140, item["size"], item["color"])
+
+
+const BANNER_FONT := 12
+
+
+func _banner_width(pv: Planet3D) -> float:
+	var text_w := ThemeDB.fallback_font.get_string_size(pv.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, BANNER_FONT).x
+	var planet: Planet = board.engine.state.planets.get(pv.planet_id)
+	var pips := planet.bodies.size() if planet != null else 0
+	return text_w + 22.0 + pips * 7.0 + 26.0
+
+
+## Civ-style city banner for an owned system: a dark plate edged in the
+## owner's colour with the name, one pip per body (filled = developed), and
+## markers for a shipyard (anchor) and defenses (shield with a count).
+func _draw_banner(pv: Planet3D, p: Vector2) -> void:
+	var planet: Planet = board.engine.state.planets.get(pv.planet_id)
+	if planet == null:
+		return
+	var font := ThemeDB.fallback_font
+	var w := _banner_width(pv)
+	var rect := Rect2(p + Vector2(-w / 2.0, -15), Vector2(w, 20))
+	var c := pv.owner_color
+	draw_rect(rect.grow(1.0), Color(0, 0, 0, 0.6))
+	draw_rect(rect, Color(c.darkened(0.78), 0.92))
+	draw_rect(Rect2(rect.position, Vector2(4, rect.size.y)), c)
+	draw_rect(rect, Color(c, 0.55), false, 1.0)
+	var x := rect.position.x + 9.0
+	var base_y := rect.position.y + 15.0
+	draw_string(font, Vector2(x, base_y), pv.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, BANNER_FONT, c.lightened(0.55))
+	x += font.get_string_size(pv.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, BANNER_FONT).x + 8.0
+	for b: Dictionary in planet.bodies:
+		var cy := rect.position.y + 10.0
+		if b["buildings"].is_empty():
+			draw_arc(Vector2(x + 2.5, cy), 2.4, 0, TAU, 10, Color(1, 1, 1, 0.35), 1.0)
+		else:
+			draw_circle(Vector2(x + 2.5, cy), 2.8, c.lightened(0.35))
+		x += 7.0
+	x += 3.0
+	# Shipyards and defenses only for systems you've scouted (or your own).
+	if planet.owner != board.player_faction and not board._explored.has(planet.cell):
+		return
+	var mid := rect.position.y + 10.0
+	if EmpireRules.has_shipyard(board.engine, planet):
+		# Anchor: a ring over a shank with a bar.
+		draw_arc(Vector2(x + 4, mid - 4), 1.8, 0, TAU, 8, Palette.TEXT, 1.2)
+		draw_line(Vector2(x + 4, mid - 2), Vector2(x + 4, mid + 5), Palette.TEXT, 1.2)
+		draw_arc(Vector2(x + 4, mid + 1), 3.6, 0.3, PI - 0.3, 8, Palette.TEXT, 1.2)
+		x += 11.0
+	var defenses := EmpireRules.defense_units(board.engine, planet).size()
+	if defenses > 0:
+		var shield := PackedVector2Array([Vector2(x, mid - 5), Vector2(x + 8, mid - 5), Vector2(x + 8, mid),
+				Vector2(x + 4, mid + 5), Vector2(x, mid)])
+		draw_colored_polygon(shield, Color(Palette.BAD, 0.85))
+		draw_string(font, Vector2(x + 10, mid + 4), str(defenses), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Palette.TEXT)
 
 
 func _add_text_item(items: Array[Dictionary], boxes: Array[Rect2], node: Node3D, height: float, text: String,

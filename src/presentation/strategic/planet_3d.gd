@@ -26,6 +26,11 @@ var _glow: StandardMaterial3D
 var _markers: Array[MeshInstance3D] = []
 var _body_ids: Array[String] = []
 var _floor: Array[Node3D] = []
+## Per body (same order as the planet's bodies): its sphere, or the belt node.
+var _body_nodes: Array[Node3D] = []
+var _body_radii: Array[float] = []
+var _surface_materials: Array[ShaderMaterial] = []
+var _structures_key := ""
 
 
 func setup(planet: Planet, data: DataRegistry) -> void:
@@ -51,10 +56,15 @@ func setup(planet: Planet, data: DataRegistry) -> void:
 		var angle := float((h >> (i * 3)) % 628) / 100.0
 		var speed := 0.35 / (radius * 4.0)
 		if b["type"] == "asteroid_belt":
-			_add_belt(radius, h + i)
+			_body_nodes.append(_add_belt(radius, h + i))
+			_body_radii.append(0.03)
+			_surface_materials.append(null)
 			_markers.append(null)
 			continue
 		var node := _add_body(b, data, h + i * 13)
+		_body_nodes.append(node)
+		_body_radii.append(_body_radius(b, data))
+		_surface_materials.append(node.material_override as ShaderMaterial)
 		_orbiters.append({"node": node, "radius": radius, "speed": speed, "angle": angle})
 		var marker := MeshInstance3D.new()
 		var torus := TorusMesh.new()
@@ -110,7 +120,147 @@ func refresh(planet: Planet, state: GalaxyState) -> void:
 		if _markers[i] == null:
 			continue
 		var developed: bool = not planet.bodies[i]["buildings"].is_empty()
-		(_markers[i].material_override as StandardMaterial3D).albedo_color = Color(owner_color, 0.9) if developed and owned else Color(1, 1, 1, 0)
+		(_markers[i].material_override as StandardMaterial3D).albedo_color = Color(owner_color, 0.16) if developed and owned else Color(1, 1, 1, 0)
+	_refresh_structures(planet)
+
+
+## What's built shows in orbit: lit cities on colonies, a drydock for a
+## shipyard, turret satellites for defense platforms, dishes for research
+## stations, rigs for mining, ring stations for refineries and trade hubs.
+## Rebuilt only when buildings or the owner change.
+func _refresh_structures(planet: Planet) -> void:
+	var parts := PackedStringArray([planet.owner])
+	for b: Dictionary in planet.bodies:
+		parts.append(",".join(PackedStringArray(b["buildings"])))
+	var key := "|".join(parts)
+	if key == _structures_key:
+		return
+	_structures_key = key
+	for i in mini(_body_nodes.size(), planet.bodies.size()):
+		var node := _body_nodes[i]
+		for child in node.get_children():
+			if child.is_in_group("structure"):
+				child.queue_free()
+		var b: Dictionary = planet.bodies[i]
+		var buildings: Array = b["buildings"]
+		if _surface_materials[i] != null:
+			_surface_materials[i].set_shader_parameter("city_lights", 1.0 if "colony" in buildings else 0.0)
+		var r := _body_radii[i]
+		var slot := 0
+		for building_id: String in buildings:
+			var s := _structure(building_id, r, owner_color, slot)
+			if s == null:
+				continue
+			s.add_to_group("structure")
+			if b["type"] == "asteroid_belt":
+				# On the belt itself: out on the ring, a little apart from each other.
+				var ring_r: float = 0.0
+				for o in _orbiters:
+					if o["node"] == node:
+						ring_r = float(o.get("ring", 0.0))
+				var a := 0.9 + slot * 1.3
+				s.position = Vector3(cos(a), 0.0, sin(a)) * ring_r
+			node.add_child(s)
+			slot += 1
+
+
+func _structure(building_id: String, r: float, color: Color, slot: int) -> Node3D:
+	var root := Node3D.new()
+	var hull := ModelFactory.material("hull")
+	var dark := ModelFactory.material("dark")
+	var accent := ModelFactory.material("accent", color)
+	var scale := maxf(r, 0.05)
+	var angle := 0.6 + slot * 2.1
+	var out := Vector3(cos(angle), 0.0, sin(angle))
+	match building_id:
+		"colony":
+			return null  # the city lights show it
+		"shipyard":
+			# An open drydock frame beside the planet.
+			root.position = out * (r + scale * 0.9) + Vector3(0, scale * 0.3, 0)
+			root.rotation.y = -angle
+			for side in [-1.0, 1.0]:
+				_box(root, Vector3(0, 0, side * scale * 0.22), Vector3(scale * 0.9, scale * 0.08, scale * 0.06), hull)
+			for k in 3:
+				_box(root, Vector3((k - 1) * scale * 0.4, 0, 0), Vector3(scale * 0.06, scale * 0.06, scale * 0.5), dark)
+			_box(root, Vector3(0, scale * 0.06, 0), Vector3(scale * 0.5, scale * 0.04, scale * 0.04), accent)
+		"defense_platform":
+			# Turret satellites on short orbits, above and below the planet's plane.
+			for k in 2:
+				var sat := Node3D.new()
+				var a := angle + k * PI
+				sat.position = Vector3(cos(a), (0.4 if k == 0 else -0.4) * scale, sin(a)) * (r + scale * 0.55)
+				_box(sat, Vector3.ZERO, Vector3.ONE * scale * 0.16, dark)
+				_box(sat, Vector3(scale * 0.12, 0, 0), Vector3(scale * 0.2, scale * 0.03, scale * 0.03), hull)
+				_glow_dot(sat, Vector3(0, scale * 0.1, 0), scale * 0.04, Color(1.0, 0.3, 0.25))
+				root.add_child(sat)
+		"research_station":
+			# A sensor dish on a mast.
+			root.position = out * (r + scale * 0.55)
+			var dish := MeshInstance3D.new()
+			var cone := CylinderMesh.new()
+			cone.top_radius = scale * 0.22
+			cone.bottom_radius = scale * 0.02
+			cone.height = scale * 0.12
+			cone.radial_segments = 12
+			dish.mesh = cone
+			dish.material_override = hull
+			dish.rotation.z = -0.6
+			root.add_child(dish)
+			_box(root, Vector3(0, -scale * 0.12, 0), Vector3(scale * 0.05, scale * 0.2, scale * 0.05), dark)
+			_glow_dot(root, Vector3(0, scale * 0.08, 0), scale * 0.04, Color(0.5, 0.85, 1.0))
+		"mining_base":
+			# A rig on the surface with a work light.
+			root.position = Vector3(0, r * 0.92, 0) if r > 0.04 else Vector3.ZERO
+			_box(root, Vector3.ZERO, Vector3(scale * 0.22, scale * 0.12, scale * 0.16), dark)
+			_box(root, Vector3(0, scale * 0.14, 0), Vector3(scale * 0.04, scale * 0.22, scale * 0.04), hull)
+			_glow_dot(root, Vector3(0, scale * 0.26, 0), scale * 0.04, Color(1.0, 0.75, 0.3))
+		"gas_refinery", "trade_hub":
+			# A ring station: a wheel round a hub, spinning slowly.
+			root.position = out * (r + scale * 0.75)
+			var wheel := MeshInstance3D.new()
+			var t := TorusMesh.new()
+			t.inner_radius = scale * 0.16
+			t.outer_radius = scale * 0.22
+			t.rings = 16
+			t.ring_segments = 6
+			wheel.mesh = t
+			wheel.material_override = hull if building_id == "trade_hub" else dark
+			root.add_child(wheel)
+			_box(root, Vector3.ZERO, Vector3(scale * 0.08, scale * 0.08, scale * 0.08), accent)
+			var spin := Tumbler.new()
+			spin.spin = Vector3(0, 0.8, 0)
+			root.add_child(spin)
+		_:
+			# Anything else: a small station block in the owner's colour.
+			root.position = out * (r + scale * 0.6)
+			_box(root, Vector3.ZERO, Vector3.ONE * scale * 0.14, hull)
+			_box(root, Vector3(0, scale * 0.09, 0), Vector3(scale * 0.18, scale * 0.03, scale * 0.03), accent)
+	return root
+
+
+static func _box(parent: Node3D, at: Vector3, size: Vector3, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	mi.mesh = box
+	mi.material_override = mat
+	mi.position = at
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+
+
+static func _glow_dot(parent: Node3D, at: Vector3, radius: float, color: Color) -> void:
+	var mi := MeshInstance3D.new()
+	var s := SphereMesh.new()
+	s.radius = radius
+	s.height = radius * 2.0
+	s.radial_segments = 6
+	s.rings = 3
+	mi.mesh = s
+	mi.material_override = BoardGeometry.additive_material(color)
+	mi.position = at
+	parent.add_child(mi)
 
 
 func _process(delta: float) -> void:
@@ -204,7 +354,7 @@ func _add_body(b: Dictionary, data: DataRegistry, seed_value: int) -> Node3D:
 	return body
 
 
-func _add_belt(radius: float, seed_value: int) -> void:
+func _add_belt(radius: float, seed_value: int) -> Node3D:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var belt := Node3D.new()
@@ -214,4 +364,5 @@ func _add_belt(radius: float, seed_value: int) -> void:
 		var rock := ModelFactory.build_rock(rng.randi(), rng.randf_range(0.012, 0.026))
 		rock.position = Vector3(cos(a), rng.randf_range(-0.02, 0.02), sin(a)) * radius + Vector3(rng.randf_range(-0.03, 0.03), 0, rng.randf_range(-0.03, 0.03))
 		belt.add_child(rock)
-	_orbiters.append({"node": belt, "radius": 0.0, "speed": 0.0, "angle": 0.0})
+	_orbiters.append({"node": belt, "radius": 0.0, "speed": 0.0, "angle": 0.0, "ring": radius})
+	return belt

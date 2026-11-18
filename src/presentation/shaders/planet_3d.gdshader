@@ -11,6 +11,9 @@ uniform vec4 atmosphere_color : source_color = vec4(0.45, 0.75, 1.0, 0.9);
 uniform float bands = 0.0;
 uniform float ice_caps = 0.0;
 uniform float seed = 1.0;
+// 0..1: lit cities on a colonised world (clusters on the land, glowing at night).
+uniform float city_lights = 0.0;
+uniform vec4 city_color : source_color = vec4(1.0, 0.82, 0.5, 1.0);
 
 varying vec3 local_n;
 
@@ -61,5 +64,13 @@ void fragment() {
 	ROUGHNESS = 0.8;
 	SPECULAR = 0.15;
 	float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.5);
-	EMISSION = atmosphere_color.rgb * rim * 0.45 + col * 0.05;
+	vec3 glow = atmosphere_color.rgb * rim * 0.45 + col * 0.05;
+	if (city_lights > 0.0) {
+		// Sprawl on the land masses: fine clusters, brightest on the night side.
+		float land = smoothstep(0.45, 0.6, h);
+		float sprawl = smoothstep(0.62, 0.8, noise3(n * 38.0 + seed)) * smoothstep(0.4, 0.7, noise3(n * 9.0 - seed));
+		float night = 1.0 - smoothstep(-0.1, 0.35, dot(normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz), normalize(vec3(-0.33, 0.82, 0.47))));
+		glow += city_color.rgb * sprawl * land * city_lights * (0.6 + 2.2 * night);
+	}
+	EMISSION = glow;
 }
