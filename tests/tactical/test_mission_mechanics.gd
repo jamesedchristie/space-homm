@@ -356,3 +356,38 @@ func test_wiped_squad_loses_even_with_waves_pending() -> void:
 	e.submit(EndTurnCommand.new(e.state.active_unit_id))
 	assert_true(e.state.is_over, "nobody is left to reinforce")
 	assert_eq(e.state.winner, 1)
+
+
+func test_alarm_puts_a_group_on_guard_without_waking_it() -> void:
+	# Raising the alarm (here the no-check option): the dormant group stays put
+	# on overwatch with +2 sight, and fires on the first squad member in range.
+	var trigger := {"id": "terminal", "team": 0, "cells": [[1, 5]], "text": "A terminal.",
+		"choices": [
+			{"label": "Hack", "check": {"skill": "tech", "difficulty": 3},
+				"effects": [], "fail_effects": [{"type": "alarm", "group": "aft"}]},
+			{"label": "Rip it out", "effects": [{"type": "alarm", "group": "aft"}]},
+		]}
+	var e := _engine(_scenario([{"unit": "test_fast_dummy", "at": [0, 5]}],
+			[{"unit": "test_dummy", "at": [7, 5], "dormant": true, "group": "aft"}], {"triggers": [trigger], "fog": true}))
+	var me := e.state.active_unit()
+	var guard := e.state.living_enemies_of(me)[0]
+	guard.base_stats["sight"] = 3.0  # doesn't spot the terminal from its post
+	var base_sight := guard.stat_i("sight")
+	var result := e.submit(MoveCommand.new(me.id, Vector2i(1, 5)))
+	assert_false(guard.alert)
+	var fired: Dictionary = result.events.filter(func(ev: Dictionary) -> bool: return ev["type"] == BattleEvents.TRIGGER_FIRED)[0]
+	assert_eq(fired["checks"][0]["risks"], ["alarm"], "the dialog can warn what failing costs")
+	assert_true(e.submit(ChooseOptionCommand.new(me.id, 1)).ok)
+	assert_true(guard.find_status("alarmed") != null)
+	assert_false(guard.alert, "on guard, not hunting")
+	assert_true(guard.find_status("overwatch") != null)
+	assert_eq(guard.stat_i("sight"), base_sight + 2)
+	var start := guard.cell
+	e.submit(EndTurnCommand.new(me.id))
+	assert_eq(guard.cell, start, "holds its post")
+	me = e.state.active_unit()
+	result = e.submit(MoveCommand.new(me.id, Vector2i(4, 5)))
+	var reactions := result.events.filter(func(ev: Dictionary) -> bool:
+		return ev["type"] == BattleEvents.ABILITY_USED and ev.get("reaction", false))
+	assert_eq(reactions.size(), 1, "the guard's overwatch fires")
+	assert_true(guard.alert, "and now it's awake")

@@ -132,7 +132,7 @@
               "xp": 10
             },
             {
-              "type": "alert",
+              "type": "alarm",
               "group": "hold2"
             }
           ]
@@ -195,11 +195,11 @@
               "loyalty": 3
             },
             {
-              "type": "alert",
+              "type": "alarm",
               "group": "hold2"
             },
             {
-              "type": "alert",
+              "type": "alarm",
               "group": "bridge"
             }
           ]

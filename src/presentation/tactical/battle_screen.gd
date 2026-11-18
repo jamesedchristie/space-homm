@@ -26,6 +26,14 @@ enum Mode { MOVE, TARGET }
 @onready var fx: FxLayer = $MapView/Fx
 @onready var hud: BattleHud = $HUD/Hud
 
+## What a failed skill check costs (BattleEngine.check_odds "risks").
+const RISK_TEXT := {
+	"alarm": "the alarm goes up and guards dig in",
+	"alert": "enemies wake and come for you",
+	"spawn": "reinforcements arrive",
+	"harm": "someone gets hurt",
+}
+
 ## The current view of the battlefield (2D or 3D).
 var board: BattleBoard
 
@@ -263,8 +271,10 @@ func _play(events: Array[Dictionary], token: int) -> void:
 			BattleEvents.STATUS_APPLIED, BattleEvents.STATUS_RESISTED:
 				var status_label := EventFormatter.status_name(data, e["status"])
 				var resisted: bool = e["type"] == BattleEvents.STATUS_RESISTED
-				board.float_text(e["target"], ("avoided " if resisted else "") + status_label, Palette.ACTIVE, 18.0)
-				await _wait(0.1)
+				# Unseen units (an alarm going up in the dark) don't give their position away.
+				if _can_see(engine.state.get_unit(e["target"])):
+					board.float_text(e["target"], ("avoided " if resisted else "") + status_label, Palette.ACTIVE, 18.0)
+					await _wait(0.1)
 			BattleEvents.TURN_SKIPPED:
 				board.float_text(e["unit"], "Disabled", Palette.BAD)
 				await _wait(0.4)
@@ -294,7 +304,13 @@ func _play_trigger(e: Dictionary, token: int) -> void:
 		if i < checks.size() and not checks[i].is_empty():
 			var c: Dictionary = checks[i]
 			label += "  [%s %d%%]" % [String(c["skill"]).capitalize(), roundi(c["chance"] * 100.0)]
-			notes.append("%s: %s rolls %s (%d%%)" % [choices[i], c["by"], String(c["skill"]).capitalize(), roundi(c["chance"] * 100.0)])
+			var note := "%s: %s rolls %s (%d%%)" % [choices[i], c["by"], String(c["skill"]).capitalize(), roundi(c["chance"] * 100.0)]
+			var risks := PackedStringArray()
+			for r: String in c.get("risks", []):
+				risks.append(RISK_TEXT.get(r, r))
+			if not risks.is_empty():
+				note += ". If it fails: " + ", ".join(risks)
+			notes.append(note)
 		buttons.append({"id": str(i), "label": label})
 	if buttons.is_empty():
 		buttons.append({"id": "ok", "label": "Continue"})

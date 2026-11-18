@@ -690,13 +690,24 @@ func check_odds(choice: Dictionary, team: int) -> Dictionary:
 			best = value
 			by = u.name
 	var chance := clampf(0.5 + 0.15 * float(best - int(check.get("difficulty", 2))), 0.05, 0.95)
-	return {"skill": skill, "difficulty": int(check.get("difficulty", 2)), "chance": chance, "by": by}
+	# What failing costs, so the UI can warn before the roll: effect kinds
+	# ("alarm", "alert", "spawn", "harm") from fail_effects.
+	var risks: Array[String] = []
+	for fx: Dictionary in choice.get("fail_effects", []):
+		var kind: String = fx.get("type", "")
+		if kind == "effect":
+			kind = "harm" if fx.get("effect", {}).get("type", "") in ["damage", "apply_status"] else ""
+		if kind in ["alarm", "alert", "spawn", "harm"] and kind not in risks:
+			risks.append(kind)
+	return {"skill": skill, "difficulty": int(check.get("difficulty", 2)), "chance": chance, "by": by, "risks": risks}
 
 
 ## Trigger effect types:
 ##   {"type": "effect", "to": "unit"|"squad", "effect": {any BattleEffect}}
 ##   {"type": "spawn", "units": [{"unit", "at": [c, r], "team", "name"?, "dormant"?, "group"?}]}
 ##   {"type": "alert", "group": "a"} or {"type": "alert", "team": 1}
+##   {"type": "alarm", "group": "a"}: the group stays at its posts but on guard
+##       (overwatch, +2 sight) instead of coming for the squad
 ##   {"type": "reward", "xp"?, "items"?, "trait"?, "loyalty"?}  (applied by the campaign)
 func _apply_trigger_effects(effects: Array, unit: BattleUnit, team: int = -1) -> void:
 	if unit != null:
@@ -721,6 +732,11 @@ func _apply_trigger_effects(effects: Array, unit: BattleUnit, team: int = -1) ->
 						continue
 					if (fx.has("group") and u.group == fx["group"]) or (fx.has("team") and u.team == int(fx["team"])):
 						_alert(u)
+			"alarm":
+				for u in state.living_units():
+					if not u.alert and u.group == fx.get("group", ""):
+						_apply_effect({"type": "apply_status", "status": "alarmed", "duration": 1}, null, u)
+						_apply_effect({"type": "apply_status", "status": "overwatch", "duration": 1}, null, u)
 			"reward":
 				var reward := fx.duplicate(true)
 				reward.erase("type")

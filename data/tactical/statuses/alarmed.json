@@ -1,0 +1,8 @@
+{
+  "id": "alarmed",
+  "name": "Alarmed",
+  "description": "On guard after an alarm: holds its post on overwatch and watches further (+2 sight).",
+  "permanent": true,
+  "modifiers": {"sight": {"add": 2}},
+  "ai_value": 4
+}

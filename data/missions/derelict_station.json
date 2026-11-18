@@ -99,28 +99,28 @@
               "xp": 45
             }
           ],
-          "fail_text": "The daemon catches the intrusion. Somewhere aft, an alarm starts to wail.",
+          "fail_text": "The daemon catches the intrusion. Somewhere aft, an alarm starts to wail: the guards back there will be waiting for you.",
           "fail_effects": [
             {
               "type": "reward",
               "xp": 15
             },
             {
-              "type": "alert",
+              "type": "alarm",
               "group": "aft"
             }
           ]
         },
         {
           "label": "Rip the drive out",
-          "text": "Crude but quick. You get the logs; the whole station hears you do it.",
+          "text": "Crude but quick. You get the logs; the whole station hears you do it, and the guards aft dig in.",
           "effects": [
             {
               "type": "reward",
               "xp": 30
             },
             {
-              "type": "alert",
+              "type": "alarm",
               "group": "aft"
             }
           ]

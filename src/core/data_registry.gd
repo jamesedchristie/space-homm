@@ -11,7 +11,7 @@ const DEFAULT_ROOT := "res://data"
 
 const VALID_TARGETS := ["self", "enemy", "ally", "friendly", "any_unit", "cell"]
 const ITEM_SLOTS := ["weapon", "armor", "gadget"]
-const TRIGGER_EFFECTS := ["effect", "spawn", "alert", "reward"]
+const TRIGGER_EFFECTS := ["effect", "spawn", "alert", "alarm", "reward"]
 ## Aptitudes used by mission skill checks.
 const SKILLS := ["combat", "tech", "command"]
 const VALID_AFFECTS := ["enemies", "allies", "all"]
