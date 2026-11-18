@@ -75,6 +75,11 @@ func set_selected_fleet(_fleet_id: String) -> void:
 	pass
 
 
+## Brings `cell` into view if the map can scroll (3D). No-op by default.
+func focus_cell(_cell: Vector2i) -> void:
+	pass
+
+
 ## Grid cell under the mouse, or null.
 func cell_at_mouse() -> Variant:
 	return null

@@ -23,6 +23,8 @@ var _select_ring: MeshInstance3D
 var _composition := ""
 var _t := 0.0
 var _trail: CPUParticles3D
+var _ring_material: StandardMaterial3D
+var _disc_material: StandardMaterial3D
 
 
 var _style := ""
@@ -48,7 +50,8 @@ func setup(fleet: Fleet, team: int, data: DataRegistry, owned_by_player: bool, s
 	torus.outer_radius = 0.33
 	torus.rings = 32
 	ring.mesh = torus
-	ring.material_override = BoardGeometry.flat_material(Color(color, 0.8))
+	_ring_material = BoardGeometry.flat_material(Color(color, 0.8))
+	ring.material_override = _ring_material
 	ring.position.y = 0.03
 	ring.scale = Vector3(1, 0.1, 1)
 	add_child(ring)
@@ -59,7 +62,8 @@ func setup(fleet: Fleet, team: int, data: DataRegistry, owned_by_player: bool, s
 	cyl.height = 0.005
 	cyl.radial_segments = 24
 	disc.mesh = cyl
-	disc.material_override = BoardGeometry.flat_material(Color(color, 0.12))
+	_disc_material = BoardGeometry.flat_material(Color(color, 0.12))
+	disc.material_override = _disc_material
 	disc.position.y = 0.025
 	add_child(disc)
 
@@ -85,6 +89,11 @@ func refresh(fleet: Fleet, data: DataRegistry, max_moves_override: int = -1) -> 
 	moves_left = fleet.moves_left
 	max_moves = max_moves_override if max_moves_override >= 0 else fleet.speed(data)
 	hull_ratio = fleet.hull_ratio(data)
+	# Your fleets that have moved this turn fade back; ones that can still move stay bright.
+	var spent := show_moves and moves_left <= 0
+	if _ring_material != null:
+		_ring_material.albedo_color = Color(color.darkened(0.55), 0.45) if spent else Color(color, 0.8)
+		_disc_material.albedo_color = Color(color, 0.04) if spent else Color(color, 0.12)
 	var units := PackedStringArray()
 	for ship in fleet.ships:
 		units.append(ship["unit"])
@@ -112,6 +121,11 @@ func _build_models(fleet: Fleet) -> void:
 		model.scale = Vector3(s, s, s)
 		model.position = slots[i]
 		_models.add_child(model)
+
+
+## One of your fleets with moves left this turn.
+func is_ready() -> bool:
+	return show_moves and moves_left > 0
 
 
 func set_selected(value: bool) -> void:

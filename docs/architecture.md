@@ -458,7 +458,7 @@ shifted right on hex maps). The engine converts them internally.
 {
   "id": "derelict_station", "name": "...", "description": "...",
   "map": "derelict_deck",               // square map with deployment.squad slots
-  "squad_size": 3, "marine_unit": "marine", "requires_hero": true, "recommended_level": 2,
+  "squad_size": 4, "marine_unit": "marine", "requires_hero": true, "recommended_level": 2,
   "duration": 2, "max_rounds": 25, "enemy_name": "Station Boarders",
   "enemies": [ { "unit": "boarder", "at": [6, 2], "group": "mid" } ],   // dormant unless "alert": true
   "objectives": [ { "type": "reach_cells", "cells": [[13, 4]], "description": "Reach the data core" } ],

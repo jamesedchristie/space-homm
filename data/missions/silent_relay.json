@@ -4,7 +4,7 @@
   "type": "ground",
   "description": "A Patrol listening relay on a mining rock has gone quiet, and raider skiffs are circling it. Land a team in the relay room and hold it while the codes are wiped: if the raiders get them, they'll hear every order you send.",
   "map": "mining_outpost",
-  "squad_size": 3,
+  "squad_size": 4,
   "marine_unit": "marine",
   "duration": 2,
   "max_rounds": 20,

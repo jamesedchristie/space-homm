@@ -4,7 +4,7 @@
   "type": "ground",
   "description": "A research station went dark under quarantine seal, and something is still moving in its vents. The vault holds the only copy of the research. Go in, take what you can and be back at the evacuation lock before the infection finishes waking up.",
   "map": "plague_lab",
-  "squad_size": 3,
+  "squad_size": 4,
   "marine_unit": "marine",
   "duration": 2,
   "max_rounds": 30,

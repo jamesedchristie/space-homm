@@ -67,6 +67,10 @@ func _ready() -> void:
 	for e in data.errors:
 		push_error("Content: " + e)
 	hud.end_turn_pressed.connect(_on_end_turn_pressed)
+	hud.next_fleet_pressed.connect(func() -> void:
+		if not _busy and _is_human_turn() and not hud.system_view.visible:
+			_select_next_fleet()
+			_refresh())
 	hud.heroes_pressed.connect(_toggle_roster)
 	hud.empire_pressed.connect(_toggle_empire)
 	hud.empire.command_requested.connect(_on_empire_command)
@@ -220,8 +224,11 @@ func _continue(token: int) -> void:
 		var error := GalaxySave.write(GalaxySave.AUTOSAVE, engine, campaign_id)
 		if not error.is_empty():
 			hud.log_line(UiKit.color_tag("Autosave failed: " + error, Palette.BAD))
-	if _is_human_turn() and not engine.state.fleets.has(selected_fleet):
-		_select_next_fleet()
+	if _is_human_turn():
+		var current: Fleet = engine.state.fleets.get(selected_fleet)
+		# Like Civ: once a fleet has used its moves, hand over to the next one that hasn't.
+		if current == null or (current.owner == player_faction and current.moves_left <= 0 and _ready_fleet_count() > 0):
+			_select_next_fleet()
 	_refresh()
 
 
@@ -536,6 +543,7 @@ func _refresh() -> void:
 	hud.set_turn(s.turn_number, current["name"], Palette.team_color(current["team"]))
 	var human := not _busy and _is_human_turn()
 	hud.set_end_turn_enabled(human)
+	hud.set_ready_fleets(_ready_fleet_count(), human)
 
 	var move_cells: Array[Vector2i] = []
 	var path: Array[Vector2i] = []
@@ -596,8 +604,12 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 					EmpireRules.defense_units(engine, target_system).size()]
 	elif _hover != null and _reach.has(_hover) and _hover != fleet.cell:
 		text = "Move here: %d of %d moves" % [_reach[_hover]["cost"], fleet.moves_left]
+	elif _hover != null and _hover == fleet.cell and _own_system_under_fleet() != null:
+		text = "Click again (or press S) to open the %s system" % _own_system_under_fleet().name
 	else:
 		text = "%s: blue = move, red = attack. Move onto your own fleet to merge, D to detach ships. Right-click to deselect." % fleet.name
+		if _own_system_under_fleet() != null:
+			text += " S: open this system."
 	if _hover != null:
 		var planet := engine.state.planet_at(_hover)
 		if planet != null:
@@ -629,8 +641,27 @@ func _select_next_fleet() -> void:
 		if f.moves_left > 0:
 			selected_fleet = f.id
 			selected_planet = ""
+			selected_anomaly = ""
+			board.focus_cell(f.cell)
 			return
 	selected_fleet = ""
+
+
+func _ready_fleet_count() -> int:
+	var n := 0
+	for f in engine.state.fleets_of(player_faction):
+		if f.moves_left > 0:
+			n += 1
+	return n
+
+
+## Your system under the selected fleet, or null.
+func _own_system_under_fleet() -> Planet:
+	var fleet: Fleet = engine.state.fleets.get(selected_fleet)
+	if fleet == null or fleet.owner != player_faction:
+		return null
+	var planet := engine.state.planet_at(fleet.cell)
+	return planet if planet != null and planet.owner == player_faction else null
 
 
 func _fit_map() -> void:
@@ -681,7 +712,7 @@ func _anomaly_info(a: Dictionary) -> String:
 	var needs := "A fleet with a ready commander can launch it." if mission.get("requires_hero", true) \
 			else "Any fleet can launch it."
 	return "[b]%s[/b]\n%s\n\n%s\nAway team: %d. Heroes are away for %d turns." % [a["name"],
-			UiKit.color_tag(mission.get("name", ""), Palette.ACTIVE), mission.get("description", ""), int(mission.get("squad_size", 3)),
+			UiKit.color_tag(mission.get("name", ""), Palette.ACTIVE), mission.get("description", ""), int(mission.get("squad_size", 4)),
 			int(mission.get("duration", 2))] + "\n\n" + UiKit.color_tag(needs + " End a move on it.", Palette.TEXT_DIM)
 
 
@@ -690,7 +721,7 @@ func _mission_briefing(fleet: Fleet, mission: Dictionary) -> String:
 	var team := PackedStringArray()
 	for h in heroes:
 		team.append("%s (%s %d)" % [h.name, data.hero_classes[h.class_id].get("name", ""), h.level])
-	var marines := int(mission.get("squad_size", 3)) - heroes.size()
+	var marines := int(mission.get("squad_size", 4)) - heroes.size()
 	if marines > 0:
 		team.append("%d marine%s" % [marines, "s" if marines > 1 else ""])
 	var risk := "Heroes who fall will be [b]killed[/b] (permadeath)." if engine.state.permadeath \
@@ -981,9 +1012,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_ESCAPE, KEY_S]:
 			hud.system_view.close()
 		return
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_S and not selected_planet.is_empty():
-		_open_system(selected_planet)
-		return
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_S:
+		if not selected_planet.is_empty():
+			_open_system(selected_planet)
+			return
+		var under := _own_system_under_fleet()
+		if under != null:
+			_open_system(under.id)
+			return
 	if hud.roster.visible or hud.empire.visible:
 		return
 	if board.handle_input(event):
@@ -1041,6 +1077,11 @@ func _on_left_click() -> void:
 			return
 		if cell in _attack_cells or (_reach.has(cell) and cell != fleet.cell):
 			_submit(MoveFleetCommand.new(player_faction, fleet.id, cell))
+			return
+		# Clicking the selected fleet again opens the system it's parked in.
+		var under := _own_system_under_fleet()
+		if cell == fleet.cell and under != null:
+			_open_system(under.id)
 			return
 	var other := engine.state.fleet_at(cell)
 	var anomaly := engine.state.anomaly_at(cell)

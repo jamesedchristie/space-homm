@@ -50,6 +50,11 @@ func fit(lo: Vector3, hi: Vector3, area: Rect2, margin: Vector2 = Vector2(3.5, 2
 	update()
 
 
+## The screen rectangle the board is framed in (last fit()).
+func get_area() -> Rect2:
+	return _area
+
+
 func update() -> void:
 	if not camera.is_inside_tree():
 		return

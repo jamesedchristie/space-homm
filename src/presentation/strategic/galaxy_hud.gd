@@ -4,6 +4,7 @@ extends Control
 ## and a modal dialog for battles and reports. Emits signals only.
 
 signal end_turn_pressed
+signal next_fleet_pressed
 signal heroes_pressed
 signal empire_pressed
 signal menu_pressed
@@ -20,6 +21,7 @@ var _turn_label: Label
 var _faction_label: Label
 var _resources_label: RichTextLabel
 var _end_turn_button: Button
+var _next_fleet_button: Button
 var _info: RichTextLabel
 var _log: RichTextLabel
 var _hint: Label
@@ -62,6 +64,12 @@ func set_resources(bbcode: String) -> void:
 
 func set_end_turn_enabled(enabled: bool) -> void:
 	_end_turn_button.disabled = not enabled
+
+
+## How many of your fleets can still move this turn (Next Fleet button).
+func set_ready_fleets(count: int, enabled: bool) -> void:
+	_next_fleet_button.text = "Next Fleet (%d)  [Tab]" % count if count > 0 else "All fleets moved"
+	_next_fleet_button.disabled = not enabled or count == 0
 
 
 func set_info(bbcode: String) -> void:
@@ -130,6 +138,9 @@ func _build() -> void:
 	row.add_child(_resources_label)
 	row.add_child(UiKit.button("Empire  [E]", func() -> void: empire_pressed.emit()))
 	row.add_child(UiKit.button("Heroes  [H]", func() -> void: heroes_pressed.emit()))
+	_next_fleet_button = UiKit.button("Next Fleet  [Tab]", func() -> void: next_fleet_pressed.emit())
+	_next_fleet_button.tooltip_text = "Select your next fleet that can still move this turn"
+	row.add_child(_next_fleet_button)
 	_end_turn_button = UiKit.button("End Turn  [Space]", func() -> void: end_turn_pressed.emit())
 	row.add_child(_end_turn_button)
 	row.add_child(UiKit.button("Menu  [Esc]", func() -> void: menu_pressed.emit()))

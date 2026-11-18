@@ -349,6 +349,21 @@ func _redraw_overlays() -> void:
 
 # --- Camera and input ---------------------------------------------------------
 
+## Glides the camera to `cell` when it's off screen or near the edge of the map area.
+func focus_cell(cell: Vector2i) -> void:
+	if _rig == null or not _rig.camera.is_inside_tree():
+		return
+	var at := world(cell)
+	var area := _rig.get_area()
+	if not _rig.camera.is_position_behind(at) and area.size != Vector2.ZERO:
+		var inner := area.grow_individual(-area.size.x * 0.15, -area.size.y * 0.15, -area.size.x * 0.15, -area.size.y * 0.15)
+		if inner.has_point(_rig.camera.unproject_position(at)):
+			return
+	var tw := _rig.create_tween()
+	tw.tween_method(func(p: Vector3) -> void:
+		_rig.pivot = p
+		_rig.update(), _rig.pivot, Vector3(at.x, 0.0, at.z), 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
 func cell_at_mouse() -> Variant:
 	if _rig == null:
 		return null

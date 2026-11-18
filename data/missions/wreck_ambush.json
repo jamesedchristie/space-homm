@@ -4,7 +4,7 @@
   "type": "ground",
   "description": "A freighter broke up over a dead moon and her cargo is scattered across the surface. It looks like a salvage job. The raiders who have been watching it from the ridges know that, too. Dig in inside the hull and hold on until the shuttle can lift you out.",
   "map": "wreck_field",
-  "squad_size": 3,
+  "squad_size": 4,
   "marine_unit": "marine",
   "duration": 2,
   "max_rounds": 20,

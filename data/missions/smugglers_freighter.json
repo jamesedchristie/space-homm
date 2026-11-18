@@ -4,7 +4,7 @@
   "type": "ground",
   "description": "A blockade runner is dead in the water with her running lights off, and her crew has stopped answering hails. Board her at the stern, fight forward through the holds and take the bridge. Someone aboard may still be alive.",
   "map": "freighter_deck",
-  "squad_size": 3,
+  "squad_size": 4,
   "marine_unit": "marine",
   "duration": 2,
   "max_rounds": 30,

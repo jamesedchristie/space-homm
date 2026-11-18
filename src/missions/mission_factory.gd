@@ -87,7 +87,7 @@ static func squad_for(data: DataRegistry, mission: Dictionary, heroes: Array[Her
 	if not extra.is_empty() and extra not in marine_def["abilities"]:
 		marine_def["abilities"].insert(mini(1, marine_def["abilities"].size()), extra)
 	var n := 1
-	while squad.size() < int(mission.get("squad_size", 3)):
+	while squad.size() < int(mission.get("squad_size", 4)):
 		squad.append({"unit_def": marine_def, "name": "Marine %d" % n})
 		n += 1
 	return squad

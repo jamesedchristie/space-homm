@@ -65,7 +65,12 @@ func _draw_fleet(fv: Fleet3D, p: Vector2) -> void:
 	draw_rect(Rect2(p + Vector2(-w / 2.0 - 1, -1), Vector2(w + 2, 5)), Color(0, 0, 0, 0.75))
 	draw_rect(Rect2(p + Vector2(-w / 2.0, 0), Vector2(w * clampf(fv.hull_ratio, 0, 1), 3)), Palette.HULL)
 	_text(p + Vector2(w / 2.0 + 4, 6), str(fv.ship_count), 20, 11, Palette.TEXT, HORIZONTAL_ALIGNMENT_LEFT)
-	_text(p + Vector2(-70, -5), fv.display_name, 140, 11, Palette.ACTIVE if fv.selected else fv.color.lightened(0.3))
+	var name_color := Palette.ACTIVE if fv.selected else fv.color.lightened(0.3)
+	if fv.show_moves and fv.moves_left <= 0 and not fv.selected:
+		name_color = Palette.TEXT_DIM
+	_text(p + Vector2(-70, -5), fv.display_name, 140, 11, name_color)
+	if fv.is_ready() and not fv.selected:
+		FleetMarkers.draw_ready_chevron(self, p + Vector2(0, -22))
 	if fv.show_moves:
 		for i in fv.max_moves:
 			var c := Palette.ACTIVE if i < fv.moves_left else Color(1, 1, 1, 0.2)

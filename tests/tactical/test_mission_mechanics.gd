@@ -158,7 +158,7 @@ func test_real_mission_auto_resolves() -> void:
 	var data := DataRegistry.get_default()
 	var mission: Dictionary = data.missions["derelict_station"]
 	var squad := MissionFactory.squad_for(data, mission, [] as Array[Hero])
-	assert_eq(squad.size(), 3, "filled with marines")
+	assert_eq(squad.size(), 4, "filled with marines")
 	var e := BattleEngine.from_scenario(data, MissionFactory.scenario(data, mission, squad, 0), 9)
 	assert_true(e.state.fog_enabled)
 	var lockers := e.state.triggers.filter(func(t: Dictionary) -> bool: return t.get("marker", "") == "loot")

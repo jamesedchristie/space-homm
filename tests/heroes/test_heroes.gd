@@ -122,7 +122,7 @@ func test_mission_offered_and_success_rewards() -> void:
 	assert_false(g.submit(EndFactionTurnCommand.new("a")).ok, "decide first")
 	var scenario := g.pending_mission_scenario()
 	assert_eq(scenario["teams"][0]["units"][0]["ref"], "hero:h")
-	assert_eq(scenario["teams"][0]["units"].size(), 3)
+	assert_eq(scenario["teams"][0]["units"].size(), 4)
 
 	var battle := BattleEngine.from_scenario(g.data, scenario, 3)
 	battle.state.rewards.append({"loyalty": 10, "xp": 20})

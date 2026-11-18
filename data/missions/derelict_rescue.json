@@ -4,7 +4,7 @@
   "type": "ground",
   "description": "Your captured crew are being held on the derelict station. Get in, reach the holding cells, get them out.",
   "map": "derelict_deck",
-  "squad_size": 3,
+  "squad_size": 4,
   "marine_unit": "marine",
   "duration": 2,
   "max_rounds": 25,

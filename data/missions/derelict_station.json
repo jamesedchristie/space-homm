@@ -4,7 +4,7 @@
   "type": "ground",
   "description": "A dead research station drifts in the asteroid shadows. Raiders have been seen boarding it. Its data core could hold research worth having.",
   "map": "derelict_deck",
-  "squad_size": 3,
+  "squad_size": 4,
   "marine_unit": "marine",
   "duration": 2,
   "max_rounds": 25,

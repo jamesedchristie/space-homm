@@ -265,8 +265,8 @@ func _validate_mission(id: String, def: Dictionary) -> void:
 	var map_def: Dictionary = maps.get(def.get("map", ""), {})
 	if map_def.is_empty():
 		_err("%s: unknown map '%s'" % [owner, def.get("map", "")])
-	elif map_def.get("deployment", {}).get("squad", []).size() < int(def.get("squad_size", 3)):
-		_err("%s: map '%s' needs at least %d deployment.squad slots" % [owner, def["map"], int(def.get("squad_size", 3))])
+	elif map_def.get("deployment", {}).get("squad", []).size() < int(def.get("squad_size", 4)):
+		_err("%s: map '%s' needs at least %d deployment.squad slots" % [owner, def["map"], int(def.get("squad_size", 4))])
 	if not units.has(def.get("marine_unit", "marine")):
 		_err("%s: unknown marine_unit '%s'" % [owner, def.get("marine_unit", "marine")])
 	for e: Dictionary in def.get("enemies", []):

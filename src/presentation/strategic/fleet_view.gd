@@ -104,7 +104,9 @@ func _draw() -> void:
 		draw_colored_polygon(pts, color)
 	var font := ThemeDB.fallback_font
 	draw_string(font, Vector2(8, 16), str(ship_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Palette.TEXT)
-	draw_string(font, Vector2(-60, 30), display_name, HORIZONTAL_ALIGNMENT_CENTER, 120, 10, color.lightened(0.3))
+	var spent := show_moves and moves_left <= 0 and not selected
+	draw_string(font, Vector2(-60, 30), display_name, HORIZONTAL_ALIGNMENT_CENTER, 120, 10,
+			Palette.TEXT_DIM if spent else color.lightened(0.3))
 	# Hull bar.
 	draw_rect(Rect2(Vector2(-14, 19), Vector2(28, 2.5)), Color(0, 0, 0, 0.6))
 	draw_rect(Rect2(Vector2(-14, 19), Vector2(28 * clampf(hull_ratio, 0, 1), 2.5)), Palette.HULL)
@@ -112,3 +114,11 @@ func _draw() -> void:
 		for i in max_moves:
 			var c := Palette.ACTIVE if i < moves_left else Color(1, 1, 1, 0.15)
 			draw_circle(Vector2(-((max_moves - 1) * 3.0) + i * 6.0, -20), 1.8, c)
+		if moves_left > 0 and not selected:
+			FleetMarkers.draw_ready_chevron(self, Vector2(0, -30))
+
+
+func _process(_delta: float) -> void:
+	# The ready arrow bobs.
+	if show_moves and moves_left > 0 and not selected and visible:
+		queue_redraw()
