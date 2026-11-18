@@ -31,6 +31,8 @@ var _fx2d: FxLayer
 var _overlay_mesh: MeshInstance3D
 var _fog_mesh: MeshInstance3D
 var _fog_edge_mesh: MeshInstance3D
+var _territory_mesh: MeshInstance3D
+var _territory_key := ""
 
 var _move: Array[Vector2i] = []
 var _attack: Array[Vector2i] = []
@@ -94,6 +96,7 @@ func teardown() -> void:
 	anomaly_views.clear()
 	discovery_views.clear()
 	_fog_key = ""
+	_territory_key = ""
 	_explored = {}
 	_decor.clear()
 	if _world != null:
@@ -130,36 +133,82 @@ func _build_board() -> void:
 	var rift := BoardGeometry.buffer()
 	for c in grid.cells():
 		var terrain := grid.terrain_def(c)
-		var fill := Color(0.05, 0.08, 0.15, 0.08)
-		if terrain.has("color"):
-			fill = Color(terrain["color"])
-			fill.a = 0.32
 		if not terrain.get("passable", true):
 			# A rift: a dark well with a faint violet lip.
 			BoardGeometry.fill_poly(rift, _cell_poly(c, 1.0), Color(0.0, 0.0, 0.01, 0.92), -0.03)
 			BoardGeometry.outline(rift, _cell_poly(c, 0.92), -0.02, 0.05, Color(0.45, 0.25, 0.7, 0.45))
 			continue
-		BoardGeometry.prism(glass, _cell_poly(c, 0.95), -0.02, 0.0, fill.darkened(0.3), fill)
+		# Open space stays open: only terrain gets a tint; borders show who owns what.
+		if terrain.has("color"):
+			var fill := Color(terrain["color"])
+			fill.a = 0.16
+			BoardGeometry.prism(glass, _cell_poly(c, 0.95), -0.02, 0.0, fill.darkened(0.3), fill)
 		polys.append(_cell_poly(c, 0.95))
 		var decor := Node3D.new()
 		if terrain.get("decoration", "") == "rocks":
 			BoardGeometry.rocks(decor, world(c), hash(c), 0.6)
 		elif terrain.has("color") and terrain.get("move_cost", 1) > 1:
-			BoardGeometry.nebula_puffs(decor, world(c), Color(terrain["color"]).lightened(0.4), hash(c) + 7)
+			BoardGeometry.nebula_puffs(decor, world(c), Color(terrain["color"]).lightened(0.1), hash(c) + 7)
 		if decor.get_child_count() > 0:
 			_world.add_child(decor)
 			_decor[c] = decor
 		else:
 			decor.free()
 	BoardGeometry.mesh_node(_world, BoardGeometry.tile_material(true)).mesh = glass.commit()
-	BoardGeometry.mesh_node(_world, BoardGeometry.line_material()).mesh = BoardGeometry.grid_lines(polys, 0.005)
+	BoardGeometry.mesh_node(_world, BoardGeometry.line_material(0.05)).mesh = BoardGeometry.grid_lines(polys, 0.005)
 	BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material()).mesh = BoardGeometry.commit(rift)
+	_territory_mesh = BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material())
+
+
+## Civ-style borders: each owned system claims its hex and the ring around it
+## (nearest system wins), drawn as a faint wash with a crisp edge in the
+## owner's color. Rebuilt only when ownership changes.
+func _draw_territory() -> void:
+	var owners := PackedStringArray()
+	for p: Planet in engine.state.planets.values():
+		owners.append(p.id + "=" + p.owner)
+	var key := ",".join(owners)
+	if key == _territory_key or _territory_mesh == null:
+		return
+	_territory_key = key
+	var grid := engine.state.grid
+	var claim: Dictionary = {}  # cell -> [owner, distance]
+	for p: Planet in engine.state.planets.values():
+		if p.owner.is_empty():
+			continue
+		for c in grid.cells():
+			if not grid.terrain_def(c).get("passable", true):
+				continue
+			var d := grid.distance(c, p.cell)
+			if d > 1:
+				continue
+			if not claim.has(c) or d < int(claim[c][1]):
+				claim[c] = [p.owner, d]
+	var buf := BoardGeometry.buffer()
+	for c: Vector2i in claim:
+		var owner: String = claim[c][0]
+		var color := Palette.team_color(engine.state.faction(owner)["team"])
+		BoardGeometry.fill_poly(buf, _cell_poly(c, 1.0), Color(color, 0.07), 0.004)
+		var poly := _cell_poly(c, 1.0)
+		for i in poly.size():
+			var a := poly[i]
+			var b := poly[(i + 1) % poly.size()]
+			var outside := world(c) + ((a + b) / 2.0 - world(c)) * 1.6
+			var n := grid.from_pixel(Vector2(outside.x, outside.z) / SCALE, GridMapView.CELL_SIZE)
+			if claim.has(n) and claim[n][0] == owner:
+				continue
+			# Pull the edge slightly inside so two neighbors' borders sit side by side.
+			var ia := a + (world(c) - a) * 0.04
+			var ib := b + (world(c) - b) * 0.04
+			BoardGeometry.ribbon(buf, Vector3(ia.x, 0.008, ia.z), Vector3(ib.x, 0.008, ib.z), 0.035, Color(color.lightened(0.15), 0.75))
+	_territory_mesh.mesh = BoardGeometry.commit(buf)
 
 
 # --- Sync ---------------------------------------------------------------------
 
 func sync(visible_now: Dictionary, explored: Dictionary, selected_fleet: String) -> void:
 	_set_fog(explored, visible_now)
+	_draw_territory()
 	for id: String in fleet_views.keys():
 		if not engine.state.fleets.has(id):
 			fleet_views[id].queue_free()
@@ -332,8 +381,23 @@ func _redraw_overlays() -> void:
 		return
 	var buf := BoardGeometry.buffer()
 	var y := 0.02
+	# Movement range: a light wash with a crisp outline around its edge.
+	var in_range: Dictionary = {}
 	for c in _move:
-		BoardGeometry.fill_poly(buf, _cell_poly(c, 1.0), Color(Palette.REACHABLE, 0.12), y)
+		in_range[c] = true
+	if _active != null:
+		in_range[_active] = true
+	for c in _move:
+		BoardGeometry.fill_poly(buf, _cell_poly(c, 1.0), Color(Palette.REACHABLE, 0.06), y)
+	for c: Vector2i in in_range:
+		var poly := _cell_poly(c, 1.0)
+		for i in poly.size():
+			var a := poly[i]
+			var b := poly[(i + 1) % poly.size()]
+			var outside := world(c) + ((a + b) / 2.0 - world(c)) * 1.6
+			var n := engine.state.grid.from_pixel(Vector2(outside.x, outside.z) / SCALE, GridMapView.CELL_SIZE)
+			if not in_range.has(n):
+				BoardGeometry.ribbon(buf, Vector3(a.x, y + 0.003, a.z), Vector3(b.x, y + 0.003, b.z), 0.03, Color(Palette.REACHABLE, 0.55))
 	for c in _attack:
 		BoardGeometry.fill_poly(buf, _cell_poly(c, 0.9), Color(Palette.TARGET, 0.32), y + 0.002)
 	for i in range(1, _path.size()):

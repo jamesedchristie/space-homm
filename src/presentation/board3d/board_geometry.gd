@@ -172,10 +172,10 @@ static func grid_lines(cell_polys: Array, y: float) -> Mesh:
 	return im
 
 
-static func line_material() -> StandardMaterial3D:
+static func line_material(alpha: float = 0.11) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_color = Color(0.45, 0.7, 0.95, 0.11)
+	m.albedo_color = Color(0.45, 0.7, 0.95, alpha)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	return m
 
