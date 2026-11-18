@@ -2,14 +2,18 @@ extends SceneTree
 ## Headless test runner.
 ##   godot --headless --path . -s res://tests/run_tests.gd
 ## Optional filter: -- --filter=hex   (runs only files whose path contains "hex")
+## Optional: -- --slow=2000   (prints every test that takes longer than 2000 ms)
 ## Exit code is non-zero if any test fails, so CI can use it.
 
 
 func _initialize() -> void:
 	var filter := ""
+	var slow_ms := -1
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--filter="):
 			filter = arg.trim_prefix("--filter=")
+		elif arg.begins_with("--slow="):
+			slow_ms = int(arg.trim_prefix("--slow="))
 
 	var files := _find_tests("res://tests")
 	var passed := 0
@@ -30,8 +34,12 @@ func _initialize() -> void:
 		for method_name in methods:
 			var instance: TestCase = script.new()
 			instance._current = "%s::%s" % [path.get_file(), method_name]
+			var started := Time.get_ticks_msec()
 			instance.before_each()
 			instance.call(method_name)
+			var took := Time.get_ticks_msec() - started
+			if slow_ms >= 0 and took > slow_ms:
+				print("  slow: %s (%d ms)" % [instance._current, took])
 			if instance.failures.is_empty():
 				passed += 1
 			else:

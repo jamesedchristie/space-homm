@@ -1,5 +1,6 @@
 class_name DataRegistry
 extends RefCounted
+
 ## Loads all game content (JSON under res://data) into plain dictionaries keyed
 ## by id, and validates cross-references (a unit's abilities exist, a scenario's
 ## map exists, ...).
@@ -60,6 +61,8 @@ var models: Dictionary = {}
 
 ## Human-readable problems found while loading. Empty means all good.
 var errors: PackedStringArray = []
+## Validation errors of generated campaigns by template (see validate()).
+static var _generated_checks: Dictionary = {}
 
 static var _default: DataRegistry
 
@@ -162,8 +165,17 @@ func validate() -> PackedStringArray:
 	for id: String in campaigns:
 		# Generated sectors: check what the generator makes from a couple of seeds.
 		if campaigns[id].has("generate"):
+			# Generating the big sector is slow and every registry load (tests
+			# make many) would repeat it: reuse the result for an identical template.
+			var key := str(hash(var_to_str(campaigns[id]))) + ":" + str(units.size()) + ":" + str(buildings.size())
+			if _generated_checks.has(key):
+				for e: String in _generated_checks[key]:
+					_err(e)
+				continue
+			var before := errors.size()
 			for test_seed in [1, 2]:
 				_validate_campaign("%s (seed %d)" % [id, test_seed], GalaxyGenerator.generate(self, campaigns[id], test_seed))
+			_generated_checks[key] = errors.slice(before)
 		else:
 			_validate_campaign(id, campaigns[id])
 

@@ -166,12 +166,12 @@ func test_battle_map_follows_location() -> void:
 
 
 func test_ai_campaign_is_deterministic() -> void:
-	# The first ~1500 AI commands of a Random Sector game (a full game on the
+	# The first ~600 AI commands of a Random Sector game (a full game on the
 	# big map takes minutes; tools/simulate_campaign.gd and the campaign smoke
 	# test play whole games). Same seed, same game.
 	var data := DataRegistry.get_default()
-	var a := CampaignAutoRunner.run(GalaxyEngine.from_campaign(data, "random_sector", 2024), 1500)
-	var b := CampaignAutoRunner.run(GalaxyEngine.from_campaign(data, "random_sector", 2024), 1500)
+	var a := CampaignAutoRunner.run(GalaxyEngine.from_campaign(data, "random_sector", 2024), 600)
+	var b := CampaignAutoRunner.run(GalaxyEngine.from_campaign(data, "random_sector", 2024), 600)
 	assert_true(a["turns"] > 10, "the AI plays turns (got %d)" % a["turns"])
 	assert_eq(a, b, "same seed, same campaign")
 

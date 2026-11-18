@@ -214,25 +214,45 @@ static func _start_ship_name(data: DataRegistry, unit_id: String) -> String:
 
 static func _farthest(grid: HexGrid, w: int, h: int, points: Array, occupied: Dictionary,
 		rng: RandomNumberGenerator, top: int, min_others: int = 0) -> Vector2i:
+	# Two breadth-first distance maps instead of measuring every cell against
+	# every point (the big sector made that the slowest part of generating).
+	var to_points := _distance_map(grid, points)
+	var to_occupied := _distance_map(grid, occupied.keys()) if min_others > 0 else {}
 	var scored: Array = []
 	for y in range(EDGE, h - EDGE):
 		for x in range(EDGE, w - EDGE):
 			var at := Vector2i(x, y)
 			if occupied.has(at):
 				continue
-			var d := 1 << 20
-			for p: Vector2i in points:
-				d = mini(d, _dist(grid, at, p))
-			var crowd := 1 << 20
-			for o: Vector2i in occupied:
-				crowd = mini(crowd, _dist(grid, at, o))
-			if crowd < min_others:
+			if min_others > 0 and int(to_occupied.get(at, 1 << 20)) < min_others:
 				continue
-			scored.append([d + rng.randf() * 1.5, at])
+			scored.append([int(to_points.get(at, 1 << 20)) + rng.randf() * 1.5, at])
 	if scored.is_empty():
 		return Vector2i(-1, -1)
 	scored.sort_custom(func(a: Array, b: Array) -> bool: return a[0] > b[0])
 	return scored[rng.randi() % mini(top, scored.size())][1]
+
+
+## Hex steps (ignoring terrain) from the nearest of `sources`, for every layout cell.
+static func _distance_map(grid: HexGrid, sources: Array) -> Dictionary:
+	var dist := {}
+	var frontier: Array[Vector2i] = []
+	for s: Vector2i in sources:
+		var c := grid.cell_from_layout(s)
+		if grid.has_cell(c) and not dist.has(s):
+			dist[s] = 0
+			frontier.append(c)
+	var i := 0
+	while i < frontier.size():
+		var c := frontier[i]
+		i += 1
+		var d := int(dist[grid.layout_from_cell(c)]) + 1
+		for n in grid.neighbors(c):
+			var l := grid.layout_from_cell(n)
+			if not dist.has(l):
+				dist[l] = d
+				frontier.append(n)
+	return dist
 
 
 static func _free_near(grid: HexGrid, at: Vector2i, occupied: Dictionary, rng: RandomNumberGenerator) -> Vector2i:
