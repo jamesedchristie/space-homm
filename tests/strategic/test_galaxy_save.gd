@@ -79,7 +79,8 @@ func test_generated_sector_is_seeded_and_saves() -> void:
 	var c := GalaxyEngine.from_campaign(data, "random_sector", 5)
 	assert_eq(var_to_str(a.campaign["planets"]), var_to_str(b.campaign["planets"]), "same seed, same sector")
 	assert_ne(var_to_str(a.campaign["planets"]), var_to_str(c.campaign["planets"]), "different seed, different sector")
-	var homes := a.state.planets.values().filter(func(p: Planet) -> bool: return not p.owner.is_empty())
+	# Homes: the raiders' den and the traders' port start owned; each major's waits for its colony ship.
+	var homes := a.state.planets.values().filter(func(p: Planet) -> bool: return not p.owner.is_empty() or not p.capital.is_empty())
 	assert_eq(homes.size(), 5, "three majors, the raiders' den and the traders' port")
 	for i in homes.size():
 		for j in range(i + 1, homes.size()):

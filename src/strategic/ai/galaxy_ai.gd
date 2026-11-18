@@ -15,8 +15,12 @@ extends RefCounted
 ##      a small fleet without a commander joins a friendly fleet within reach.
 ##   3. With a ready commander, investigate the nearest known anomaly (mission).
 ##   3b. Pick up a known discovery within 4 systems.
-##   4. Otherwise head for the nearest planet it can take (unowned or an enemy's),
-##      skipping planets whose defenses are too strong for it.
+##   4. Otherwise head for the nearest enemy system it can take, skipping systems whose
+##      defenses are too strong for it. Colonies need a Troop Transport: fleets pick one up first.
+## Civilian ships (major powers): colony ships found the capital at once and then settle the
+## best habitable world in reach; constructors develop bodies in the systems it holds and claim
+## nearby empty ones as outposts; troop transports go to systems its warfleets are blockading.
+## Civilian-only fleets keep away from visible warships.
 ## One move per fleet per turn, then it ends the turn.
 ##
 ## Personality: a campaign faction's "ai" entry can override attack_ratio,
@@ -66,7 +70,23 @@ const CONTAIN_MIN_TURN := 60
 ## A rival this close to the Ascension Gate (science progress 0..1) gets everyone's attention.
 const SCIENCE_ALARM := 0.7
 
+## Fleets of at most this many ships scout when they have nothing else to do.
+const SCOUT_SIZE := 2
+## They look for unexplored space within this many systems.
+const EXPLORE_RANGE := 9
+## Colony ships and constructors only target systems this close to a system the faction holds.
+const CIVILIAN_RANGE := 7
+## Unarmed fleets stay away from visible enemy warfleets this close.
+const CIVILIAN_DANGER := 3
+## Most constructors a faction keeps (1 + one per this many systems, at most the cap).
+const CONSTRUCTORS_PER_SYSTEMS := 3
+const MAX_CONSTRUCTORS := 4
+## What a development is worth to the AI, per resource (research counts most).
+const YIELD_WEIGHTS := {"credits": 1.0, "alloys": 1.2, "research": 1.5}
+
 var _turn_key := ""
+## fleet id -> system id a civilian fleet is heading for (so two don't pick the same one).
+var _targets := {}
 var _done := {}
 ## "fleet:anomaly:mission" keys this AI has already sent a fleet to (so a
 ## declined or failed mission isn't retried forever).
@@ -91,8 +111,12 @@ func decide(engine: GalaxyEngine) -> GalaxyCommand:
 	for fleet in engine.state.fleets_of(faction_id):
 		if _done.has(fleet.id) or fleet.moves_left <= 0:
 			continue
+		var detach := _detach_workers(engine, fleet)
+		if detach != null:
+			return detach
 		_done[fleet.id] = true
-		var dest := choose_destination(engine, fleet)
+		var dest := _civilian_destination(engine, fleet) if fleet.is_civilian_only(engine.data) \
+				else choose_destination(engine, fleet)
 		if dest != fleet.cell:
 			return MoveFleetCommand.new(faction_id, fleet.id, dest)
 	return EndFactionTurnCommand.new(faction_id)
@@ -141,12 +165,14 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 	# 2b. Regroup: a small fleet with nothing to attack joins a friendly fleet
 	# it can reach this turn (bigger fleets win more battles).
 	# (Barbarians don't: they raid in small packs.)
-	if target == null and fleet.ships.size() < MUSTER_SIZE and fleet.hero_id.is_empty() \
+	var scouting: bool = s.faction(fleet.owner).get("role", "major") == "major" and fleet.ships.size() <= SCOUT_SIZE \
+			and fleet.hero_id.is_empty() and _unexplored_target(engine, fleet, vis, my_strength, attack_ratio) != null
+	if target == null and fleet.ships.size() < MUSTER_SIZE and fleet.hero_id.is_empty() and not scouting \
 			and s.faction(fleet.owner).get("role", "major") != "barbarian":
 		var reach := engine.reachable_for(fleet.id)
 		var best_join: Fleet = null
 		for other: Fleet in s.fleets_of(fleet.owner):
-			if other != fleet and reach.has(other.cell) and engine.can_merge(fleet, other) \
+			if other != fleet and reach.has(other.cell) and engine.can_merge(fleet, other) and not other.has_workers(data) \
 					and (best_join == null or other.ships.size() > best_join.ships.size()):
 				best_join = other
 		if best_join != null:
@@ -180,17 +206,16 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 				best_find = dist
 				target = d["cell"]
 
-	# 4. Expand. Barbarians only raid what others hold; minor powers stay
-	# close to home (within 4 systems of their capital).
+	# 4. Attack the nearest enemy system we can take. (Entering an empty system claims nothing now:
+	# settlers do that.) Barbarians raid whatever others hold; minor powers stay close to home
+	# (within 4 systems of their capital).
 	var role: String = s.faction(fleet.owner).get("role", "major")
 	if target == null:
 		var candidates: Array[Planet] = []
 		for p: Planet in s.planets.values():
-			if p.owner == fleet.owner or not (p.owner.is_empty() or s.at_war(fleet.owner, p.owner)):
+			if p.owner == fleet.owner or not s.at_war(fleet.owner, p.owner):
 				continue
 			if defense_strength(engine, p) > my_strength * attack_ratio:
-				continue
-			if role == "barbarian" and p.owner.is_empty():
 				continue
 			if role == "minor":
 				var capital := s.home_planet(fleet.owner)
@@ -203,13 +228,41 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 		var planet := _nearest(s, fleet.cell, candidates)
 		if planet != null:
 			target = planet.cell
+			# A colony falls only to landing troops: collect a transport on the way if one is near.
+			if not planet.colonies().is_empty() and not fleet.has_role(data, "transport") and planet.blockade != fleet.owner:
+				var reach_t := engine.reachable_for(fleet.id)
+				for other: Fleet in s.fleets_of(fleet.owner):
+					if other != fleet and other.has_role(data, "transport") and reach_t.has(other.cell) and engine.can_merge(fleet, other):
+						return other.cell
 
+	# 5. Nothing to fight: small fleets scout the unexplored space around the empire (settlers need
+	# to know where the worlds are, and finding them is how the map opens up).
+	if target == null and role == "major" and fleet.ships.size() <= SCOUT_SIZE and fleet.hero_id.is_empty():
+		target = _unexplored_target(engine, fleet, vis, my_strength, attack_ratio)
 	if target == null:
 		return fleet.cell
 	var dest := _step_towards(engine, fleet, target)
 	if not anomaly_key.is_empty() and dest == target:
 		_tried[anomaly_key] = true
 	return dest
+
+
+## The nearest passable cell nobody of ours has seen yet, within EXPLORE_RANGE of the fleet and not
+## next to a visible threat; null when the neighbourhood is charted.
+func _unexplored_target(engine: GalaxyEngine, fleet: Fleet, vis: Dictionary, my_strength: float, attack_ratio: float) -> Variant:
+	var s := engine.state
+	var explored := engine.explored_cells(fleet.owner)
+	var best: Variant = null
+	var best_d := EXPLORE_RANGE + 1
+	for c in s.grid.cells_within(fleet.cell, EXPLORE_RANGE):
+		if explored.has(c) or not s.grid.is_passable(c):
+			continue
+		var d := s.grid.distance(fleet.cell, c)
+		# Prefer frontier cells close to home, then close to the fleet.
+		if d < best_d and s.fleet_at(c) == null and not _dangerous(engine, fleet, c, vis, my_strength, attack_ratio):
+			best_d = d
+			best = c
+	return best
 
 
 ## The AI only takes missions its away team is ready for: a ready commander
@@ -285,6 +338,10 @@ func _empire_command(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
 					return ra < rb
 				return ResearchRules.cost(engine, a) < ResearchRules.cost(engine, b))
 			return SetResearchCommand.new(faction_id, options[0])
+	if s.faction(faction_id).get("role", "major") == "major":
+		var civilian := _civilian_command(engine, faction_id)
+		if civilian != null:
+			return civilian
 	for planet in s.planets_of(faction_id):
 		if not planet.queue.is_empty() or _planned.has(planet.id):
 			continue
@@ -317,7 +374,8 @@ func choose_build(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 		if not option["ok"]:
 			continue
 		if option["kind"] == "unit":
-			ships.append(option)
+			if not Fleet.is_civilian_unit(engine.data, option["id"]):
+				ships.append(option)
 		else:
 			var keep: Dictionary = buildings.get(option["id"], {})
 			if keep.is_empty() or _body_pop(planet, option["body"]) > _body_pop(planet, keep["body"]):
@@ -338,10 +396,14 @@ func choose_build(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 				return megaprojects[mp_id]
 	var reserve := _megaproject_reserve(engine, faction_id)
 	saving = saving or not reserve.is_empty()
+
 	var affordable_ships: Array[Dictionary] = ships.filter(func(o: Dictionary) -> bool:
 		return _can_support(engine, faction_id, o["id"], threatened))
 	if not affordable_ships.is_empty() and mine < theirs * 0.9 and (not saving or threatened):
 		return affordable_ships[0]
+	var civilian_option := _choose_civilian_build(engine, planet, saving)
+	if not civilian_option.is_empty():
+		return civilian_option
 	# A rich empire keeps a navy (as far as its upkeep allows) rather than hoarding.
 	if not affordable_ships.is_empty() and _ship_count(engine, faction_id) < FLEET_BASE + FLEET_PER_COLONY * EmpireRules.colony_count(engine, faction_id):
 		var stock: Dictionary = engine.state.resources[faction_id]
@@ -454,6 +516,307 @@ func _can_support(engine: GalaxyEngine, faction_id: String, unit_id: String, des
 	if desperate:
 		return net_after >= -2 and credits >= 40
 	return net_after >= UPKEEP_MARGIN and credits >= 0
+
+
+# --- Civilian ships -----------------------------------------------------------
+
+## Colony ships, constructors and troop transports the faction owns or is building: deployed, in fleets, queued.
+func _civilian_count(engine: GalaxyEngine, faction_id: String, role: String) -> int:
+	var n := 0
+	for f in engine.state.fleets_of(faction_id):
+		for ship in f.ships:
+			if Fleet.role_of(engine.data, ship["unit"]) == role:
+				n += 1
+	for p: Planet in engine.state.planets.values():
+		for c in p.civilians:
+			if c["owner"] == faction_id and Fleet.role_of(engine.data, c["unit"]) == role:
+				n += 1
+		if p.owner == faction_id and p.queue.get("kind", "") == "unit" and Fleet.role_of(engine.data, p.queue["item"]) == role:
+			n += 1
+	return n
+
+
+## A civilian build for an idle system, or {}: constructors while there is work for them,
+## a colony ship while there is a world to settle, a transport once we are fighting for colonies.
+func _choose_civilian_build(engine: GalaxyEngine, planet: Planet, saving: bool) -> Dictionary:
+	var faction_id := planet.owner
+	if planet.colonies().is_empty() or planet.is_blockaded() or engine.state.faction(faction_id).get("role", "major") != "major":
+		return {}
+	var options := {}
+	for o in EmpireRules.build_options(engine, planet):
+		if o["kind"] == "unit" and o["ok"] and Fleet.is_civilian_unit(engine.data, o["id"]):
+			options[Fleet.role_of(engine.data, o["id"])] = o
+	if options.is_empty():
+		return {}
+	var turn := engine.state.turn_number
+	var systems := engine.state.planets_of(faction_id).size()
+	var stock: Dictionary = engine.state.resources[faction_id]
+	var rich := int(stock.get("credits", 0)) >= RICH_CREDITS
+	# Work for constructors: undeveloped bodies in our systems and empty systems worth an outpost.
+	if options.has("constructor") and not (saving and not rich):
+		var want := mini(1 + systems / CONSTRUCTORS_PER_SYSTEMS + (1 if rich else 0), MAX_CONSTRUCTORS)
+		var have := _civilian_count(engine, faction_id, "constructor")
+		if have < want and _development_work(engine, faction_id) > have:
+			return options["constructor"]
+	if options.has("colony") and _civilian_count(engine, faction_id, "colony") == 0 and not (saving and not rich):
+		if not _colony_targets(engine, faction_id).is_empty() and _net_income_ok(engine, faction_id):
+			return options["colony"]
+	if options.has("transport") and turn >= 15 and _civilian_count(engine, faction_id, "transport") < 1 + _blockades_of(engine, faction_id):
+		if _wants_troops(engine, faction_id):
+			return options["transport"]
+	return {}
+
+
+func _net_income_ok(engine: GalaxyEngine, faction_id: String) -> bool:
+	return int(EmpireRules.income(engine, faction_id)["credits"]) >= 0
+
+
+func _blockades_of(engine: GalaxyEngine, faction_id: String) -> int:
+	var n := 0
+	for p: Planet in engine.state.planets.values():
+		if p.blockade == faction_id:
+			n += 1
+	return n
+
+
+## Whether the faction is fighting a power that holds colonies (or already blockades one): troops are worth having.
+func _wants_troops(engine: GalaxyEngine, faction_id: String) -> bool:
+	var s := engine.state
+	for p: Planet in s.planets.values():
+		if not p.owner.is_empty() and s.at_war(faction_id, p.owner) and not p.colonies().is_empty() \
+				and s.faction(p.owner).get("role", "major") == "major" and s.faction(faction_id).get("role", "major") == "major":
+			return true
+	return false
+
+
+## How many bodies could use a constructor right now (in own systems, or empty systems near them).
+func _development_work(engine: GalaxyEngine, faction_id: String) -> int:
+	var n := 0
+	for p: Planet in _work_systems(engine, faction_id):
+		n += SystemRules.development_targets(engine, p, faction_id).size()
+	return n
+
+
+## Own systems and the explored empty ones within CIVILIAN_RANGE of them.
+func _work_systems(engine: GalaxyEngine, faction_id: String) -> Array[Planet]:
+	var s := engine.state
+	var own := s.planets_of(faction_id)
+	var explored := engine.explored_cells(faction_id)
+	var out: Array[Planet] = []
+	for p: Planet in s.planets.values():
+		if p.owner == faction_id or (p.owner.is_empty() and explored.has(p.cell) and _near_any(s, p.cell, own, CIVILIAN_RANGE)):
+			out.append(p)
+	return out
+
+
+func _near_any(s: GalaxyState, cell: Vector2i, planets: Array[Planet], radius: int) -> bool:
+	for q in planets:
+		if s.grid.distance(cell, q.cell) <= radius:
+			return true
+	return false
+
+
+## Systems with a habitable body a colony ship could settle: [{"planet", "body", "score"}], best first.
+func _colony_targets(engine: GalaxyEngine, faction_id: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for p in _work_systems(engine, faction_id):
+		var best := _best_colony_body(engine, p, faction_id)
+		if not best.is_empty():
+			out.append({"planet": p, "body": best["body"], "score": best["score"]})
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["score"] > b["score"])
+	return out
+
+
+## The habitable body worth settling in a system: {"body", "score"} or {}.
+func _best_colony_body(engine: GalaxyEngine, planet: Planet, faction_id: String) -> Dictionary:
+	var best: Dictionary = {}
+	for b in SystemRules.colony_targets(engine, planet, faction_id):
+		var score := float(EmpireRules.pop_cap(engine, b, faction_id)) + float(EmpireRules.colony_slots(engine, b, faction_id))
+		for t: String in b["traits"]:
+			var def: Dictionary = engine.data.planet_traits.get(t, {})
+			score += float(def.get("pop_cap", 0)) + float(def.get("slots", 0)) + 2.0 * _yield_value(def.get("yields", {}))
+		score += _yield_value(engine.data.body_types.get(b["type"], {}).get("bonus", {}))
+		if best.is_empty() or score > float(best["score"]):
+			best = {"body": b, "score": score}
+	return best
+
+
+## Worth of a yield bundle; `scarcity` (resource -> multiplier) lifts what the faction is short of.
+static func _yield_value(yields: Dictionary, scarcity: Dictionary = {}) -> float:
+	var v := 0.0
+	for k: String in yields:
+		v += float(yields[k]) * float(YIELD_WEIGHTS.get(k, 1.0)) * float(scarcity.get(k, 1.0))
+	return v
+
+
+## Alloys are what builds ships and settlers: when credits pile up beyond them, alloys count for more.
+func _scarcity(engine: GalaxyEngine, faction_id: String) -> Dictionary:
+	var stock: Dictionary = engine.state.resources[faction_id]
+	var out := {}
+	if int(stock.get("alloys", 0)) < 120 and int(stock.get("credits", 0)) > int(stock.get("alloys", 0)) * 2:
+		out["alloys"] = 2.2
+	return out
+
+
+## The best development a constructor could start in this system: {"body", "building", "value"} or {}.
+func _best_job(engine: GalaxyEngine, planet: Planet, faction_id: String) -> Dictionary:
+	var best: Dictionary = {}
+	for target in SystemRules.development_targets(engine, planet, faction_id):
+		var b: Dictionary = target["body"]
+		for o: Dictionary in target["options"]:
+			if not o["ok"]:
+				continue
+			var def: Dictionary = engine.data.buildings[o["id"]]
+			var scarcity := _scarcity(engine, faction_id)
+			var value := _yield_value(def.get("yields", {}), scarcity) + _yield_value(engine.data.body_types.get(b["type"], {}).get("bonus", {}), scarcity) \
+					+ _yield_value_traits(engine, b)
+			if o["id"] == "outpost":
+				value = 0.5 if planet.owner.is_empty() else 0.0  # only worth it to claim an empty system
+			if value <= 0.0:
+				continue
+			if best.is_empty() or value > float(best["value"]):
+				best = {"body": b["id"], "building": o["id"], "value": value}
+	return best
+
+
+func _yield_value_traits(engine: GalaxyEngine, b: Dictionary) -> float:
+	var v := 0.0
+	for t: String in b["traits"]:
+		v += _yield_value(engine.data.planet_traits.get(t, {}).get("yields", {}))
+	return v
+
+
+## One order for a settler or worker standing in a system, or null. Every command is checked
+## with the engine first, so the AI never submits something it would reject.
+func _civilian_command(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
+	var s := engine.state
+	var has_colony := EmpireRules.colony_count(engine, faction_id) > 0
+	for planet: Planet in s.planets.values():
+		var here := SystemRules.ships_here(engine, planet, faction_id)
+		if here.is_empty():
+			continue
+		for entry in here:
+			var ship: Dictionary = entry["ship"]
+			if entry["role"] == "colony":
+				var best := _best_colony_body(engine, planet, faction_id)
+				if best.is_empty():
+					if entry["deployed"] and not _colony_targets(engine, faction_id).is_empty():
+						return _checked(engine, CivilianCommand.new(faction_id, planet.id, ship["uid"], CivilianCommand.DEPART))
+					continue
+				# The first colony founds the capital wherever we stand; later ones settle good worlds only.
+				if not has_colony or float(best["score"]) >= 9.0 or planet.owner == faction_id:
+					return _checked(engine, CivilianCommand.new(faction_id, planet.id, ship["uid"], CivilianCommand.FOUND, best["body"]["id"]))
+			elif entry["role"] == "constructor":
+				if not ship.get("job", {}).is_empty():
+					continue
+				var job := _best_job(engine, planet, faction_id)
+				if not job.is_empty():
+					return _checked(engine, CivilianCommand.new(faction_id, planet.id, ship["uid"], CivilianCommand.JOB, job["body"], job["building"]))
+				if entry["deployed"] and _development_work(engine, faction_id) > 0:
+					return _checked(engine, CivilianCommand.new(faction_id, planet.id, ship["uid"], CivilianCommand.DEPART))
+	return null
+
+
+func _checked(engine: GalaxyEngine, cmd: GalaxyCommand) -> GalaxyCommand:
+	return cmd if engine.validate(cmd).is_empty() else null
+
+
+## Whether a visible enemy warfleet is close enough to `cell` to threaten unarmed ships there.
+func _warships_near(engine: GalaxyEngine, faction_id: String, cell: Vector2i) -> bool:
+	var vis := engine.visible_cells(faction_id)
+	for other: Fleet in engine.state.fleets.values():
+		if engine.state.at_war(faction_id, other.owner) and vis.has(other.cell) and not other.is_civilian_only(engine.data) \
+				and engine.state.grid.distance(other.cell, cell) <= CIVILIAN_DANGER:
+			return true
+	return false
+
+
+## The system a settler or worker should head for, or null: colony ships to the best world to
+## settle, constructors to a system with work, transports to a system we blockade.
+## `skip_fleet` is the fleet asking (other civilian fleets' targets are taken).
+func _civilian_goal(engine: GalaxyEngine, faction_id: String, role: String, from: Vector2i, skip_fleet: String) -> Planet:
+	var s := engine.state
+	var taken := {}
+	for id: String in _targets:
+		if id != skip_fleet:
+			taken[_targets[id]] = true
+	var target: Planet = null
+	if role == "transport":
+		var blockaded: Array[Planet] = []
+		for p: Planet in s.planets.values():
+			if p.blockade == faction_id:
+				blockaded.append(p)
+		return _nearest(s, from, blockaded)
+	var best := -1.0e9
+	if role == "colony":
+		for t in _colony_targets(engine, faction_id):
+			var p: Planet = t["planet"]
+			if taken.has(p.id) or _warships_near(engine, faction_id, p.cell):
+				continue
+			var score := float(t["score"]) - 0.8 * float(s.grid.distance(from, p.cell))
+			if score > best:
+				best = score
+				target = p
+	elif role == "constructor":
+		for p in _work_systems(engine, faction_id):
+			if taken.has(p.id) or _warships_near(engine, faction_id, p.cell):
+				continue
+			var job := _best_job(engine, p, faction_id)
+			if job.is_empty():
+				continue
+			var score := float(job["value"]) - 1.0 * float(s.grid.distance(from, p.cell)) + (2.0 if p.owner.is_empty() else 0.0)
+			if score > best:
+				best = score
+				target = p
+	return target
+
+
+## Where a civilian-only fleet goes. Anything threatened by warships falls back to the nearest system of ours.
+func _civilian_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
+	var s := engine.state
+	var data := engine.data
+	for id: String in _targets.keys():
+		if not s.fleets.has(id):
+			_targets.erase(id)
+	if s.faction(fleet.owner).get("role", "major") != "major":
+		return fleet.cell
+	if _warships_near(engine, fleet.owner, fleet.cell):
+		var home := _nearest(s, fleet.cell, s.planets_of(fleet.owner))
+		return _step_towards(engine, fleet, home.cell) if home != null else fleet.cell
+	var role := "transport" if fleet.has_role(data, "transport") else ("colony" if fleet.has_role(data, "colony") else "constructor")
+	var target := _civilian_goal(engine, fleet.owner, role, fleet.cell, fleet.id)
+	if target == null:
+		_targets.erase(fleet.id)
+		return fleet.cell
+	_targets[fleet.id] = target.id
+	return _step_towards(engine, fleet, target.cell)
+
+
+## A warfleet carrying settlers or workers (they joined it when departing a system it was
+## guarding) sets them off towards their goal: they split off to a free neighbouring system.
+func _detach_workers(engine: GalaxyEngine, fleet: Fleet) -> GalaxyCommand:
+	var data := engine.data
+	if not fleet.has_workers(data) or fleet.is_civilian_only(data) or engine.state.faction(fleet.owner).get("role", "major") != "major":
+		return null
+	var uids: Array[String] = []
+	var role := ""
+	for ship in fleet.ships:
+		if Fleet.role_of(data, ship["unit"]) in ["colony", "constructor"]:
+			uids.append(ship["uid"])
+			role = Fleet.role_of(data, ship["unit"])
+	var goal := _civilian_goal(engine, fleet.owner, role, fleet.cell, "")
+	if goal == null or uids.size() >= fleet.ships.size():
+		return null
+	var best: Variant = null
+	var best_d := engine.state.grid.distance(fleet.cell, goal.cell)
+	for c in engine.split_targets(fleet.id):
+		var d := engine.state.grid.distance(c, goal.cell)
+		if d < best_d:
+			best_d = d
+			best = c
+	if best == null:
+		return null
+	return _checked(engine, SplitFleetCommand.new(fleet.owner, fleet.id, uids, best))
 
 
 # --- Events -------------------------------------------------------------------

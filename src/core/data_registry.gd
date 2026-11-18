@@ -245,9 +245,15 @@ func _validate_empire() -> void:
 				_:
 					_err("tech '%s': unknown effect type '%s'" % [id, e.get("type", "")])
 	for id: String in units:
-		var req: String = units[id].get("strategic", {}).get("requires_tech", "")
+		var strat: Dictionary = units[id].get("strategic", {})
+		var req: String = strat.get("requires_tech", "")
 		if not req.is_empty() and not techs.has(req):
 			_err("unit '%s': unknown tech '%s'" % [id, req])
+		if strat.get("civilian", false) and strat.get("role", "") not in ["colony", "constructor", "transport"]:
+			_err("unit '%s': a civilian ship needs a role (colony, constructor or transport)" % id)
+	var garrison_unit: String = economy.get("garrison", {}).get("unit", "")
+	if not garrison_unit.is_empty() and not units.has(garrison_unit):
+		_err("economy: unknown garrison unit '%s'" % garrison_unit)
 	for id: String in techs:
 		var era: int = int(techs[id].get("era", 1))
 		if not eras.has(str(era)):
@@ -378,6 +384,11 @@ func _validate_campaign(id: String, def: Dictionary) -> void:
 						_err("%s: system '%s' has unknown trait '%s'" % [owner, p.get("name", ""), t])
 		if p.get("owner", "") != "" and p["owner"] not in faction_ids:
 			_err("%s: planet '%s' has unknown owner '%s'" % [owner, p.get("name", ""), p["owner"]])
+	if def.get("start", "owned") not in ["owned", "colony_ship"]:
+		_err("%s: start must be 'owned' or 'colony_ship'" % owner)
+	for unit_id: String in def.get("start_ships", []):
+		if not units.has(unit_id):
+			_err("%s: unknown start ship '%s'" % [owner, unit_id])
 	var fleet_names: Array = []
 	for fl: Dictionary in def.get("fleets", []):
 		fleet_names.append(fl.get("name", ""))

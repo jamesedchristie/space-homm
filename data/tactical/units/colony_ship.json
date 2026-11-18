@@ -1,0 +1,41 @@
+{
+  "id": "colony_ship",
+  "name": "Colony Ship",
+  "description": "A habitat ark. Founds a colony on an unclaimed habitable world (it is consumed), or a new one in a system you own. Unarmed: keep it escorted. Built by a colony of 2+ population, which gives up 1 pop.",
+  "tags": [
+    "ship",
+    "medium",
+    "civilian"
+  ],
+  "stats": {
+    "max_hull": 70,
+    "max_shields": 20,
+    "armor": 1,
+    "initiative": 2,
+    "max_ap": 3
+  },
+  "abilities": [
+    "brace_shields"
+  ],
+  "strategic": {
+    "civilian": true,
+    "role": "colony",
+    "speed": 2,
+    "sensor": 1,
+    "cost": {
+      "alloys": 40,
+      "credits": 60
+    },
+    "build_turns": 4,
+    "upkeep": 0,
+    "min_pop": 2,
+    "pop_cost": 1
+  },
+  "visual": {
+    "placeholder": "frigate",
+    "sprite": "res://assets/kenney_space_shooter/ships/playerShip3_{team}.png",
+    "size": 1.0,
+    "model": "colony_ship",
+    "attack_style": "broadside"
+  }
+}

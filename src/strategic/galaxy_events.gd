@@ -39,7 +39,7 @@ const BUILDING_COMPLETED := "building_completed"  # {planet, building}
 const SHIP_COMPLETED := "ship_completed"        # {planet, unit, fleet, ship}
 const FLEET_CREATED := "fleet_created"          # {fleet, planet}
 const FLEETS_MERGED := "fleets_merged"          # {fleet, into, name, into_name}: `fleet` joined `into` and is gone
-const SYSTEM_PLUNDERED := "system_plundered"    # {planet, faction, previous_owner, credits, building}
+const SYSTEM_PLUNDERED := "system_plundered"    # {planet, faction, previous_owner, credits, building, razed}
 const DEN_CLEARED := "den_cleared"              # {planet, faction, loot: {credits, alloys}}
 const DISCOVERY_FOUND := "discovery_found"      # {discovery, kind, name, fleet, faction, text, rewards}
 const FLEET_SPLIT := "fleet_split"              # {fleet, new_fleet, ships: [names]}
@@ -56,3 +56,18 @@ const BUDGET_CRISIS := "budget_crisis"          # {faction, credits}: upkeep dro
 const EVENT_OFFERED := "event_offered"          # {faction, event, planet}
 const EVENT_RESOLVED := "event_resolved"        # {faction, event, choice, label, success, text, lines: [String]}
 const MODIFIER_EXPIRED := "modifier_expired"    # {faction, modifier, name}
+
+# The system layer: civilian ships, claiming, blockades
+const CIVILIAN_DEPLOYED := "civilian_deployed"  # {planet, ship, fleet}: a ship left its fleet to work in the system
+const FLEET_DISBANDED := "fleet_disbanded"      # {fleet, owner}: its last ship was deployed in a system
+const CIVILIAN_MOVED := "civilian_moved"        # {planet, ship, body}
+const CIVILIAN_DEPARTED := "civilian_departed"  # {planet, ship, fleet}
+const JOB_STARTED := "job_started"              # {planet, ship, body, building, turns}
+const JOB_COMPLETED := "job_completed"          # {planet, ship, body, building, faction, claimed: bool}
+const JOB_CANCELLED := "job_cancelled"          # {planet, ship, building, refund: {resource: n}, reason}
+const COLONY_FOUNDED := "colony_founded"        # {planet, body, faction, claimed: bool, capital: bool}
+const SYSTEM_CLAIMED := "system_claimed"        # {planet, faction, how: "colony"|"outpost"}
+const CIVILIANS_LOST := "civilians_lost"        # {planet, faction, ships: [names]}: deployed ships lost with their system
+const SYSTEM_INVADED := "system_invaded"        # {planet, faction, previous_owner, fleet}: troops landed
+const BLOCKADE_STARTED := "blockade_started"    # {planet, faction, owner}
+const BLOCKADE_LIFTED := "blockade_lifted"      # {planet, faction}

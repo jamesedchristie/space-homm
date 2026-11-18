@@ -1,11 +1,12 @@
 {
   "colony": {
     "name": "Colony",
-    "description": "Settle a habitable world. Colonies grow in population, pay taxes, do some research and can host colony buildings (shipyard, trade hub, defenses).",
+    "description": "Settle a habitable world. Colonies grow in population, pay taxes, do some research and can host colony buildings (shipyard, trade hub, defenses). Founded by a Colony Ship, never built.",
     "on": [
       "habitable"
     ],
     "colony": true,
+    "founded": true,
     "cost": {
       "credits": 50,
       "alloys": 30
@@ -21,9 +22,27 @@
       "alloys": 0.15
     }
   },
+  "outpost": {
+    "name": "Outpost",
+    "description": "A bare claim: a beacon, a depot and a few automated guns on a rock, belt, ice moon or gas giant. Claims an unclaimed system for you; a real development (mining base, research station) can be built over it later. Built by a Constructor.",
+    "on": [
+      "rock",
+      "belt",
+      "ice",
+      "gas"
+    ],
+    "cost": {
+      "credits": 20
+    },
+    "turns": 2,
+    "outpost": true,
+    "yields": {
+      "credits": 1
+    }
+  },
   "mining_base": {
     "name": "Mining Base",
-    "description": "Automated mines on a rocky world or asteroid belt.",
+    "description": "Automated mines on a rocky world or asteroid belt. Built by a Constructor.",
     "on": [
       "rock",
       "belt"
@@ -38,7 +57,7 @@
   },
   "research_station": {
     "name": "Research Station",
-    "description": "A sealed science base on an ice moon, gas giant or barren rock.",
+    "description": "A sealed science base on an ice moon, gas giant or barren rock. Built by a Constructor.",
     "on": [
       "ice",
       "gas",
@@ -55,7 +74,7 @@
   },
   "gas_refinery": {
     "name": "Gas Refinery",
-    "description": "Skims fuel from a gas giant's upper atmosphere and sells it.",
+    "description": "Skims fuel from a gas giant's upper atmosphere and sells it. Built by a Constructor.",
     "on": [
       "gas"
     ],

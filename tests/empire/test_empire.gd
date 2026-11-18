@@ -45,13 +45,23 @@ func test_income_each_turn() -> void:
 
 func test_building_costs_and_completes() -> void:
 	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 8, 2]], _rich())
-	var credits: int = e.state.resources["a"]["credits"]
 	var home: Planet = e.state.planets["home_a"]
-	assert_false(e.submit(QueueBuildCommand.new("a", "home_a", "building", "mining_base", home.bodies[0]["id"])).ok,
+	# Colony buildings are queued: paid up front, one at a time.
+	var alloys: int = e.state.resources["a"]["alloys"]
+	assert_true(e.submit(QueueBuildCommand.new("a", "home_a", "building", "trade_hub", home.bodies[0]["id"])).ok)
+	assert_eq(e.state.resources["a"]["alloys"], alloys - 30, "paid up front")
+	assert_false(e.submit(QueueBuildCommand.new("a", "home_a", "building", "sensor_array")).ok, "one build at a time")
+	_end_round(e)
+	_end_round(e)
+	assert_true("trade_hub" in home.bodies[0]["buildings"])
+	# Body developments are built by a Constructor, not queued.
+	assert_false(e.submit(QueueBuildCommand.new("a", "home_a", "building", "mining_base", home.bodies[1]["id"])).ok)
+	home.civilians.append({"uid": "c1", "unit": "constructor", "name": "Jack", "hull": 45, "owner": "a", "loc": "", "job": {}})
+	var credits: int = e.state.resources["a"]["credits"]
+	assert_false(e.submit(CivilianCommand.new("a", "home_a", "c1", CivilianCommand.JOB, home.bodies[0]["id"], "mining_base")).ok,
 			"no mines on the colony world")
-	assert_true(e.submit(QueueBuildCommand.new("a", "home_a", "building", "mining_base", home.bodies[1]["id"])).ok)
+	assert_true(e.submit(CivilianCommand.new("a", "home_a", "c1", CivilianCommand.JOB, home.bodies[1]["id"], "mining_base")).ok)
 	assert_eq(e.state.resources["a"]["credits"], credits - 35, "paid up front")
-	assert_false(e.submit(QueueBuildCommand.new("a", "home_a", "building", "trade_hub")).ok, "one build at a time")
 	_end_round(e)
 	_end_round(e)
 	assert_true("mining_base" in home.bodies[1]["buildings"])
@@ -59,13 +69,14 @@ func test_building_costs_and_completes() -> void:
 	# The developed rock takes nothing else; the colony world takes colony buildings.
 	var options := EmpireRules.build_options(e, home)
 	assert_true(options.filter(func(o: Dictionary) -> bool: return o["body"] == home.bodies[1]["id"]).is_empty())
-	assert_true(options.any(func(o: Dictionary) -> bool: return o["id"] == "trade_hub" and o["body"] == home.bodies[0]["id"]))
-	assert_true(options.any(func(o: Dictionary) -> bool: return o["id"] == "research_station" and o["body"] == home.bodies[2]["id"]))
+	assert_true(options.any(func(o: Dictionary) -> bool: return o["id"] == "sensor_array" or o["id"] == "shipyard"))
+	var gas := EmpireRules.constructor_options(e, "a", home.bodies[2])
+	assert_true(gas.any(func(o: Dictionary) -> bool: return o["id"] == "research_station"))
 
 
 func test_cannot_afford_or_build_ships_without_shipyard() -> void:
 	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 8, 2]])
-	assert_eq(e.submit(QueueBuildCommand.new("a", "home_a", "building", "research_station")).error, "Can't afford it")
+	assert_eq(e.submit(QueueBuildCommand.new("a", "home_a", "building", "trade_hub")).error, "Can't afford it")
 	var rich := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 8, 2]], _rich())
 	assert_false(rich.submit(QueueBuildCommand.new("a", "home_a", "unit", "frigate")).ok, "needs a shipyard")
 
@@ -200,7 +211,8 @@ func test_defended_planet_fights_and_falls() -> void:
 	battle.state.is_over = true
 	e.resolve_pending_battle(battle)
 	assert_false("defense_platform" in home_b.buildings, "platform destroyed")
-	assert_eq(home_b.owner, "a", "attacker storms the planet")
+	assert_eq(home_b.owner, "b", "a colony doesn't fall without troops")
+	assert_eq(home_b.blockade, "a", "the attacker blockades it")
 	assert_eq(f.cell, home_b.cell)
 
 
@@ -217,7 +229,7 @@ func test_immobile_units_cannot_move() -> void:
 func test_ai_runs_the_economy() -> void:
 	var data := DataRegistry.get_default()
 	var e := GalaxyEngine.from_campaign(data, "the_drift", 8)
-	CampaignAutoRunner.run(e, 400)
+	CampaignAutoRunner.run(e, 900)
 	var built := 0
 	for p: Planet in e.state.planets.values():
 		built += p.buildings.size()
@@ -256,7 +268,7 @@ func test_barbarians_plunder_instead_of_holding() -> void:
 	e.state.resources["a"]["credits"] = 100
 	var raider := e.state.fleets_of("b")[0]
 	e._capture_planet(home, raider)
-	assert_eq(home.owner, "", "left unclaimed")
+	assert_eq(home.owner, "a", "raiders don't hold systems, but a colony stays with its owner")
 	assert_false("trade_hub" in home.buildings, "a building was wrecked")
 	assert_eq(e.state.resources["a"]["credits"], 60, "40 credits stolen")
 

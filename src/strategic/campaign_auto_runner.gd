@@ -5,7 +5,9 @@ extends RefCounted
 
 
 ## Returns {"winner", "reason", "turns", "commands", "battles", "missions", "events": {event type: count}}.
-static func run(engine: GalaxyEngine, max_commands: int = 5000) -> Dictionary:
+## `sample_turns`: turn numbers at which to record every faction's system count
+## ("samples": {turn: {faction id: systems owned}}).
+static func run(engine: GalaxyEngine, max_commands: int = 5000, sample_turns: Array[int] = []) -> Dictionary:
 	var ai := GalaxyAI.new()
 	if engine.state.turn_number == 0:
 		engine.start()
@@ -13,7 +15,14 @@ static func run(engine: GalaxyEngine, max_commands: int = 5000) -> Dictionary:
 	var battles := 0
 	var missions := 0
 	var counts := {}
+	var samples := {}
 	while not engine.state.is_over and commands < max_commands:
+		for t in sample_turns:
+			if engine.state.turn_number >= t and not samples.has(t):
+				var owned := {}
+				for f in engine.state.factions:
+					owned[f["id"]] = engine.state.planets_of(f["id"]).size()
+				samples[t] = owned
 		if engine.has_pending_battle():
 			_count(counts, engine.auto_resolve_pending_battle())
 			battles += 1
@@ -37,6 +46,7 @@ static func run(engine: GalaxyEngine, max_commands: int = 5000) -> Dictionary:
 		"battles": battles,
 		"missions": missions,
 		"events": counts,
+		"samples": samples,
 	}
 
 

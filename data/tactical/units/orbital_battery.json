@@ -1,0 +1,31 @@
+{
+  "id": "orbital_battery",
+  "name": "Orbital Battery",
+  "description": "The base garrison every claimed system fields: gun emplacements in orbit. Can't move.",
+  "tags": [
+    "station",
+    "immobile"
+  ],
+  "stats": {
+    "max_hull": 70,
+    "max_shields": 30,
+    "armor": 2,
+    "initiative": 2,
+    "max_ap": 3
+  },
+  "abilities": [
+    "railgun"
+  ],
+  "visual": {
+    "placeholder": "station",
+    "sprite": "res://assets/kenney_space_shooter/ships/ufo{team}.png",
+    "size": 0.8,
+    "sprite_variants": [
+      "Blue",
+      "Red",
+      "Green",
+      "Yellow"
+    ],
+    "model": "station"
+  }
+}

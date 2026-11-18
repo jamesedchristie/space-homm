@@ -12,6 +12,17 @@
     "free_base": 4,
     "free_per_colony": 3
   },
+  "garrison": {
+    "_doc": "Every claimed system fields `base` orbital batteries, plus one more per `pop_per_extra` population in its colonies (at most `max`).",
+    "unit": "orbital_battery",
+    "base": 1,
+    "pop_per_extra": 4,
+    "max": 3
+  },
+  "jobs": {
+    "_doc": "Cancelling a constructor job refunds this fraction of its cost.",
+    "refund": 0.5
+  },
   "debt": {
     "hull_loss": 0.05
   },
