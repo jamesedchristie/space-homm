@@ -1382,6 +1382,16 @@ func _validate_diplomacy(cmd: DiplomacyCommand) -> String:
 				return "You are already at peace"
 			if target["controller"] == "player":
 				return "%s are run by a player: they decide for themselves" % target["name"]
+		"offer_peace":
+			if not state.at_war(cmd.faction_id, cmd.target):
+				return "Already at peace"
+			if target["controller"] != "player":
+				return "Only player-run factions are offered peace; AI factions are proposed to"
+			if not DiplomacyRules.pending_offer(state, cmd.faction_id, cmd.target).is_empty():
+				return "An offer is already waiting"
+		"accept_peace", "refuse_peace":
+			if DiplomacyRules.pending_offer(state, cmd.target, cmd.faction_id).is_empty():
+				return "No peace offer from %s" % target["name"]
 		"declare_war":
 			if state.at_war(cmd.faction_id, cmd.target):
 				return "You are already at war"
@@ -1404,6 +1414,18 @@ func _do_diplomacy(cmd: DiplomacyCommand) -> void:
 			else:
 				emit({"type": GalaxyEvents.PEACE_REFUSED, "faction": cmd.faction_id, "target": cmd.target,
 						"reason": refusal})
+		"offer_peace":
+			state.peace_offers[DiplomacyRules.offer_key(cmd.faction_id, cmd.target)] = {
+					"from": cmd.faction_id, "to": cmd.target, "turn": state.turn_number, "status": "pending"}
+			emit({"type": GalaxyEvents.PEACE_OFFERED, "faction": cmd.faction_id, "target": cmd.target})
+		"accept_peace":
+			state.peace_offers.erase(DiplomacyRules.offer_key(cmd.target, cmd.faction_id))
+			state.set_relation(cmd.faction_id, cmd.target, "peace")
+			emit({"type": GalaxyEvents.PEACE_SIGNED, "factions": [cmd.faction_id, cmd.target]})
+			_check_eliminations()
+		"refuse_peace":
+			state.peace_offers[DiplomacyRules.offer_key(cmd.target, cmd.faction_id)]["status"] = "refused"
+			emit({"type": GalaxyEvents.PEACE_OFFER_REFUSED, "faction": cmd.faction_id, "target": cmd.target})
 		"declare_war":
 			state.set_relation(cmd.faction_id, cmd.target, "war")
 			DiplomacyRules.change_opinion(state, cmd.target, cmd.faction_id, DiplomacyRules.WAR_DECLARED_OPINION)
@@ -1423,10 +1445,38 @@ func _reveal_around(fleet: Fleet) -> void:
 
 
 func _update_explored() -> void:
+	var seen := {}
 	for f in state.factions:
 		var explored: Dictionary = state.explored[f["id"]]
-		for c: Vector2i in visible_cells(f["id"]):
+		var vis := visible_cells(f["id"])
+		for c: Vector2i in vis:
 			explored[c] = true
+		seen[f["id"]] = vis
+	_detect_contacts(seen)
+
+
+## First contact: the first time a fleet or system of one faction is in view of the other
+## (either way round), the pair is recorded in state.met and FIRST_CONTACT is emitted once.
+func _detect_contacts(seen: Dictionary) -> void:
+	for i in state.factions.size():
+		for j in range(i + 1, state.factions.size()):
+			var a: String = state.factions[i]["id"]
+			var b: String = state.factions[j]["id"]
+			if state.has_met(a, b) or state.is_eliminated(a) or state.is_eliminated(b):
+				continue
+			if _sees_any(seen[a], b) or _sees_any(seen[b], a):
+				state.met[GalaxyState.relation_key(a, b)] = state.turn_number
+				emit({"type": GalaxyEvents.FIRST_CONTACT, "factions": [a, b]})
+
+
+func _sees_any(vis: Dictionary, faction_id: String) -> bool:
+	for f in state.fleets_of(faction_id):
+		if vis.has(f.cell):
+			return true
+	for p in state.planets_of(faction_id):
+		if vis.has(p.cell):
+			return true
+	return false
 
 
 ## A faction with no fleets and no planets is out; last one standing wins.

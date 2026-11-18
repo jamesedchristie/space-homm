@@ -54,6 +54,11 @@ var research: Dictionary = {}
 var relations: Dictionary = {}
 ## faction id -> {other faction id: opinion -100..100}: how the first feels about the second.
 var opinions: Dictionary = {}
+## "a|b" (ids sorted) -> turn the two factions first saw each other (see GalaxyEvents.FIRST_CONTACT).
+var met: Dictionary = {}
+## "from>to" -> {"from", "to", "turn", "status": "pending"|"refused"}: peace offers AI factions
+## made to player-run ones (see DiplomacyRules.pending_offer). Refused ones stay for the cooldown.
+var peace_offers: Dictionary = {}
 ## faction id -> [{"id", "name", "turns": int left, "effects": [tech-style effects]}]: temporary
 ## modifiers (from galactic events) that count like tech effects while they last.
 var modifiers: Dictionary = {}
@@ -168,6 +173,10 @@ func at_war(a: String, b: String) -> bool:
 
 func set_relation(a: String, b: String, status: String) -> void:
 	relations[relation_key(a, b)] = {"status": status, "since": turn_number}
+
+
+func has_met(a: String, b: String) -> bool:
+	return met.has(relation_key(a, b))
 
 
 func opinion(of_faction: String, about: String) -> int:

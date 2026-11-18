@@ -47,6 +47,9 @@ const WAR_DECLARED := "war_declared"            # {faction, target}
 const PEACE_SIGNED := "peace_signed"            # {factions: [a, b]}
 const PEACE_REFUSED := "peace_refused"          # {faction, target, reason}
 const GIFT_SENT := "gift_sent"                  # {faction, target, credits}
+const FIRST_CONTACT := "first_contact"          # {factions: [a, b]}: each can now see the other for the first time
+const PEACE_OFFERED := "peace_offered"          # {faction, target}: an AI faction offers a player-run one peace
+const PEACE_OFFER_REFUSED := "peace_offer_refused"  # {faction: the answerer, target: the offerer}
 
 # Empire depth
 const POP_GREW := "pop_grew"                    # {planet, body, pop}

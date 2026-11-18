@@ -550,12 +550,20 @@ func _diplomacy(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
 				and VictoryRules.science_progress(engine, other) >= SCIENCE_ALARM
 		var runaway: bool = rival_major and other == leader and s.turn_number >= CONTAIN_MIN_TURN \
 				and float(EmpireRules.score(engine, other)) > float(my_score) * CONTAIN_RATIO
+		# A peace offer waiting for us (we are AI-driven, e.g. autoplay): take it unless crushing them.
+		if not DiplomacyRules.pending_offer(s, other, faction_id).is_empty():
+			var take := mine < theirs * 1.5 and not racing and not runaway
+			return DiplomacyCommand.new(faction_id, other, "accept_peace" if take else "refuse_peace")
 		if s.at_war(faction_id, other):
 			# Make peace with AI factions that would accept, unless we're crushing them
 			# or they are about to win by science.
 			if f["controller"] != "player" and mine < theirs * 1.5 and not racing and not runaway \
 					and DiplomacyRules.peace_refusal(engine, other, faction_id).is_empty():
 				return DiplomacyCommand.new(faction_id, other, "propose_peace")
+			# Player-run factions can't be proposed to: offer them peace when losing or war-weary.
+			if f["controller"] == "player" and not racing and not runaway \
+					and DiplomacyRules.wants_to_offer_peace(engine, faction_id, other):
+				return DiplomacyCommand.new(faction_id, other, "offer_peace")
 		elif s.opinion(faction_id, other) <= -40 and mine > theirs * 1.5:
 			return DiplomacyCommand.new(faction_id, other, "declare_war")
 		elif runaway and mine > theirs * 0.6 and s.turn_number - int(s.relation(faction_id, other)["since"]) >= 10:

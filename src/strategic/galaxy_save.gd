@@ -80,6 +80,8 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 			"research": s.research.duplicate(true),
 			"relations": s.relations.duplicate(true),
 			"opinions": s.opinions.duplicate(true),
+			"met": s.met.duplicate(true),
+			"peace_offers": s.peace_offers.duplicate(true),
 			"modifiers": s.modifiers.duplicate(true),
 			"event_log": s.event_log.duplicate(true),
 			"pending_event": s.pending_event.duplicate(true),
@@ -180,6 +182,15 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 	s.research = d["research"]
 	s.relations = d["relations"]
 	s.opinions = d["opinions"]
+	s.peace_offers = d.get("peace_offers", {})
+	if d.has("met"):
+		s.met = d["met"]
+	else:
+		# Saves from before first contact existed: everyone already knows everyone.
+		for a: Dictionary in s.factions:
+			for b: Dictionary in s.factions:
+				if a["id"] < b["id"]:
+					s.met[GalaxyState.relation_key(a["id"], b["id"])] = s.turn_number
 	s.modifiers = d.get("modifiers", {})
 	s.event_log = d.get("event_log", {})
 	s.pending_event = d.get("pending_event", {})

@@ -1,0 +1,365 @@
+{
+  "human": {
+    "name": "Admiral Helena Voss",
+    "title": "Chair of the Joint Fleet Council",
+    "personality": "Dry, pragmatic and stubborn. Keeps her word and expects the same, and never forgets who left a patrol to die.",
+    "portrait": {
+      "look": "human", "backdrop": "bridge",
+      "skin": "#d29a7c", "lips": "#b4695f", "eyes": "#4f7f9c", "hair": "#4a2f22", "hair_style": "bun",
+      "primary": "#233f6e", "secondary": "#e9eef7", "accent": "#d9b44a", "glow": "#5aa8ff",
+      "age": 0.55, "jaw": 0.35
+    },
+    "lines": {
+      "first_contact": [
+        "This is Admiral Voss of the {empire}. We have been watching your ships for some time. I am glad someone finally answered the hail.",
+        "Voss, {empire}. Forgive the formality: out here nobody has met anybody, and I would rather we begin on the right foot.",
+        "Well. Another flag on the sensors. I am Admiral Voss, and I hope this is the start of something useful."
+      ],
+      "greeting": [
+        "{player}. Good to hear from you. What can the {empire} do for you?",
+        "Admiral Voss here. Go ahead, I have a few minutes.",
+        "You have my attention. Keep it short and I will keep it civil."
+      ],
+      "hail_war": [
+        "Our fleets are at war, {player}. Unless you are calling to surrender, make it brief.",
+        "You have some nerve opening a channel. Say what you want."
+      ],
+      "war_on_you": [
+        "The Council has voted. As of this hour the {empire} is at war with you, {player}. You brought this on yourselves.",
+        "I have run out of patience and out of excuses. We are at war. May your fleet be better than your manners.",
+        "Consider this notice of hostilities. Do not mistake my calm for reluctance."
+      ],
+      "you_declare_war": [
+        "So that is how you want it. Very well, {player}. The {empire} will meet you wherever you choose.",
+        "You declare war and expect me to be surprised? Our patrols have been ready for months."
+      ],
+      "peace_accepted": [
+        "Agreed. Wars are expensive, and I would rather spend the money on ships that do not shoot at you.",
+        "Peace, then. I will tell the fleets to stand down. Do not make me regret it."
+      ],
+      "peace_refused": [
+        "No. Not while the memory of your raids is fresh. Ask me again when you have earned it.",
+        "I cannot sell this to my Council. Not yet, and not on those terms."
+      ],
+      "peace_offer": [
+        "Enough of this, {player}. Too many good crews are lost for nothing. The {empire} offers peace. Take it.",
+        "I am proposing an end to the shooting. It is a fair offer and it will not be repeated for a while."
+      ],
+      "offer_declined": [
+        "I see. Then the war continues, and I hope you can live with the consequences.",
+        "A pity. My offer was sincere. It will be harder to make again."
+      ],
+      "gift": [
+        "Credits? That is unusually decent of you. The {empire} does not forget a kindness.",
+        "A generous gesture. I will see it is noted in the right ledgers.",
+        "Well, well. I will take it, and I will remember who sent it."
+      ],
+      "farewell": [
+        "Voss out. Keep your shields up.",
+        "Until next time, {player}."
+      ]
+    }
+  },
+  "veltari": {
+    "name": "Archon Ilvaer Thessane",
+    "title": "Speaker of the Vel'tari Concord",
+    "personality": "Serene and unhurried, with a memory of centuries. Speaks softly and in images, and is quietly certain that younger peoples will eventually come round.",
+    "portrait": {
+      "look": "veltari", "backdrop": "crystal_hall",
+      "skin": "#e6e2f0", "lips": "#b79ad6", "eyes": "#9ee7ff", "hair": "#f0f2ff", "hair_style": "long",
+      "primary": "#4a3a78", "secondary": "#d9d3ee", "accent": "#c9b0ff", "glow": "#b48cff",
+      "age": 0.3, "jaw": 0.1
+    },
+    "lines": {
+      "first_contact": [
+        "Be welcome, traveller. The Concord has listened to the stars for a long time, and tonight one of them answered.",
+        "Ah. So the quiet between our borders was only distance. I am Ilvaer Thessane, who speaks for the {empire}. Peace be with you.",
+        "We felt your passing before we saw it. I am the Archon of the Concord. Let us not be strangers."
+      ],
+      "greeting": [
+        "{player}. Your voice is welcome in our halls. Speak, and be heard.",
+        "The Concord attends. What would you bring us today?",
+        "Come, there is no hurry. Time has always been generous to us."
+      ],
+      "hail_war": [
+        "There is still war between us, {player}. I do not enjoy it, but I do not forget it.",
+        "You call upon an open wound. Speak, but choose your words as carefully as we choose our fights."
+      ],
+      "war_on_you": [
+        "The Concord has deliberated for a long while. We are at war with you, {player}. It grieves us, and it is decided.",
+        "Patience is a virtue, and you have exhausted ours. The song of the Concord turns to war.",
+        "We hoped you would learn. You did not. From this moment the {empire} is your enemy."
+      ],
+      "you_declare_war": [
+        "You choose war. Then the Concord will answer, as gently as it can and as firmly as it must.",
+        "A short-lived people, in a hurry to end. We will not refuse you, {player}."
+      ],
+      "peace_accepted": [
+        "Yes. Let the crystal be still and the engines quiet. We accept your peace.",
+        "A wise choice, and an old one. Let there be calm between our worlds."
+      ],
+      "peace_refused": [
+        "Not yet. The wound is too recent, and you have not shown that you have changed.",
+        "The Concord cannot hear that offer now. Come again, when your deeds speak louder than your words."
+      ],
+      "peace_offer": [
+        "We have watched this war long enough, {player}. The {empire} offers peace. Take it, and let the silence heal.",
+        "Let us end this. There is no honour left in it. We extend peace to you."
+      ],
+      "offer_declined": [
+        "You refuse. So be it. The Concord has long memory and longer patience.",
+        "Then the war will teach what words could not. We shall wait."
+      ],
+      "gift": [
+        "A gift, freely given. The Concord will not forget it, and neither shall I.",
+        "How thoughtful. Such small acts are how great friendships begin.",
+        "We receive this with gratitude, {player}. May it be returned a hundredfold."
+      ],
+      "farewell": [
+        "Go gently, {player}.",
+        "The stars will bring us together again."
+      ]
+    }
+  },
+  "kesh": {
+    "name": "High Warlord Brakhar Dun",
+    "title": "Overlord of the Kesh Dominion",
+    "personality": "Blunt, proud and loud. Respects strength, despises hesitation and will happily drink with a worthy enemy right after burning his fleet.",
+    "portrait": {
+      "look": "kesh", "backdrop": "forge_hall",
+      "skin": "#a56f43", "lips": "#7a3f30", "eyes": "#e8a331", "hair": "#3a261a", "hair_style": "braids",
+      "primary": "#4b3326", "secondary": "#2d2420", "accent": "#d36a2e", "glow": "#ff6a4a",
+      "age": 0.6, "jaw": 0.95, "brow": 0.9, "horns": 0.0
+    },
+    "lines": {
+      "first_contact": [
+        "HA! So you are the ones whose ships have been sniffing at my borders. I am Brakhar Dun, Overlord of the {empire}. Speak your name, then show me your teeth.",
+        "A new face! Good. I was tired of the old ones. I am Brakhar of the Dominion, and I shall decide whether you are a friend or a feast.",
+        "Hmph. You have come a long way to look at the Dominion. Look well, stranger. Then tell me what you want."
+      ],
+      "greeting": [
+        "{player}! Speak. The Dominion does not waste breath.",
+        "Ah, the little traders. What do you want this time?",
+        "Make it worth my time, or make it short."
+      ],
+      "hail_war": [
+        "You dare open a channel in the middle of a war? I respect that. Now speak before I change my mind.",
+        "Your ships burn well, {player}. What do you want?"
+      ],
+      "war_on_you": [
+        "ENOUGH TALK! The Dominion marches against you, {player}. Your worlds will be cinders and your name a warning!",
+        "I have tolerated you long enough. We are at war, and the forges are already roaring.",
+        "You have grown weak and rich. That is a mistake I intend to correct. War!"
+      ],
+      "you_declare_war": [
+        "HA! At last, a fight worth having. The Dominion welcomes war, {player}. Pray you last the winter.",
+        "You declare war on ME? Oh, that is good. That is very good. Come, then."
+      ],
+      "peace_accepted": [
+        "Peace. Fine. The forges can use a rest, and I would rather fill my halls with loot than widows. Do not mistake it for weakness.",
+        "Agreed. Today you are a friend. Tomorrow we shall see."
+      ],
+      "peace_refused": [
+        "NO. Beg me when you have bled some more.",
+        "Peace? You have not paid for it yet. Come back with something more than words."
+      ],
+      "peace_offer": [
+        "Your fleet is a good fighter, {player}, and I am tired of burying my warriors. The Dominion offers peace. Take it before I change my mind.",
+        "Enough. I will have peace, for now. You may thank me with a gift."
+      ],
+      "offer_declined": [
+        "You REFUSE me? Hah! Then keep your war, and I will keep your ships.",
+        "Fool. I will remember this when your colony burns."
+      ],
+      "gift": [
+        "A gift? Hm. You are less stupid than you look. The Dominion remembers its friends.",
+        "Keep them coming, {player}, and I might even smile.",
+        "Good. I like a man who pays before I have to ask."
+      ],
+      "farewell": [
+        "Now go. Honour the Dominion.",
+        "Hmph. Do not waste my time again."
+      ]
+    }
+  },
+  "sorn": {
+    "name": "First Director Vessin Ahrel",
+    "title": "Chair of the Sorn Directorate",
+    "personality": "Soft-spoken and exact. Never raises her voice, never forgets a debt, and answers a threat with a very precise reminder of what it will cost.",
+    "portrait": {
+      "look": "sorn", "backdrop": "directorate",
+      "skin": "#8c97a3", "lips": "#6c7482", "eyes": "#1c1a24", "hair": "", "hair_style": "none",
+      "primary": "#2e4658", "secondary": "#c2cdd6", "accent": "#4dd0c8", "glow": "#4dd0c8",
+      "age": 0.45, "jaw": 0.3, "crest": 1.0
+    },
+    "lines": {
+      "first_contact": [
+        "Greetings. I am Vessin Ahrel, First Director of the {empire}. It is recorded that your vessels have crossed our observation range. Welcome.",
+        "Ah. So you are real. We had inferred as much from the pattern of your traffic. The Directorate extends its greeting.",
+        "You are observed, and now you are met. Let us hope the two prove compatible."
+      ],
+      "greeting": [
+        "{player}. The Directorate is listening.",
+        "Good. I had anticipated your hail. Please proceed.",
+        "Be seated, in whatever sense is appropriate to you. What do you require?"
+      ],
+      "hail_war": [
+        "We are at war, {player}. This channel remains open because I am curious, not because I am merciful.",
+        "I note that you contact us during hostilities. Say what you want, and be precise."
+      ],
+      "war_on_you": [
+        "The Directorate has completed its assessment. We are at war with you, {player}. The calculation was not close.",
+        "It is recorded that you have forfeited our patience. From this hour, we are enemies.",
+        "I regret the necessity. I do not regret the decision. War."
+      ],
+      "you_declare_war": [
+        "You have declared war. It is noted. I trust you have also calculated what it will cost you.",
+        "Regrettable, and entirely foreseen. The Directorate will respond in proportion."
+      ],
+      "peace_accepted": [
+        "Accepted. The ledger is balanced, and the Directorate prefers a balanced ledger.",
+        "Peace is the efficient outcome. We are pleased you reached the same conclusion."
+      ],
+      "peace_refused": [
+        "No. The terms do not reflect the damage recorded. Present a better proposal.",
+        "We decline. The record of your conduct does not support the request."
+      ],
+      "peace_offer": [
+        "The Directorate has weighed the cost of continuing, {player}. We propose peace. The offer is sincere and will not remain open long.",
+        "A ceasefire serves us both. We offer terms of peace. Consider them carefully."
+      ],
+      "offer_declined": [
+        "Noted. The offer is withdrawn. The war will proceed on the revised assumptions.",
+        "A mistake, I believe. It has been recorded."
+      ],
+      "gift": [
+        "Received, and recorded in your favour. The Directorate returns kindness in kind.",
+        "Unexpected, and welcome. I shall allocate it somewhere useful.",
+        "A thoughtful contribution, {player}. Our regard for you has been adjusted."
+      ],
+      "farewell": [
+        "The channel is closed. Be well.",
+        "It is recorded. Farewell."
+      ]
+    }
+  },
+  "raider_warlord": {
+    "name": "Rustjaw Gresh",
+    "title": "Warlord of the Drift Raiders",
+    "personality": "Scavenger-king of the Drift. Cackling, greedy and not interested in anything that does not come with a ransom. Never negotiates.",
+    "portrait": {
+      "look": "kesh", "backdrop": "scrapyard",
+      "skin": "#7f5b3a", "lips": "#5b3328", "eyes": "#ff4a2e", "hair": "#5a2a1c", "hair_style": "mohawk",
+      "primary": "#5d3a24", "secondary": "#3a302b", "accent": "#b33a22", "glow": "#ff5a2e",
+      "age": 0.7, "jaw": 0.8, "brow": 0.8, "horns": 1.0, "scar": true, "cyber_eye": true
+    },
+    "lines": {
+      "first_contact": [
+        "Hehehe! Fresh meat on my scopes! I am Rustjaw Gresh, and everything you fly is now MINE. Pay the toll or pay with your ships!",
+        "Look at the shiny little ships! You lost, friend? This is the Drift. Nothing leaves it unless Gresh says so.",
+        "Haha! A visitor. Hand over your cargo, your credits and your pretty engines, and maybe I will only take one arm."
+      ],
+      "greeting": [
+        "What you want, sky-rat? Make it quick.",
+        "Hrrk. You got something for Gresh? No? Then why you bother me?"
+      ],
+      "hail_war": [
+        "Hahaha! Still alive? Not for long, {player}!",
+        "You hailing a raider? Brave. Stupid, but brave. I'll still take your ships."
+      ],
+      "war_on_you": [
+        "Hehehe, WAR? We have been at war since you came, {player}. Now we just made it official!",
+        "RAID! Burn their colonies! Loot everything!"
+      ],
+      "you_declare_war": [
+        "Hahaha! Like we were ever friends! Come get your own funeral, {player}!",
+        "Declaring war on Gresh? You and what fleet?"
+      ],
+      "peace_accepted": [
+        "Peace? Gresh does not do peace.",
+        "Ha! No!"
+      ],
+      "peace_refused": [
+        "Peace?! HAHAHA! Raiders do not make peace, {player}. We make profit.",
+        "No deal, no talk, no mercy. Only loot.",
+        "You want peace? You want a funeral!"
+      ],
+      "peace_offer": [
+        "Never.",
+        "No."
+      ],
+      "offer_declined": [
+        "Never.",
+        "No."
+      ],
+      "gift": [
+        "Ha! You pay tribute! Smart. It will not save you, but smart.",
+        "More! Give Gresh MORE! Hehehe!"
+      ],
+      "farewell": [
+        "Go away, little sky-rat. Keep your engines warm, I will come for them!",
+        "Tell your friends that Gresh is hungry!"
+      ]
+    }
+  },
+  "trader_factor": {
+    "name": "Factor Tessik Orm",
+    "title": "Master Factor of the Ceres Free Traders",
+    "personality": "A cheerful, calculating haggler who counts every coin and every friend. Neutral, polite and always a little hard to read.",
+    "portrait": {
+      "look": "sorn", "backdrop": "market",
+      "skin": "#9a8f86", "lips": "#7d6a62", "eyes": "#2a2018", "hair": "", "hair_style": "none",
+      "primary": "#7a4a2a", "secondary": "#e8c27a", "accent": "#e8b84a", "glow": "#ffc55a",
+      "age": 0.5, "jaw": 0.25, "crest": 0.7, "goggles": true
+    },
+    "lines": {
+      "first_contact": [
+        "Ah, a customer! Tessik Orm, Master Factor of the Ceres Free Traders, at your service. Everything has a price, my friend, and I have a very fair one for you.",
+        "Welcome, welcome! Peaceful ships, I hope? We are traders; we sell to anyone, we shoot at nobody. Unless they shoot first.",
+        "A new face and, I trust, a new market! Orm, Free Traders. Come, let us do business."
+      ],
+      "greeting": [
+        "{player}! My favourite customer. What can the Free Traders do for you today?",
+        "Ah, you again. Business is good, I trust?",
+        "Come in, come in. The coffee is imaginary but the deals are real."
+      ],
+      "hail_war": [
+        "War, {player}? Bad for trade. Very bad. What do you want?",
+        "You come to me while your guns are pointed at my freighters? How very optimistic."
+      ],
+      "war_on_you": [
+        "Regrettably, the Free Traders can no longer do business with you. Your ships have cost me too much. We are at war.",
+        "I have always said: everything has a price. You have made yours too high. War, {player}."
+      ],
+      "you_declare_war": [
+        "You declare war on the Traders? Ah. That is going to be a very expensive mistake.",
+        "A pity. I liked you. I will like your money less."
+      ],
+      "peace_accepted": [
+        "Done and done! Peace is good for business. I shall reopen the lanes immediately.",
+        "Gladly. A handshake is worth a thousand shots."
+      ],
+      "peace_refused": [
+        "I would love to, but my creditors will not let me. Perhaps if you improved the terms?",
+        "No, no. Not yet. Show me you are good for it first."
+      ],
+      "peace_offer": [
+        "Let us end this nonsense and get back to trade, {player}. The Free Traders offer peace. Very reasonable terms!",
+        "War is a terrible business model. We propose peace. Do say yes."
+      ],
+      "offer_declined": [
+        "No? Well. The offer stays on file. Someday you will want it.",
+        "A pity. I will have my accountants send the invoice for the war."
+      ],
+      "gift": [
+        "A gift! You do understand business. Your standing with us has gone up, my friend.",
+        "Ah, how generous! I shall mention you to my best customers.",
+        "Credits for goodwill. I like this arrangement. Let us do it again."
+      ],
+      "farewell": [
+        "Come back soon. The prices are best at dawn.",
+        "Safe travels, {player}. Mind the pirates."
+      ]
+    }
+  }
+}
