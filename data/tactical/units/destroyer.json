@@ -26,7 +26,8 @@
       "credits": 70
     },
     "build_turns": 4,
-    "requires_tech": "heavy_hulls"
+    "requires_tech": "heavy_hulls",
+    "upkeep": 3
   },
   "visual": {
     "placeholder": "destroyer",

@@ -3,6 +3,10 @@
   "name": "Random Sector",
   "description": "The main game: a new sector every time. Three powers compete for the stars: you, the Vel'tari Concord and the Kesh Dominion. Raiders prey on everyone; the Free Traders deal with anyone who treats them well.",
   "max_turns": 150,
+  "events": true,
+  "victory": {
+    "peace": false
+  },
   "random": {
     "planet_traits": 0.7,
     "discoveries": {
@@ -21,6 +25,30 @@
     ]
   },
   "relations": [
+    {
+      "factions": [
+        "patrol",
+        "veltari"
+      ],
+      "status": "peace",
+      "opinion": 5
+    },
+    {
+      "factions": [
+        "patrol",
+        "kesh"
+      ],
+      "status": "peace",
+      "opinion": 5
+    },
+    {
+      "factions": [
+        "veltari",
+        "kesh"
+      ],
+      "status": "peace",
+      "opinion": 5
+    },
     {
       "factions": [
         "patrol",
@@ -98,7 +126,8 @@
       "controller": "ai",
       "species": "kesh",
       "ai": {
-        "attack_ratio": 0.85
+        "attack_ratio": 0.9,
+        "war_ratio": 3.2
       }
     },
     {
@@ -160,7 +189,8 @@
         "sensor": 3,
         "description": "Patrol Group headquarters. Fleets here repair.",
         "buildings": [
-          "shipyard"
+          "shipyard",
+          "defense_platform"
         ]
       },
       "raiders": {
@@ -189,7 +219,8 @@
         "name": "Lumen",
         "sensor": 3,
         "buildings": [
-          "shipyard"
+          "shipyard",
+          "defense_platform"
         ]
       },
       "kesh": {
@@ -197,7 +228,8 @@
         "name": "Khorrak",
         "sensor": 3,
         "buildings": [
-          "shipyard"
+          "shipyard",
+          "defense_platform"
         ]
       }
     },

@@ -239,5 +239,19 @@
       {"type": "sphere", "radius": 0.03, "detail": 0, "at": [0.38, 0.63, 0], "material": "light_red"},
       {"type": "box", "size": [0.04, 0.04, 0.22], "at": [0.11, 0.705, 0], "material": "hazard"}
     ]
+  },
+  "cruiser": {
+    "base": "destroyer",
+    "plating": true,
+    "description": "Capital cruiser: the destroyer's hull with a second raised deck, heavier turrets and a long dorsal spine.",
+    "parts": [
+      {"type": "hull", "outline": [[0.5, 0], [0.3, 0.2], [-0.6, 0.24], [-0.7, 0.14], [-0.7, -0.14], [-0.6, -0.24], [0.3, -0.2]], "height": 0.16, "bevel": 0.3, "at": [-0.05, 0.62, 0], "material": "dark"},
+      {"type": "box", "size": [0.9, 0.04, 0.05], "at": [-0.05, 0.72, 0], "material": "stripe"},
+      {"type": "box", "size": [0.24, 0.09, 0.2], "at": [0.52, 0.74, 0], "material": "hull"},
+      {"type": "cylinder", "radius": 0.035, "length": 0.4, "axis": "x", "at": [0.8, 0.76, 0.05], "material": "dark", "mirror": true},
+      {"type": "box", "size": [0.16, 0.07, 0.14], "at": [-0.4, 0.72, 0], "material": "dark"},
+      {"type": "box", "size": [0.5, 0.05, 0.12], "at": [-0.2, 0.2, 0.52], "material": "hull", "mirror": true},
+      {"type": "sphere", "radius": 0.03, "detail": 0, "at": [-0.6, 0.62, 0.2], "material": "beacon", "mirror": true}
+    ]
   }
 }

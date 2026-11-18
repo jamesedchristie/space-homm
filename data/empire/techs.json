@@ -8,7 +8,8 @@
         "type": "ship_status",
         "status": "tech_reinforced_hulls"
       }
-    ]
+    ],
+    "era": 1
   },
   "shield_harmonics": {
     "name": "Shield Harmonics",
@@ -19,7 +20,8 @@
         "type": "ship_status",
         "status": "tech_shield_harmonics"
       }
-    ]
+    ],
+    "era": 1
   },
   "improved_drives": {
     "name": "Improved Drives",
@@ -31,7 +33,8 @@
         "stat": "fleet_speed",
         "add": 1
       }
-    ]
+    ],
+    "era": 1
   },
   "deep_space_sensors": {
     "name": "Deep Space Sensors",
@@ -43,7 +46,8 @@
         "stat": "sensor",
         "add": 1
       }
-    ]
+    ],
+    "era": 1
   },
   "automated_mining": {
     "name": "Automated Mining",
@@ -55,7 +59,8 @@
         "resource": "alloys",
         "mul": 1.25
       }
-    ]
+    ],
+    "era": 1
   },
   "orbital_defenses": {
     "name": "Orbital Defenses",
@@ -66,7 +71,8 @@
         "type": "unlock_building",
         "building": "defense_platform"
       }
-    ]
+    ],
+    "era": 1
   },
   "heavy_hulls": {
     "name": "Heavy Hulls",
@@ -80,7 +86,8 @@
         "type": "unlock_unit",
         "unit": "destroyer"
       }
-    ]
+    ],
+    "era": 2
   },
   "targeting_computers": {
     "name": "Targeting Computers",
@@ -94,7 +101,8 @@
         "type": "ship_status",
         "status": "tech_targeting_computers"
       }
-    ]
+    ],
+    "era": 2
   },
   "field_repairs": {
     "name": "Field Repairs",
@@ -109,29 +117,54 @@
         "stat": "field_repair",
         "add": 0.15
       }
-    ]
+    ],
+    "era": 2
   },
   "terraforming": {
     "name": "Terraforming",
-    "description": "Desert and arctic worlds hold one more colony building.",
+    "description": "Desert and arctic worlds hold one more colony building and +2 population.",
     "cost": 70,
     "requires": [
       "deep_space_sensors"
     ],
     "effects": [
-      {"type": "body_bonus", "body_types": ["desert", "arctic"], "colony_slots": 1}
-    ]
+      {
+        "type": "body_bonus",
+        "body_types": [
+          "desert",
+          "arctic"
+        ],
+        "colony_slots": 1,
+        "pop_cap": 2
+      }
+    ],
+    "era": 1
   },
   "orbital_habitats": {
     "name": "Orbital Habitats",
-    "description": "Every colony yields +1 credits.",
+    "description": "Every colony yields +1 credits and holds +1 population. Unlocks the Orbital Habitat.",
     "cost": 90,
     "requires": [
       "terraforming"
     ],
     "effects": [
-      {"type": "body_bonus", "categories": ["habitable"], "building": "colony", "yields": {"credits": 1}}
-    ]
+      {
+        "type": "body_bonus",
+        "categories": [
+          "habitable"
+        ],
+        "building": "colony",
+        "yields": {
+          "credits": 1
+        },
+        "pop_cap": 1
+      },
+      {
+        "type": "unlock_building",
+        "building": "orbital_habitat"
+      }
+    ],
+    "era": 2
   },
   "asteroid_refining": {
     "name": "Asteroid Refining",
@@ -141,8 +174,18 @@
       "automated_mining"
     ],
     "effects": [
-      {"type": "body_bonus", "body_types": ["asteroid_belt"], "building": "mining_base", "yields": {"alloys": 2}}
-    ]
+      {
+        "type": "body_bonus",
+        "body_types": [
+          "asteroid_belt"
+        ],
+        "building": "mining_base",
+        "yields": {
+          "alloys": 2
+        }
+      }
+    ],
+    "era": 2
   },
   "deep_core_taps": {
     "name": "Deep Core Taps",
@@ -152,8 +195,18 @@
       "asteroid_refining"
     ],
     "effects": [
-      {"type": "body_bonus", "body_types": ["volcanic"], "building": "mining_base", "yields": {"alloys": 2}}
-    ]
+      {
+        "type": "body_bonus",
+        "body_types": [
+          "volcanic"
+        ],
+        "building": "mining_base",
+        "yields": {
+          "alloys": 2
+        }
+      }
+    ],
+    "era": 2
   },
   "cryogenic_labs": {
     "name": "Cryogenic Labs",
@@ -163,7 +216,316 @@
       "deep_space_sensors"
     ],
     "effects": [
-      {"type": "body_bonus", "body_types": ["ice_moon", "gas_giant"], "building": "research_station", "yields": {"research": 2}}
+      {
+        "type": "body_bonus",
+        "body_types": [
+          "ice_moon",
+          "gas_giant"
+        ],
+        "building": "research_station",
+        "yields": {
+          "research": 2
+        }
+      }
+    ],
+    "era": 1
+  },
+  "hydroponics": {
+    "name": "Hydroponics",
+    "description": "Colonies grow faster (+0.4 growth). Unlocks Hydroponic Farms.",
+    "era": 1,
+    "cost": 45,
+    "effects": [
+      {
+        "type": "empire_modifier",
+        "stat": "growth",
+        "add": 0.4
+      },
+      {
+        "type": "unlock_building",
+        "building": "hydroponic_farm"
+      }
+    ]
+  },
+  "trade_protocols": {
+    "name": "Trade Protocols",
+    "description": "+10% credits.",
+    "era": 1,
+    "cost": 55,
+    "effects": [
+      {
+        "type": "yield",
+        "resource": "credits",
+        "mul": 1.1
+      }
+    ]
+  },
+  "colonial_medicine": {
+    "name": "Colonial Medicine",
+    "description": "Every colony holds +1 population.",
+    "era": 1,
+    "cost": 55,
+    "requires": [
+      "hydroponics"
+    ],
+    "effects": [
+      {
+        "type": "body_bonus",
+        "categories": [
+          "habitable"
+        ],
+        "building": "colony",
+        "pop_cap": 1
+      }
+    ]
+  },
+  "arcology_planning": {
+    "name": "Arcology Planning",
+    "description": "Every colony holds one more colony building and +2 population.",
+    "era": 2,
+    "cost": 110,
+    "requires": [
+      "colonial_medicine"
+    ],
+    "effects": [
+      {
+        "type": "body_bonus",
+        "categories": [
+          "habitable"
+        ],
+        "building": "colony",
+        "colony_slots": 1,
+        "pop_cap": 2
+      }
+    ]
+  },
+  "scientific_method": {
+    "name": "Scientific Method",
+    "description": "Unlocks the Research Academy.",
+    "era": 2,
+    "cost": 100,
+    "requires": [
+      "deep_space_sensors"
+    ],
+    "effects": [
+      {
+        "type": "unlock_building",
+        "building": "academy"
+      }
+    ]
+  },
+  "galactic_commerce": {
+    "name": "Galactic Commerce",
+    "description": "Unlocks the Commerce Exchange.",
+    "era": 2,
+    "cost": 110,
+    "requires": [
+      "trade_protocols"
+    ],
+    "effects": [
+      {
+        "type": "unlock_building",
+        "building": "commerce_exchange"
+      }
+    ]
+  },
+  "deflector_grids": {
+    "name": "Deflector Grids",
+    "description": "Unlocks the Planetary Shield.",
+    "era": 2,
+    "cost": 120,
+    "requires": [
+      "orbital_defenses",
+      "shield_harmonics"
+    ],
+    "effects": [
+      {
+        "type": "unlock_building",
+        "building": "planetary_shield"
+      }
+    ]
+  },
+  "fleet_doctrine": {
+    "name": "Fleet Doctrine",
+    "description": "Unlocks the Fleet Academy (commanders earn XP every turn).",
+    "era": 2,
+    "cost": 100,
+    "requires": [
+      "improved_drives"
+    ],
+    "effects": [
+      {
+        "type": "unlock_building",
+        "building": "fleet_academy"
+      }
+    ]
+  },
+  "logistics_corps": {
+    "name": "Logistics Corps",
+    "description": "-20% ship upkeep.",
+    "era": 2,
+    "cost": 90,
+    "requires": [
+      "improved_drives"
+    ],
+    "effects": [
+      {
+        "type": "empire_modifier",
+        "stat": "upkeep",
+        "add": -0.2
+      }
+    ]
+  },
+  "stellar_engineering": {
+    "name": "Stellar Engineering",
+    "description": "Unlocks the megaproject Stellar Forge.",
+    "era": 2,
+    "cost": 130,
+    "requires": [
+      "asteroid_refining"
+    ],
+    "effects": [
+      {
+        "type": "unlock_megaproject",
+        "megaproject": "stellar_forge"
+      }
+    ]
+  },
+  "archival_science": {
+    "name": "Archival Science",
+    "description": "Unlocks the megaproject Grand Archive.",
+    "era": 2,
+    "cost": 130,
+    "requires": [
+      "scientific_method"
+    ],
+    "effects": [
+      {
+        "type": "unlock_megaproject",
+        "megaproject": "grand_archive"
+      }
+    ]
+  },
+  "capital_ships": {
+    "name": "Capital Ships",
+    "description": "Unlocks the Cruiser.",
+    "era": 3,
+    "cost": 200,
+    "requires": [
+      "heavy_hulls"
+    ],
+    "effects": [
+      {
+        "type": "unlock_unit",
+        "unit": "cruiser"
+      }
+    ]
+  },
+  "quantum_computing": {
+    "name": "Quantum Computing",
+    "description": "+20% research.",
+    "era": 3,
+    "cost": 220,
+    "requires": [
+      "scientific_method"
+    ],
+    "effects": [
+      {
+        "type": "yield",
+        "resource": "research",
+        "mul": 1.2
+      }
+    ]
+  },
+  "interstellar_banking": {
+    "name": "Interstellar Banking",
+    "description": "+15% credits. Unlocks the megaproject Galactic Exchange.",
+    "era": 3,
+    "cost": 200,
+    "requires": [
+      "galactic_commerce"
+    ],
+    "effects": [
+      {
+        "type": "yield",
+        "resource": "credits",
+        "mul": 1.15
+      },
+      {
+        "type": "unlock_megaproject",
+        "megaproject": "galactic_exchange"
+      }
+    ]
+  },
+  "command_doctrine": {
+    "name": "Command Doctrine",
+    "description": "Unlocks the megaproject Fleet Command Nexus.",
+    "era": 3,
+    "cost": 210,
+    "requires": [
+      "fleet_doctrine"
+    ],
+    "effects": [
+      {
+        "type": "unlock_megaproject",
+        "megaproject": "fleet_command_nexus"
+      }
+    ]
+  },
+  "nanofabrication": {
+    "name": "Nanofabrication",
+    "description": "+20% alloys.",
+    "era": 3,
+    "cost": 200,
+    "requires": [
+      "deep_core_taps"
+    ],
+    "effects": [
+      {
+        "type": "yield",
+        "resource": "alloys",
+        "mul": 1.2
+      }
+    ]
+  },
+  "genetic_uplift": {
+    "name": "Genetic Uplift",
+    "description": "Colonies grow faster (+0.6 growth) and hold +2 population.",
+    "era": 3,
+    "cost": 190,
+    "requires": [
+      "arcology_planning"
+    ],
+    "effects": [
+      {
+        "type": "empire_modifier",
+        "stat": "growth",
+        "add": 0.6
+      },
+      {
+        "type": "body_bonus",
+        "categories": [
+          "habitable"
+        ],
+        "building": "colony",
+        "pop_cap": 2
+      }
+    ]
+  },
+  "ascension_theory": {
+    "name": "Ascension Theory",
+    "description": "The final secret. Unlocks the megaproject Ascension Gate: complete it to win by science.",
+    "era": 3,
+    "cost": 320,
+    "requires": [
+      "quantum_computing",
+      "nanofabrication"
+    ],
+    "effects": [
+      {
+        "type": "unlock_megaproject",
+        "megaproject": "ascension_gate"
+      }
     ]
   }
 }

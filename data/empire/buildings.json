@@ -1,50 +1,94 @@
 {
   "colony": {
     "name": "Colony",
-    "description": "Settle a habitable world. Colonies pay taxes, do some research and can host colony buildings (shipyard, trade hub, defenses).",
-    "on": ["habitable"],
+    "description": "Settle a habitable world. Colonies grow in population, pay taxes, do some research and can host colony buildings (shipyard, trade hub, defenses).",
+    "on": [
+      "habitable"
+    ],
     "colony": true,
-    "cost": {"credits": 50, "alloys": 30},
+    "cost": {
+      "credits": 50,
+      "alloys": 30
+    },
     "turns": 3,
-    "yields": {"credits": 3, "research": 1}
+    "yields": {
+      "credits": 3,
+      "research": 1
+    },
+    "pop_yields": {
+      "credits": 0.5,
+      "research": 0.25,
+      "alloys": 0.15
+    }
   },
   "mining_base": {
     "name": "Mining Base",
     "description": "Automated mines on a rocky world or asteroid belt.",
-    "on": ["rock", "belt"],
-    "cost": {"credits": 35},
+    "on": [
+      "rock",
+      "belt"
+    ],
+    "cost": {
+      "credits": 35
+    },
     "turns": 2,
-    "yields": {"alloys": 4}
+    "yields": {
+      "alloys": 4
+    }
   },
   "research_station": {
     "name": "Research Station",
     "description": "A sealed science base on an ice moon, gas giant or barren rock.",
-    "on": ["ice", "gas", "rock"],
-    "cost": {"credits": 40, "alloys": 15},
+    "on": [
+      "ice",
+      "gas",
+      "rock"
+    ],
+    "cost": {
+      "credits": 40,
+      "alloys": 15
+    },
     "turns": 3,
-    "yields": {"research": 3}
+    "yields": {
+      "research": 3
+    }
   },
   "gas_refinery": {
     "name": "Gas Refinery",
     "description": "Skims fuel from a gas giant's upper atmosphere and sells it.",
-    "on": ["gas"],
-    "cost": {"credits": 30, "alloys": 20},
+    "on": [
+      "gas"
+    ],
+    "cost": {
+      "credits": 30,
+      "alloys": 20
+    },
     "turns": 2,
-    "yields": {"credits": 3, "alloys": 1}
+    "yields": {
+      "credits": 3,
+      "alloys": 1
+    }
   },
   "trade_hub": {
     "name": "Trade Hub",
     "description": "Markets and docks. Needs a colony.",
     "needs": "colony",
-    "cost": {"alloys": 30},
+    "cost": {
+      "alloys": 30
+    },
     "turns": 2,
-    "yields": {"credits": 4}
+    "yields": {
+      "credits": 4
+    }
   },
   "shipyard": {
     "name": "Shipyard",
     "description": "Builds ships. Needs a colony.",
     "needs": "colony",
-    "cost": {"credits": 60, "alloys": 60},
+    "cost": {
+      "credits": 60,
+      "alloys": 60
+    },
     "turns": 4,
     "shipyard": true
   },
@@ -52,9 +96,106 @@
     "name": "Defense Platform",
     "description": "Orbital gun platform. Fights any enemy that attacks the system. Needs a colony.",
     "needs": "colony",
-    "cost": {"credits": 30, "alloys": 60},
+    "cost": {
+      "credits": 30,
+      "alloys": 60
+    },
     "turns": 3,
     "requires_tech": "orbital_defenses",
     "defense_unit": "defense_platform"
+  },
+  "hydroponic_farm": {
+    "name": "Hydroponic Farms",
+    "description": "Vertical farms feed a growing population: faster growth on this colony. Needs a colony.",
+    "needs": "colony",
+    "cost": {
+      "credits": 40,
+      "alloys": 20
+    },
+    "turns": 2,
+    "requires_tech": "hydroponics",
+    "growth": 0.6
+  },
+  "academy": {
+    "name": "Research Academy",
+    "description": "Universities and labs: research that grows with the colony's population. Needs a colony.",
+    "needs": "colony",
+    "cost": {
+      "credits": 60,
+      "alloys": 40
+    },
+    "turns": 3,
+    "requires_tech": "scientific_method",
+    "yields": {
+      "research": 2
+    },
+    "pop_yields": {
+      "research": 0.5
+    }
+  },
+  "commerce_exchange": {
+    "name": "Commerce Exchange",
+    "description": "A trading floor: credits that grow with the colony's population. Needs a colony.",
+    "needs": "colony",
+    "cost": {
+      "credits": 50,
+      "alloys": 40
+    },
+    "turns": 3,
+    "requires_tech": "galactic_commerce",
+    "yields": {
+      "credits": 3
+    },
+    "pop_yields": {
+      "credits": 0.5
+    }
+  },
+  "orbital_habitat": {
+    "name": "Orbital Habitat",
+    "description": "Ring habitats raise this world's population cap by 4. Needs a colony.",
+    "needs": "colony",
+    "cost": {
+      "credits": 50,
+      "alloys": 80
+    },
+    "turns": 4,
+    "requires_tech": "orbital_habitats",
+    "pop_cap": 4
+  },
+  "sensor_array": {
+    "name": "Sensor Array",
+    "description": "Long-range sensors: +2 sensor range for the system. Needs a colony.",
+    "needs": "colony",
+    "cost": {
+      "credits": 30,
+      "alloys": 30
+    },
+    "turns": 2,
+    "requires_tech": "deep_space_sensors",
+    "sensor": 2
+  },
+  "planetary_shield": {
+    "name": "Planetary Shield",
+    "description": "A shield bastion that fights any enemy attacking the system (tougher than a platform). Needs a colony.",
+    "needs": "colony",
+    "cost": {
+      "credits": 60,
+      "alloys": 90
+    },
+    "turns": 4,
+    "requires_tech": "deflector_grids",
+    "defense_unit": "planetary_shield"
+  },
+  "fleet_academy": {
+    "name": "Fleet Academy",
+    "description": "Trains commanders: every fleet commander earns 12 XP per turn. Needs a colony.",
+    "needs": "colony",
+    "cost": {
+      "credits": 60,
+      "alloys": 60
+    },
+    "turns": 3,
+    "requires_tech": "fleet_doctrine",
+    "hero_xp": 12
   }
 }
