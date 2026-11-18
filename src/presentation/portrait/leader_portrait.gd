@@ -15,13 +15,13 @@ extends Control
 
 const LOOKS := {
 	"human": {"head": Vector3(1.0, 1.0, 1.0), "jaw": 0.55, "brow": 0.2, "cheek": 0.3, "chin": 0.6, "eye_r": 0.0165,
-			"iris_r": 0.0095, "eye_x": 0.035, "eye_y": 0.008, "lid": -20.0, "nose_len": 0.5, "nose_w": 1.0,
+			"iris_r": 0.0095, "eye_x": 0.035, "eye_y": 0.008, "lid": -27.0, "nose_len": 0.5, "nose_w": 1.0,
 			"mouth_w": 1.15, "lip": 0.0053, "brow_hair": true, "ear": "round", "irid": 0.0},
 	"veltari": {"head": Vector3(0.93, 1.07, 0.95), "jaw": 0.1, "brow": 0.0, "cheek": 0.6, "chin": 0.3, "eye_r": 0.0158,
-			"iris_r": 0.0125, "eye_x": 0.033, "eye_y": 0.014, "lid": -14.0, "nose_len": 0.35, "nose_w": 0.7,
+			"iris_r": 0.0125, "eye_x": 0.033, "eye_y": 0.014, "lid": -19.0, "nose_len": 0.35, "nose_w": 0.7,
 			"mouth_w": 0.8, "lip": 0.0035, "brow_hair": false, "ear": "pointed", "irid": 1.0},
 	"kesh": {"head": Vector3(1.1, 1.0, 1.07), "jaw": 0.9, "brow": 0.9, "cheek": 0.85, "chin": 0.9, "eye_r": 0.0115,
-			"iris_r": 0.0068, "eye_x": 0.034, "eye_y": 0.006, "lid": -6.0, "nose_len": 0.5, "nose_w": 1.2,
+			"iris_r": 0.0068, "eye_x": 0.034, "eye_y": 0.006, "lid": -11.0, "nose_len": 0.5, "nose_w": 1.2,
 			"mouth_w": 1.2, "lip": 0.0055, "brow_hair": true, "ear": "small", "irid": 0.0, "brow_tilt": 12.0},
 	"sorn": {"head": Vector3(0.9, 1.0, 0.95), "jaw": 0.25, "brow": 0.15, "cheek": 0.2, "chin": 0.2, "eye_r": 0.0185,
 			"iris_r": 0.0158, "eye_x": 0.034, "eye_y": 0.012, "lid": -10.0, "nose_len": 0.1, "nose_w": 0.6,
@@ -241,6 +241,8 @@ func _build_head(p: Dictionary, look: String, shape: Dictionary) -> void:
 	var ex: float = shape["eye_x"]
 	var ey: float = shape["eye_y"]
 	var sclera := Color(0.93, 0.92, 0.9) if look != "sorn" else Color(0.12, 0.13, 0.18)
+	if look == "veltari":
+		sclera = Color(0.8, 0.92, 1.0)
 	var iris_glow := look == "veltari"
 	var sclera_mat := PortraitKit.mat(sclera, 0.25)
 	var iris_mat: Material = PortraitKit.glow(eye_col, 1.6) if iris_glow else PortraitKit.mat(eye_col, 0.35)
@@ -399,10 +401,12 @@ func _build_hair(hv: Node3D, p: Dictionary, shape: Dictionary, hair_col: Color, 
 	var solid := PortraitKit.mat(hair_col, 0.4)
 	match style:
 		"short":
-			pass
+			hm.set_shader_parameter("temple_drop", 0.07)
+			hm.set_shader_parameter("front_y", 0.074)
 		"bun":
-			hm.set_shader_parameter("temple_drop", 0.03)
-			hm.set_shader_parameter("back_y", -0.01)
+			hm.set_shader_parameter("temple_drop", 0.065)
+			hm.set_shader_parameter("front_y", 0.076)
+			hm.set_shader_parameter("back_y", -0.03)
 			PortraitKit.sphere(hv, 0.042, solid, Vector3(0, 0.03, -0.108), Vector3(1.0, 0.95, 0.8), Vector3.ZERO, 28)
 			PortraitKit.torus(hv, 0.0015, 0.0105, PortraitKit.mat(PortraitKit.col(p, "accent", Color("d9b44a")), 0.3, 0.8),
 					Vector3(0, 0.03, -0.085), Vector3(90, 0, 0), Vector3(1.9, 1.9, 1.9))
