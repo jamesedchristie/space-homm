@@ -148,6 +148,24 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 			best = d
 			target = other.cell
 
+	# 1b. A rival at war with us is building the Ascension Gate: everything that can goes there.
+	# Even without troops, a blockade stops the build.
+	if target == null and s.faction(fleet.owner).get("role", "major") == "major" and not fleet.has_workers(data):
+		var best_gate := 1 << 30
+		for p: Planet in s.planets.values():
+			if p.owner.is_empty() or not s.at_war(fleet.owner, p.owner):
+				continue
+			if p.queue.get("kind", "") != "megaproject" or p.queue.get("item", "") != "ascension_gate":
+				continue
+			if p.blockade == fleet.owner:
+				if p.cell == fleet.cell:
+					return fleet.cell  # hold the blockade: the gate stays stalled while we're here
+				continue
+			var d := s.grid.distance(fleet.cell, p.cell)
+			if d < best_gate and defense_strength(engine, p) <= my_strength * attack_ratio * 1.5:
+				best_gate = d
+				target = p.cell
+
 	# Muster: wait for the ship under construction here.
 	var here := s.planet_at(fleet.cell)
 	if target == null and here != null and here.owner == fleet.owner and fleet.ships.size() < MUSTER_SIZE \
@@ -234,6 +252,24 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 				for other: Fleet in s.fleets_of(fleet.owner):
 					if other != fleet and other.has_role(data, "transport") and reach_t.has(other.cell) and engine.can_merge(fleet, other):
 						return other.cell
+
+	# 4b. Nothing we can take alone: if an enemy system would fall to this fleet and our strongest
+	# other fleet together, the weaker of the two goes to join the stronger (assaults need mass).
+	if target == null and role == "major" and not fleet.has_workers(data):
+		var partner: Fleet = null
+		for other: Fleet in s.fleets_of(fleet.owner):
+			if other == fleet or other.has_workers(data) or not engine.can_merge(fleet, other):
+				continue
+			if partner == null or other.strength(data) > partner.strength(data):
+				partner = other
+		if partner != null and my_strength <= partner.strength(data):
+			var combined := my_strength + partner.strength(data)
+			for p: Planet in s.planets.values():
+				if p.owner.is_empty() or p.owner == fleet.owner or not s.at_war(fleet.owner, p.owner):
+					continue
+				if defense_strength(engine, p) <= combined * attack_ratio:
+					target = partner.cell
+					break
 
 	# 5. Nothing to fight: small fleets scout the unexplored space around the empire (settlers need
 	# to know where the worlds are, and finding them is how the map opens up).

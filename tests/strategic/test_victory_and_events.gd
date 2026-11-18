@@ -27,7 +27,8 @@ func test_completing_the_ascension_gate_wins_by_science() -> void:
 	var e := _two(_rich({"techs": {"a": ["ascension_theory"]}}))
 	var queued := e.submit(QueueBuildCommand.new("a", "home_a", "megaproject", "ascension_gate"))
 	assert_true(queued.ok, queued.error)
-	for i in 14:
+	var turns := int(e.data.megaprojects["ascension_gate"]["turns"])
+	for i in turns - 1:
 		_end_round(e)
 		assert_false(e.state.is_over, "not before the last turn (%d)" % i)
 	_end_round(e)
@@ -53,7 +54,7 @@ func test_science_progress_tracks_techs_and_the_build() -> void:
 	var e := _two(_rich())
 	assert_eq(VictoryRules.science_megaproject(e), "ascension_gate")
 	var path := VictoryRules.tech_path(e, "ascension_theory")
-	assert_true("quantum_computing" in path and "nanofabrication" in path and "deep_space_sensors" in path)
+	assert_true("quantum_computing" in path and "capital_ships" in path and "deep_space_sensors" in path)
 	assert_eq(VictoryRules.science_progress(e, "a"), 0.0)
 	e.state.research["a"]["known"].append_array(path)
 	assert_near(VictoryRules.science_progress(e, "a"), 0.7, 0.001)

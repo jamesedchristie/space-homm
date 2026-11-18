@@ -516,11 +516,8 @@
     "name": "Ascension Theory",
     "description": "The final secret. Unlocks the megaproject Ascension Gate: complete it to win by science.",
     "era": 3,
-    "cost": 360,
-    "requires": [
-      "quantum_computing",
-      "nanofabrication"
-    ],
+    "cost": 800,
+    "requires": ["capital_ships", "quantum_computing", "interstellar_banking", "command_doctrine"],
     "effects": [
       {
         "type": "unlock_megaproject",

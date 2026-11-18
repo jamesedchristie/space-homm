@@ -51,8 +51,8 @@
     "requires_tech": "ascension_theory",
     "scope": "empire",
     "victory": "science",
-    "cost": {"credits": 350, "alloys": 350},
-    "turns": 15,
+    "cost": {"credits": 900, "alloys": 900},
+    "turns": 30,
     "effects": []
   }
 }
