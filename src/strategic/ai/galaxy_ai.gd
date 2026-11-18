@@ -47,6 +47,8 @@ const RESEARCH_PRIORITY := ["hydroponics", "automated_mining", "trade_protocols"
 		"archival_science", "orbital_habitats", "targeting_computers", "stellar_engineering", "deflector_grids",
 		"fleet_doctrine", "field_repairs", "deep_core_taps", "quantum_computing", "nanofabrication", "genetic_uplift",
 		"interstellar_banking", "ascension_theory", "capital_ships", "command_doctrine"]
+## Researched first while a stronger enemy is at war with the AI.
+const MILITARY_TECHS := ["reinforced_hulls", "shield_harmonics", "targeting_computers", "heavy_hulls", "orbital_defenses"]
 ## Keep this much net credit income after paying for a new ship's upkeep.
 const UPKEEP_MARGIN := 2
 ## A rich empire (this much in stock) builds ships up to FLEET_BASE + FLEET_PER_COLONY per colony.
@@ -272,9 +274,13 @@ func _empire_command(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
 	if s.research[faction_id]["current"] == "":
 		var options := ResearchRules.available(engine, faction_id)
 		if not options.is_empty():
+			var pressed := _outgunned(engine, faction_id)
 			options.sort_custom(func(a: String, b: String) -> bool:
 				var ra := RESEARCH_PRIORITY.find(a) if a in RESEARCH_PRIORITY else 999
 				var rb := RESEARCH_PRIORITY.find(b) if b in RESEARCH_PRIORITY else 999
+				if pressed:
+					ra = MILITARY_TECHS.find(a) - 100 if a in MILITARY_TECHS else ra
+					rb = MILITARY_TECHS.find(b) - 100 if b in MILITARY_TECHS else rb
 				if ra != rb:
 					return ra < rb
 				return ResearchRules.cost(engine, a) < ResearchRules.cost(engine, b))
@@ -355,6 +361,16 @@ func choose_build(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 	if not affordable_ships.is_empty() and mine < theirs * 1.5 and not saving:
 		return affordable_ships[0]
 	return {}
+
+
+## Whether an enemy the faction is at war with has a navy about as strong as its own or stronger.
+static func _outgunned(engine: GalaxyEngine, faction_id: String) -> bool:
+	var mine := DiplomacyRules.military_strength(engine, faction_id)
+	for f in engine.state.factions:
+		if engine.state.at_war(faction_id, f["id"]) and not engine.state.is_eliminated(f["id"]) \
+				and DiplomacyRules.military_strength(engine, f["id"]) * 1.2 > mine:
+			return true
+	return false
 
 
 ## Population of a body of the planet (0 if none).
@@ -542,7 +558,7 @@ func _diplomacy(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
 				return DiplomacyCommand.new(faction_id, other, "propose_peace")
 		elif s.opinion(faction_id, other) <= -40 and mine > theirs * 1.5:
 			return DiplomacyCommand.new(faction_id, other, "declare_war")
-		elif runaway and mine > theirs * 0.3 and s.turn_number - int(s.relation(faction_id, other)["since"]) >= 10:
+		elif runaway and mine > theirs * 0.6 and s.turn_number - int(s.relation(faction_id, other)["since"]) >= 10:
 			return DiplomacyCommand.new(faction_id, other, "declare_war")
 		elif rival_major and racing and mine > theirs * 0.5 and VictoryRules.science_progress(engine, faction_id) < SCIENCE_ALARM:
 			return DiplomacyCommand.new(faction_id, other, "declare_war")

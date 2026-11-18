@@ -14,7 +14,7 @@
       "min_distance": 2
     }
   },
-  "briefing": "An uncharted frontier sector, different every time. Raiders have dug in somewhere on the far side; the Ceres Free Traders hold a port of their own. At peace with you, at war with the raiders.\n\n[b]Goal:[/b] destroy the raiders and take their planets. The campaign ends when one faction stands alone, or when nobody is left at war (then the highest empire score wins).\n\n[b]Scout first.[/b] Planets may have traits worth fighting for, and the sector is littered with discoveries: derelicts, signals, caches. The first fleet in claims them.\n\n[b]Controls[/b]: click a fleet, then a blue hex. [b]E[/b] Empire, [b]H[/b] Heroes, [b]D[/b] detach ships, [b]Space[/b] end turn, [b]Esc[/b] menu.",
+  "briefing": "An uncharted frontier sector, different every time. Raiders have dug in somewhere on the far side; the Ceres Free Traders hold a port of their own. At peace with you, at war with the raiders.\n\n[b]Goal:[/b] outlast your rivals. Win by [b]conquest[/b] (be the last major power), by [b]science[/b] (research Ascension Theory and complete the Ascension Gate; everyone sees it being built) or by [b]score[/b] when the turn limit arrives. [b]E[/b] > Victory shows how close everyone is. Grow your colonies, mind your fleet's upkeep and answer the galaxy's events.\n\n[b]Scout first.[/b] Planets may have traits worth fighting for, and the sector is littered with discoveries: derelicts, signals, caches. The first fleet in claims them.\n\n[b]Controls[/b]: click a fleet, then a blue hex. [b]E[/b] Empire, [b]H[/b] Heroes, [b]D[/b] detach ships, [b]Space[/b] end turn, [b]Esc[/b] menu.",
   "battle_max_rounds": 30,
   "default_battle_map": "open_space",
   "permadeath": false,
@@ -117,7 +117,8 @@
       "controller": "ai",
       "species": "veltari",
       "ai": {
-        "attack_ratio": 1.1
+        "attack_ratio": 0.9,
+        "war_ratio": 2.5
       }
     },
     {
@@ -127,7 +128,7 @@
       "species": "kesh",
       "ai": {
         "attack_ratio": 0.9,
-        "war_ratio": 3.2
+        "war_ratio": 2.5
       }
     },
     {

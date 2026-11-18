@@ -9,8 +9,8 @@
     "plunder_pop_loss": 1
   },
   "upkeep": {
-    "free_base": 3,
-    "free_per_colony": 2
+    "free_base": 4,
+    "free_per_colony": 3
   },
   "debt": {
     "hull_loss": 0.05

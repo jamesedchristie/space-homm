@@ -7,12 +7,12 @@
     "name": "Expansion Era",
     "description": "Specialised buildings, heavy hulls and the first great works.",
     "requires": {"era": 1, "count": 5},
-    "cost_mul": 1.5
+    "cost_mul": 1.6
   },
   "3": {
     "name": "Ascendant Era",
     "description": "Capital ships, wonders and the road to Ascension.",
     "requires": {"era": 2, "count": 6},
-    "cost_mul": 2.2
+    "cost_mul": 2.5
   }
 }
