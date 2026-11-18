@@ -286,6 +286,8 @@ static func garrison_units(engine: GalaxyEngine, planet: Planet) -> Array[String
 	var out: Array[String] = []
 	if planet.owner.is_empty() or planet.is_blockaded():
 		return out
+	if engine.state.faction(planet.owner).get("role", "") == "barbarian":
+		return out  # raider dens rely on their own platforms
 	var cfg: Dictionary = engine.data.economy.get("garrison", {})
 	var unit: String = cfg.get("unit", "")
 	if unit.is_empty() or not engine.data.units.has(unit):

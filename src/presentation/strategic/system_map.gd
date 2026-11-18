@@ -201,7 +201,7 @@ func _draw_overlay(c: Control) -> void:
 			var name_text: String = label.get("name", "")
 			var info_text: String = label.get("info", "")
 			var col: Color = label.get("color", Palette.TEXT)
-			var y := pos.y + r + 20.0
+			var y := minf(pos.y + r + 20.0, c.size.y - 40.0)
 			_text(c, font, name_text, Vector2(pos.x, y), 14, Palette.ACTIVE if id == selected_body else Palette.TEXT)
 			if not info_text.is_empty():
 				_text(c, font, info_text, Vector2(pos.x, y + 16.0), 12, col)
