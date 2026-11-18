@@ -258,7 +258,8 @@ const ATMOSPHERE_SHADER := preload("res://src/presentation/shaders/atmosphere.gd
 ## camera moves), slowly drifting dust over it and a big distant planet.
 ## center/extent: the board's middle and half-size (world XZ). Interiors
 ## (station decks) only get the stars.
-static func space_scenery(parent: Node3D, center: Vector3, extent: Vector2, rng_seed: int, interior: bool = false) -> void:
+static func space_scenery(parent: Node3D, center: Vector3, extent: Vector2, rng_seed: int, interior: bool = false,
+		backdrop_planet: bool = true) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = rng_seed
 	var span := maxf(extent.x, extent.y)
@@ -329,6 +330,8 @@ static func space_scenery(parent: Node3D, center: Vector3, extent: Vector2, rng_
 	dust.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(dust)
 
+	if not backdrop_planet:
+		return  # system battles bring their own planets and star
 	# A big planet far below and beyond the board, catching the sun.
 	var radius := span * rng.randf_range(0.7, 0.95)
 	var body := MeshInstance3D.new()

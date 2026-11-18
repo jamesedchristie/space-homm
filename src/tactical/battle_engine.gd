@@ -26,6 +26,14 @@ var data: DataRegistry
 var _events: Array[Dictionary] = []
 
 
+## The tactical map of a scenario: its inline "map_def" (generated maps, e.g.
+## SystemBattleMap) or the data map named by "map".
+static func map_def_for(p_data: DataRegistry, scenario: Dictionary) -> Dictionary:
+	if scenario.get("map_def") is Dictionary and not (scenario["map_def"] as Dictionary).is_empty():
+		return scenario["map_def"]
+	return p_data.maps.get(scenario.get("map", ""), {})
+
+
 ## Builds a battle from a scenario id or an inline scenario Dictionary.
 ## seed 0 picks a random seed (recorded in state.seed_value for replays).
 static func from_scenario(p_data: DataRegistry, scenario: Variant, p_seed: int = 0) -> BattleEngine:
@@ -33,7 +41,7 @@ static func from_scenario(p_data: DataRegistry, scenario: Variant, p_seed: int =
 	if def.is_empty():
 		push_error("BattleEngine: unknown scenario '%s'" % str(scenario))
 		return null
-	var map_def: Dictionary = p_data.maps.get(def.get("map", ""), {})
+	var map_def := map_def_for(p_data, def)
 	if map_def.is_empty():
 		push_error("BattleEngine: scenario has unknown map '%s'" % def.get("map", ""))
 		return null
@@ -45,6 +53,8 @@ static func from_scenario(p_data: DataRegistry, scenario: Variant, p_seed: int =
 	s.seed_value = p_seed if p_seed != 0 else randi()
 	s.rng.seed = s.seed_value
 	s.grid = GridFactory.from_map(map_def, p_data.terrain)
+	if map_def.has("star") or map_def.has("bodies"):
+		s.scenery = {"star": map_def.get("star", {}), "bodies": map_def.get("bodies", [])}
 	s.max_rounds = int(def.get("max_rounds", 50))
 
 	for team_def: Dictionary in def.get("teams", []):

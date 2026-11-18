@@ -20,6 +20,10 @@ var _visible: Dictionary = {}
 ## cell -> {"color": Color, "label": String} (objectives, triggers, ...)
 var _markers: Dictionary = {}
 var _floor := ""
+## System battles: bodies [{"center": Vector2, "radius": px, "base", "accent", "atmosphere": Color, "ring", "colony": bool}]
+## and the star {"pos": Vector2, "color": Color}; drawn over the terrain cells.
+var _bodies: Array[Dictionary] = []
+var _star: Dictionary = {}
 
 ## Big meteors first (indices 0-3), then medium ones.
 const METEORS := ["meteorBrown_big1", "meteorGrey_big2", "meteorBrown_big3", "meteorGrey_big4",
@@ -38,6 +42,13 @@ func setup(p_grid: TacticalGrid, floor_style: String = "") -> void:
 	_path.clear()
 	_hover = null
 	_active = null
+	queue_redraw()
+
+
+## Planets and star of a battle inside a star system (see SystemBattleMap).
+func set_scenery(bodies: Array[Dictionary], star: Dictionary) -> void:
+	_bodies = bodies
+	_star = star
 	queue_redraw()
 
 
@@ -121,6 +132,8 @@ func _draw() -> void:
 			match terrain.get("decoration", ""):
 				"rocks":
 					_draw_rocks(c)
+				"debris":
+					_draw_debris(c)
 				"crates":
 					_draw_crates(c)
 				"bulkhead":
@@ -137,6 +150,7 @@ func _draw() -> void:
 			draw_colored_polygon(poly, Palette.AREA)
 		_outline(poly, Palette.CELL_LINE, 1.0)
 
+	_draw_scenery()
 	for i in range(1, _path.size()):
 		draw_line(cell_center(_path[i - 1]), cell_center(_path[i]), Palette.PATH, 3.0, true)
 	if not _path.is_empty():
@@ -157,6 +171,28 @@ func _draw() -> void:
 		_outline(_inset_polygon(_hover), Palette.HOVER, 2.0)
 
 
+func _draw_scenery() -> void:
+	if not _star.is_empty():
+		var color: Color = _star["color"]
+		for k in 4:
+			draw_circle(_star["pos"], CELL_SIZE * (3.2 - k * 0.7), Color(color, 0.07 + 0.06 * k))
+	for b in _bodies:
+		var center: Vector2 = b["center"]
+		var r: float = b["radius"]
+		var atmo: Color = b["atmosphere"]
+		if atmo.a > 0.05:
+			draw_circle(center, r * 1.08, Color(atmo, 0.35))
+		draw_circle(center, r, b["base"])
+		draw_circle(center + Vector2(-r * 0.18, -r * 0.12), r * 0.62, Color(b["accent"], 0.45))
+		draw_arc(center, r, 0, TAU, 40, Color(b["accent"], 0.7), 1.5, true)
+		if b["ring"]:
+			draw_arc(center, r * 1.4, 0, TAU, 48, Color(b["accent"], 0.55), 3.0, true)
+		if b["colony"]:
+			for k in 7:
+				var a := k * 2.4
+				draw_circle(center + Vector2(cos(a), sin(a)) * r * (0.2 + 0.07 * k), 1.6, Color(1.0, 0.85, 0.5))
+
+
 ## The cell's outline shrunk slightly toward its own centre, so neighbouring
 ## cells show a gap. (Shrinking via a smaller cell size would also move the
 ## centre and misalign the grid with units.)
@@ -166,6 +202,16 @@ func _inset_polygon(c: Vector2i, inset: float = 0.94) -> PackedVector2Array:
 	for p in grid.cell_polygon(c, CELL_SIZE):
 		out.append(center + (p - center) * inset)
 	return out
+
+
+## A few specks of rubble (ring dust, belt debris).
+func _draw_debris(c: Vector2i) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(c)
+	var center := cell_center(c)
+	for i in 6:
+		var p := center + Vector2(rng.randf_range(-16, 16), rng.randf_range(-13, 13))
+		draw_circle(p, rng.randf_range(1.2, 3.0), Color(0.62, 0.56, 0.5, rng.randf_range(0.5, 0.9)))
 
 
 ## Two meteor sprites per asteroid cell, picked and rotated deterministically.

@@ -106,7 +106,7 @@ func start_battle() -> void:
 		if t["controller"] == "player":
 			_viewer_team = t["team"]
 			break
-	$Background/Backdrop.configure(data.maps[scenario["map"]].get("backdrop", {}), float(engine.state.seed_value % 97))
+	$Background/Backdrop.configure(BattleEngine.map_def_for(data, scenario).get("backdrop", {}), float(engine.state.seed_value % 97))
 	_build_board()
 	hud.set_objective(engine.objective_text())
 	hud.log_line("[color=#%s]%s  (seed %d)[/color]" % [Palette.hex(Palette.TEXT_DIM),
@@ -127,7 +127,7 @@ func _build_board() -> void:
 	GameSettings.ensure_loaded()
 	board = BattleBoard3D.new() if GameSettings.battle_view == "3d" else BattleBoard2D.new(map_view, units_layer, fx)
 	add_child(board)
-	var map_def: Dictionary = data.maps[_embedded_scenario.get("map", "") if is_embedded() else data.scenarios[scenario_id]["map"]]
+	var map_def := BattleEngine.map_def_for(data, _embedded_scenario if is_embedded() else data.scenarios[scenario_id])
 	board.setup(engine, data, map_def.get("floor", ""))
 	for u: BattleUnit in engine.state.units.values():
 		if u.alive:

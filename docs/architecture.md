@@ -93,6 +93,7 @@ It reuses `HexGrid` and `Pathfinding`. A galaxy is just a hex map with galaxy te
   ```
   `auto_resolve_pending_battle()` does all of that in one call. The battle map comes from
   the location: planet type, then galaxy terrain (`battle_map`), then the campaign default.
+  A battle in a star system's hex instead uses a generated system map (below).
 - **Planets** are captured by ending a move on them. A faction with no fleets and no planets
   is eliminated, and the last faction standing wins.
 - **Fleets merge and split.** A fleet can move into another of its owner's fleets if the ships
@@ -198,6 +199,35 @@ each human turn. Bump `GalaxySave.VERSION` and migrate in `from_dict()` when the
 changes. Version 3 adds colony population and growth (inside the bodies), megaprojects on
 systems, temporary modifiers, the event log and pending event, and why the game ended; older
 saves are refused.
+
+### System battle maps
+
+`SystemBattleMap` (`src/tactical/maps/system_battle_map.gd`) is a pure, deterministic builder:
+a system's star type and bodies (and which body holds the defender's colony) in, a tactical map
+Dictionary out, in the same format as `data/tactical/maps/*.json` plus presentation extras. The
+layout depends only on the system id, so a system always looks the same.
+
+- Bodies become `planet` terrain discs (impassable, blocks sight) of 1, 3 or 7 hexes by body
+  `size` (< 0.65, < 1.0, larger); a gas giant also gets a broken `debris` ring (passable, 2 AP,
+  half cover). A belt is a curved band of `asteroid` (impassable) and `debris` cells.
+- `bodies` (id, type, `cells`, `center`, `radius` in hex sizes, `colony`) and `star`
+  (type, `dir`: unit vector in grid space towards the off-grid star) carry the scenery.
+  `BattleEngine.from_scenario` copies them to `BattleState.scenery` for the boards.
+- Deployment: the attacker takes six slots on the west edge. A defender owning a colony gets six
+  cells in a crescent around the colony disc (facing west), else the east edge.
+- `check()` validates every layout (slots inside the grid, free and distinct, every passable
+  cell connected to the attacker's slots, at least 70% open). Failing layouts are retried with
+  other positions and smaller discs; the last resort is an obstacle-free map.
+- Hook: `GalaxyEngine.pending_battle_scenario()` builds the map when the battle cell holds a
+  system and puts it in the scenario as an inline `map_def` (`map` is its id). Scenarios without
+  `map_def` use `data.maps[map]`; `BattleEngine.map_def_for()` resolves either. Standalone
+  scenarios may pass `SystemBattleMap.build_for(...)` output the same way.
+- Presentation: `BattleBoard3D` skips the generic backdrop planet and calls `SystemScenery3D`:
+  `planet_3d.gdshader` spheres with the body type's surface colours (sunk a little into the
+  plane, atmosphere shell, gas giant rings, city lights on the colony, `light_dir` for the night
+  side), a glowing star with halos beyond the far edge, and the scene's sun light re-aimed and
+  tinted from the star. `debris` cells get small floating rocks. `BattleBoard2D` draws discs
+  (`GridMapView.set_scenery`).
 
 ### Battle views (2D and 2.5D)
 

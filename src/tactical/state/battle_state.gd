@@ -8,6 +8,8 @@ const NO_WINNER := -1
 const DRAW := -2
 
 var grid: TacticalGrid
+## Presentation extras of the map (system battles): {"star": {...}, "bodies": [...]}; empty otherwise.
+var scenery: Dictionary = {}
 ## Insertion-ordered: unit id -> BattleUnit.
 var units: Dictionary = {}
 ## [{ "team": int, "name": String, "controller": "player"|"ai" }]

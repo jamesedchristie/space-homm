@@ -120,7 +120,13 @@ and gas giants a **research station** (gas giants also a **gas refinery**). Unde
 produce nothing, so a system with a habitable world and rich rocks is worth fighting over.
 One build at a time per system; ships need a shipyard. Friendly fleets in your systems repair
 25% hull per turn. Nebulae and asteroid fields cost 2 moves, and battles there are fought on
-matching battle maps.
+matching battle maps. A battle at a star system (an assault on its defenses, or two fleets meeting
+in its hex) is fought **inside the system**: the star blazes beyond the far edge, worlds and moons
+are impassable discs that block line of sight (bigger bodies, bigger discs; gas giants carry a
+broken ring of debris), belts are drifting bands of rock (impassable) and rubble (2 AP, half
+cover). The attacker enters from the open west side; a defender that owns a colony deploys in a
+crescent around it, with its defense platforms. The layout is fixed per system. In the 3D view
+the bodies are real planet spheres (colonies glow with city lights) lit by their star.
 
 Empire (E): four tabs. **Systems** (every system's output, population and growth, upkeep, active
 effects, wonders), **Research** (the tech tree by era; points flow into the tech you pick),
@@ -258,6 +264,7 @@ CI runs the tests and both smoke tests on every push (`.github/workflows/tests.y
   (`damage`, `heal`, `apply_status`), then list it on a unit.
 - **New status:** `data/tactical/statuses/<id>.json` with `modifiers`, `flags` and/or `on_turn_start` effects.
 - **New battle map:** `data/tactical/maps/<id>.json`, with `deployment.west`/`east` if galaxy battles use it.
+  (Battles at star systems ignore these and use a generated system map, see `SystemBattleMap`.)
 - **New campaign:** `data/strategic/campaigns/<id>.json` (map, factions, planets, fleets).
 - **Galaxy terrain, stars, bodies:** `data/strategic/terrain.json`, `star_types.json`,
   `body_types.json` (category, size, colony slots, bonus yields, shader colours), `planet_traits.json`.
