@@ -1,0 +1,333 @@
+{
+  "solar_flare": {
+    "name": "Solar Flare",
+    "weight": 3,
+    "conditions": [{"type": "has_colony"}],
+    "text": "{planet}'s star erupts. A wall of charged plasma is minutes from the inner system, and the habitat shields are not rated for it.",
+    "choices": [
+      {"label": "Divert power to the shields", "hint": "30 credits. Safe.", "cost": {"credits": 30},
+        "effects": [], "result": "The shields hold and the crews cheer. Nothing is lost."},
+      {"label": "Ride it out and study the flare", "hint": "Risky, but the instruments are rolling.", "chance": 0.55,
+        "effects": [{"type": "research", "amount": 35}], "result": "The flare passes. The data it left behind is priceless.",
+        "fail_effects": [{"type": "damage_building"}], "fail_result": "A surge cooks a facility on {planet} before the shutdown completes."},
+      {"label": "Evacuate the outer habitats", "hint": "Costs a little population.",
+        "effects": [{"type": "pop", "amount": -1, "target": "context"}], "result": "Everyone who matters is safe, but families are scattered for months."}
+    ]
+  },
+
+  "refugee_convoy": {
+    "name": "Refugee Convoy",
+    "weight": 3,
+    "min_turn": 10,
+    "conditions": [{"type": "has_colony"}, {"type": "growing_colony"}],
+    "text": "A convoy of battered transports drops out of hyperspace near {planet}, broadcasting a plea in six languages. They have nowhere else to go.",
+    "choices": [
+      {"label": "Welcome them", "hint": "+1 population, 20 credits.", "cost": {"credits": 20},
+        "effects": [{"type": "pop", "amount": 1, "target": "context"}], "result": "The newcomers settle in. Their children are already in the schools."},
+      {"label": "Screen them for skilled workers", "hint": "+25 research, no new population.",
+        "effects": [{"type": "research", "amount": 25}], "result": "Among the refugees are two xenobiologists and a former fleet engineer. The rest move on."},
+      {"label": "Turn them away", "hint": "Cold, but free.",
+        "effects": [{"type": "opinion", "with": "minor", "amount": -5}], "result": "The transports limp away. Word of it reaches the Free Traders, who are not impressed."}
+    ]
+  },
+
+  "plague": {
+    "name": "Outbreak",
+    "weight": 2,
+    "min_turn": 15,
+    "conditions": [{"type": "has_colony"}, {"type": "pop_min", "n": 3}],
+    "text": "A fast-moving fever is spreading through {planet}. The hospitals are filling and the governor wants orders.",
+    "choices": [
+      {"label": "Quarantine the colony", "hint": "40 credits. No losses.", "cost": {"credits": 40},
+        "effects": [], "result": "The quarantine holds. The fever burns out in a fortnight."},
+      {"label": "Fund a crash cure", "hint": "60 credits. Risky, but pays off in research.", "cost": {"credits": 60}, "chance": 0.7,
+        "effects": [{"type": "research", "amount": 40}], "result": "The lab pulls it off. The cure is already being licensed.",
+        "fail_effects": [{"type": "pop", "amount": -1, "target": "context"}], "fail_result": "The cure comes too late for some. Population falls."},
+      {"label": "Do nothing", "hint": "Free. Lose 2 population.",
+        "effects": [{"type": "pop", "amount": -2, "target": "context"}], "result": "The fever takes its toll before it fades."}
+    ]
+  },
+
+  "market_boom": {
+    "name": "Market Boom",
+    "weight": 3,
+    "min_turn": 8,
+    "conditions": [{"type": "has_colony"}],
+    "text": "Commodity prices across the sector are climbing and everyone wants what your worlds sell.",
+    "choices": [
+      {"label": "Cash in now", "hint": "+70 credits.",
+        "effects": [{"type": "resources", "credits": 70}], "result": "The warehouses empty and the treasury fills."},
+      {"label": "Invest in the boom", "hint": "20 alloys. +25% credits for 8 turns.", "cost": {"alloys": 20},
+        "effects": [{"type": "modifier", "id": "market_boom", "name": "Market boom", "turns": 8, "effects": [{"type": "yield", "resource": "credits", "mul": 1.25}]}],
+        "result": "New exchange floors open. Trade surges for a while."},
+      {"label": "Sell strategic reserves", "hint": "+60 alloys but -20 credits of goodwill.",
+        "effects": [{"type": "resources", "alloys": 60, "credits": -20}], "result": "The stockpile is cleared at a handsome price."}
+    ]
+  },
+
+  "derelict_signal": {
+    "name": "Derelict Signal",
+    "weight": 3,
+    "min_turn": 8,
+    "conditions": [{"type": "has_fleet"}],
+    "text": "A long-dead beacon near {planet} has started repeating a coded message. Someone, or something, wants it answered.",
+    "choices": [
+      {"label": "Send an expedition", "hint": "55% to find something valuable.", "chance": 0.55,
+        "effects": [{"type": "free_ship", "unit": "interceptor"}, {"type": "resources", "alloys": 25}], "result": "The expedition finds an intact scout craft and a cache of parts.",
+        "fail_effects": [{"type": "damage_fleets", "amount": 0.2}], "fail_result": "It was a trap. The expedition limps home with scorched hulls."},
+      {"label": "Record and decode it", "hint": "+30 research.",
+        "effects": [{"type": "research", "amount": 30}], "result": "Your analysts map the signal. It is a very old star chart."},
+      {"label": "Ignore it", "hint": "Nothing happens.",
+        "effects": [], "result": "The beacon keeps calling to an empty sky."}
+    ]
+  },
+
+  "first_contact": {
+    "name": "First-Contact Misunderstanding",
+    "weight": 2,
+    "min_turn": 10,
+    "conditions": [{"type": "at_peace_minor"}],
+    "text": "A Free Trader envoy has been escorted off {planet} after your protocol officers served the wrong dish at the welcome banquet. The Traders are furious.",
+    "choices": [
+      {"label": "Apologise with a gift", "hint": "30 alloys. Opinion +15.", "cost": {"alloys": 30},
+        "effects": [{"type": "opinion", "with": "minor", "amount": 15}], "result": "The gift and an embarrassed speech smooth things over."},
+      {"label": "Send a formal apology", "hint": "Opinion +5.",
+        "effects": [{"type": "opinion", "with": "minor", "amount": 5}], "result": "The envoy accepts the letter with a long sigh."},
+      {"label": "Stand firm", "hint": "Opinion -12, but your people respect it.",
+        "effects": [{"type": "opinion", "with": "minor", "amount": -12}, {"type": "resources", "credits": 20}], "result": "The Traders storm off. The banquet's caterers send a bill anyway."}
+    ]
+  },
+
+  "mining_strike": {
+    "name": "Mining Strike",
+    "weight": 3,
+    "min_turn": 10,
+    "conditions": [{"type": "has_building", "building": "mining_base"}],
+    "text": "The mining crews near {planet} have downed tools over safety and pay. Production is grinding to a halt.",
+    "choices": [
+      {"label": "Meet their demands", "hint": "40 credits. +15% alloys for 10 turns.", "cost": {"credits": 40},
+        "effects": [{"type": "modifier", "id": "miners_pay", "name": "Happy miners", "turns": 10, "effects": [{"type": "yield", "resource": "alloys", "mul": 1.15}]}],
+        "result": "The crews return to work with a spring in their step."},
+      {"label": "Negotiate", "hint": "60% to settle cheaply.", "chance": 0.6,
+        "effects": [], "result": "A compromise is found by midnight. Production resumes.",
+        "fail_effects": [{"type": "modifier", "id": "strike", "name": "Strike", "turns": 5, "effects": [{"type": "yield", "resource": "alloys", "mul": 0.8}]}],
+        "fail_result": "Talks collapse. Output is down for a few turns."},
+      {"label": "Break the strike", "hint": "Free, but alloys -20% for 8 turns.",
+        "effects": [{"type": "modifier", "id": "strike_broken", "name": "Sullen miners", "turns": 8, "effects": [{"type": "yield", "resource": "alloys", "mul": 0.8}]}],
+        "result": "The security teams clear the shafts. Work resumes, grudgingly."}
+    ]
+  },
+
+  "scientific_breakthrough": {
+    "name": "Scientific Breakthrough",
+    "weight": 3,
+    "min_turn": 8,
+    "conditions": [{"type": "has_colony"}],
+    "text": "A lab on {planet} reports a result that overturns a decade of theory. How the empire uses it is up to you.",
+    "choices": [
+      {"label": "Publish openly", "hint": "+60 research.",
+        "effects": [{"type": "research", "amount": 60}], "result": "Citations pour in and your labs build on the result within days."},
+      {"label": "Patent it", "hint": "+80 credits.",
+        "effects": [{"type": "resources", "credits": 80}], "result": "The licensing deals start rolling in."},
+      {"label": "Classify and exploit it", "hint": "+20% research for 8 turns.",
+        "effects": [{"type": "modifier", "id": "classified_work", "name": "Classified breakthrough", "turns": 8, "effects": [{"type": "yield", "resource": "research", "mul": 1.2}]}],
+        "result": "The work goes behind closed doors, and the results come faster."}
+    ]
+  },
+
+  "raider_gathering": {
+    "name": "Raider Gathering",
+    "weight": 3,
+    "min_turn": 12,
+    "conditions": [{"type": "has_colony"}, {"type": "barbarians"}],
+    "text": "Scouts report a raider pack massing in the dark beyond {planet}. They will hit soon, one way or another.",
+    "choices": [
+      {"label": "Pay them off", "hint": "50 credits.", "cost": {"credits": 50},
+        "effects": [], "result": "The raider chief pockets the tribute and sails for easier prey."},
+      {"label": "Fortify the approaches", "hint": "40 alloys. Fleets repair +15% per turn for 6 turns.", "cost": {"alloys": 40},
+        "effects": [{"type": "modifier", "id": "fortified", "name": "Fortified approaches", "turns": 6, "effects": [{"type": "empire_modifier", "stat": "field_repair", "add": 0.15}]}],
+        "result": "Repair tenders and picket ships move into position."},
+      {"label": "Ignore them", "hint": "A raider fleet will appear near the system.",
+        "effects": [{"type": "raiders", "count": 1}], "result": "The raiders arrive within a few turns."}
+    ]
+  },
+
+  "asteroid_windfall": {
+    "name": "Asteroid Windfall",
+    "weight": 3,
+    "min_turn": 6,
+    "conditions": [{"type": "has_colony"}],
+    "text": "A metal-rich asteroid on a slow orbit is about to pass {planet}. Prospectors are already circling.",
+    "choices": [
+      {"label": "Mine it", "hint": "+60 alloys.",
+        "effects": [{"type": "resources", "alloys": 60}], "result": "Tugs haul the rock into dock. The smelters run all week."},
+      {"label": "Sell the claim", "hint": "+70 credits.",
+        "effects": [{"type": "resources", "credits": 70}], "result": "A syndicate pays well for the rights."},
+      {"label": "Study it", "hint": "+30 research.",
+        "effects": [{"type": "research", "amount": 30}], "result": "The core samples contain isotopes nobody has catalogued."}
+    ]
+  },
+
+  "defector": {
+    "name": "Defecting Scientist",
+    "weight": 2,
+    "min_turn": 14,
+    "conditions": [{"type": "has_colony"}, {"type": "researching"}],
+    "text": "A senior researcher from a rival power has slipped into {planet}'s embassy district, asking for asylum and bringing a trunk of notes.",
+    "choices": [
+      {"label": "Grant asylum", "hint": "30 credits. +50 research, relations with rivals suffer.", "cost": {"credits": 30},
+        "effects": [{"type": "research", "amount": 50}, {"type": "opinion", "with": "random_major", "amount": -10}], "result": "Her notes shave months off your projects. Her old employers are not amused."},
+      {"label": "Return her quietly", "hint": "Opinion +10 with a rival.",
+        "effects": [{"type": "opinion", "with": "random_major", "amount": 10}], "result": "A rival's ambassador thanks you in a low voice. A favour is owed."},
+      {"label": "Debrief and release", "hint": "+20 research.",
+        "effects": [{"type": "research", "amount": 20}], "result": "You learn what you can and send her on her way."}
+    ]
+  },
+
+  "reactor_accident": {
+    "name": "Reactor Fault",
+    "weight": 2,
+    "min_turn": 12,
+    "conditions": [{"type": "has_shipyard"}],
+    "text": "A coolant leak at the yards above {planet} has the reactor chief screaming for a decision.",
+    "choices": [
+      {"label": "Emergency repairs", "hint": "30 alloys.", "cost": {"alloys": 30},
+        "effects": [], "result": "The crews seal the leak just in time."},
+      {"label": "Vent and write it off", "hint": "Lose a building, keep the crew.",
+        "effects": [{"type": "damage_building"}], "result": "The reactor bay is a hollow shell, but nobody is hurt."},
+      {"label": "Risk it", "hint": "50% nothing happens, otherwise people die.", "chance": 0.5,
+        "effects": [], "result": "The reactor stabilises on its own. Luck is a resource.",
+        "fail_effects": [{"type": "pop", "amount": -1, "target": "context"}, {"type": "damage_building"}], "fail_result": "The containment fails. The dead are mourned for a long time."}
+    ]
+  },
+
+  "void_leviathan": {
+    "name": "Void Leviathan",
+    "weight": 2,
+    "min_turn": 10,
+    "conditions": [{"type": "has_fleet"}],
+    "text": "A vast creature, kilometres long, drifts through the space near {planet} trailing glittering ice. Your fleet captains have never seen anything like it.",
+    "choices": [
+      {"label": "Observe from a distance", "hint": "+30 research.",
+        "effects": [{"type": "research", "amount": 30}], "result": "Hours of sensor data. Every biologist in the empire is arguing about it."},
+      {"label": "Hunt it", "hint": "50%: +60 alloys of strange ore, otherwise battered ships.", "chance": 0.5,
+        "effects": [{"type": "resources", "alloys": 60}], "result": "The creature dies slowly. Its shed plates are worth a fortune.",
+        "fail_effects": [{"type": "damage_fleets", "amount": 0.25}], "fail_result": "It tears into the patrol before it submerges into the dark."},
+      {"label": "Steer clear", "hint": "Nothing happens.",
+        "effects": [], "result": "The creature drifts on. A good story for the mess hall."}
+    ]
+  },
+
+  "veteran_volunteers": {
+    "name": "Veteran Volunteers",
+    "weight": 2,
+    "min_turn": 14,
+    "conditions": [{"type": "has_colony"}, {"type": "has_fleet"}],
+    "text": "A band of retired officers from the last war has turned up at the recruitment office on {planet}, offering their experience.",
+    "choices": [
+      {"label": "Commission them", "hint": "40 credits. A new hero joins you.", "cost": {"credits": 40},
+        "effects": [{"type": "free_hero"}], "result": "The best of them takes a commission and a starship."},
+      {"label": "Hire as instructors", "hint": "+25 research (doctrine papers).",
+        "effects": [{"type": "research", "amount": 25}], "result": "Doctrine papers pour out of the academy for a month."},
+      {"label": "Thank them and pay them off", "hint": "-20 credits.",
+        "effects": [{"type": "resources", "credits": -20}], "result": "They retire again with a generous pension."}
+    ]
+  },
+
+  "salvage_convoy": {
+    "name": "Abandoned Convoy",
+    "weight": 2,
+    "min_turn": 8,
+    "conditions": [{"type": "has_fleet"}],
+    "text": "A crippled convoy hulk is tumbling past {planet}, with no one answering hails.",
+    "choices": [
+      {"label": "Tow it in", "hint": "70%: a working ship.", "chance": 0.7,
+        "effects": [{"type": "free_ship", "unit": "frigate"}], "result": "A frigate-class escort turns out to be intact. It is yours now.",
+        "fail_effects": [{"type": "damage_fleets", "amount": 0.15}], "fail_result": "The hulk breaks up under tow, and the debris scours your tugs."},
+      {"label": "Strip it for parts", "hint": "+45 alloys.",
+        "effects": [{"type": "resources", "alloys": 45}], "result": "Tonnes of salvage, no risk."}
+    ]
+  },
+
+  "harvest_festival": {
+    "name": "Bumper Harvest",
+    "weight": 3,
+    "min_turn": 8,
+    "conditions": [{"type": "has_colony"}, {"type": "growing_colony"}],
+    "text": "The farms of {planet} have a record yield. The governor suggests a festival.",
+    "choices": [
+      {"label": "Feed the colonies", "hint": "+1 population.",
+        "effects": [{"type": "pop", "amount": 1, "target": "context"}], "result": "Full bellies and new babies. The colony swells."},
+      {"label": "Export the surplus", "hint": "+50 credits.",
+        "effects": [{"type": "resources", "credits": 50}], "result": "Food convoys leave for hungrier worlds."},
+      {"label": "Fund a festival", "hint": "30 credits. +0.5 growth for 10 turns.", "cost": {"credits": 30},
+        "effects": [{"type": "modifier", "id": "festival", "name": "Festival of plenty", "turns": 10, "effects": [{"type": "empire_modifier", "stat": "growth", "add": 0.5}]}],
+        "result": "A week of music and weddings. The birth rate shows it."}
+    ]
+  },
+
+  "trade_envoy": {
+    "name": "Trade Envoy",
+    "weight": 2,
+    "min_turn": 10,
+    "conditions": [{"type": "at_peace_minor"}],
+    "text": "An envoy of the Free Traders requests an audience in {planet}, bearing a standing-contract proposal.",
+    "choices": [
+      {"label": "Sign the contract", "hint": "+15% credits for 10 turns and opinion +5.",
+        "effects": [{"type": "modifier", "id": "trade_contract", "name": "Trade contract", "turns": 10, "effects": [{"type": "yield", "resource": "credits", "mul": 1.15}]}, {"type": "opinion", "with": "minor", "amount": 5}],
+        "result": "Ink and handshakes. Cargo begins to flow."},
+      {"label": "Counter-offer", "hint": "50%: a better deal. Otherwise they leave offended.", "chance": 0.5,
+        "effects": [{"type": "modifier", "id": "trade_contract_plus", "name": "Excellent trade contract", "turns": 10, "effects": [{"type": "yield", "resource": "credits", "mul": 1.3}]}], "result": "The envoy blinks, then laughs and agrees.",
+        "fail_effects": [{"type": "opinion", "with": "minor", "amount": -6}], "fail_result": "The envoy bows stiffly and leaves."},
+      {"label": "Decline politely", "hint": "Nothing happens.",
+        "effects": [], "result": "The envoy shrugs and moves on."}
+    ]
+  },
+
+  "war_weariness": {
+    "name": "War Weariness",
+    "weight": 3,
+    "min_turn": 14,
+    "conditions": [{"type": "has_colony"}, {"type": "at_war_major"}],
+    "text": "Casualty lists have been long. Demonstrations are growing on {planet}, demanding an end to the fighting.",
+    "choices": [
+      {"label": "Rally the people", "hint": "40 credits. +10% alloys for 6 turns.", "cost": {"credits": 40},
+        "effects": [{"type": "modifier", "id": "rally", "name": "War rally", "turns": 6, "effects": [{"type": "yield", "resource": "alloys", "mul": 1.1}]}],
+        "result": "Speeches, parades and overtime. Morale climbs."},
+      {"label": "Reach out to the enemy", "hint": "Opinion +10 with an enemy power.",
+        "effects": [{"type": "opinion", "with": "war_target", "amount": 10}], "result": "A back-channel opens. Perhaps peace is possible."},
+      {"label": "Press on", "hint": "Lose 1 population to unrest.",
+        "effects": [{"type": "pop", "amount": -1, "target": "context"}], "result": "The riots are put down. The mood is bitter."}
+    ]
+  },
+
+  "lab_accident": {
+    "name": "Laboratory Accident",
+    "weight": 2,
+    "min_turn": 12,
+    "conditions": [{"type": "has_building", "building": "research_station"}],
+    "text": "An experiment aboard the research station above {planet} has gone badly wrong, and the station chief is asking for orders.",
+    "choices": [
+      {"label": "Contain it", "hint": "30 alloys.", "cost": {"alloys": 30},
+        "effects": [], "result": "Bulkheads seal and the incident is closed."},
+      {"label": "Let the experiment run", "hint": "50%: +60 research. Otherwise a building is lost.", "chance": 0.5,
+        "effects": [{"type": "research", "amount": 60}], "result": "The experiment succeeds beyond all expectation.",
+        "fail_effects": [{"type": "damage_building"}], "fail_result": "The station is gutted by the blast."}
+    ]
+  },
+
+  "ancient_cache": {
+    "name": "Ancient Cache",
+    "weight": 2,
+    "min_turn": 12,
+    "conditions": [{"type": "has_colony"}],
+    "text": "A landslide on {planet} has exposed a sealed vault of unknown origin. Its door bears a language nobody can read.",
+    "choices": [
+      {"label": "Crack it open", "hint": "50%: +50 research and 30 credits. Otherwise a trap.", "chance": 0.5,
+        "effects": [{"type": "research", "amount": 50}, {"type": "resources", "credits": 30}], "result": "Inside are working machines and a library of crystal tablets.",
+        "fail_effects": [{"type": "pop", "amount": -1, "target": "context"}], "fail_result": "The vault was a trap. A colonist team never returns."},
+      {"label": "Seal it and survey", "hint": "+20 research.",
+        "effects": [{"type": "research", "amount": 20}], "result": "The surveyors map the vault and leave it for later."}
+    ]
+  }
+}

@@ -91,6 +91,10 @@ func show_system(engine: GalaxyEngine, planet: Planet, viewer: String, interacti
 		owner_text = UiKit.color_tag(f["name"], Palette.team_color(f["team"]))
 	var lines := PackedStringArray(["%s  ·  %s" % [UiKit.color_tag(star.get("name", planet.star), Color(star.get("color", "#ffffff"))), owner_text]])
 	lines.append("Yields %s per turn" % EmpirePanel._resource_text(engine, EmpireRules.planet_yields(engine, planet), true))
+	if planet.population() > 0:
+		lines.append("Population %d" % planet.population())
+	for mp_id in planet.megaprojects:
+		lines.append(UiKit.color_tag("Wonder: %s. %s" % [data.megaprojects[mp_id]["name"], data.megaprojects[mp_id].get("description", "")], Palette.ACTIVE))
 	if not planet.queue.is_empty():
 		lines.append(UiKit.color_tag("Building: %s (%d/%d turns)" % [_queue_name(data, planet), planet.queue["progress"], planet.queue["turns"]], Palette.ACTIVE))
 	var defenses := EmpireRules.defense_units(engine, planet).size()
@@ -107,6 +111,14 @@ func show_system(engine: GalaxyEngine, planet: Planet, viewer: String, interacti
 	var options := EmpireRules.build_options(engine, planet) if planet.owner == viewer else ([] as Array[Dictionary])
 	for b in planet.bodies:
 		_cards.add_child(_body_card(engine, planet, b, options.filter(func(o: Dictionary) -> bool: return o["body"] == b["id"]), interactive))
+	var wonders := options.filter(func(o: Dictionary) -> bool: return o["kind"] == "megaproject")
+	if not wonders.is_empty():
+		var wonder_card := UiKit.panel(Color(0.08, 0.1, 0.16, 0.95))
+		var wonder_box := VBoxContainer.new()
+		wonder_card.add_child(wonder_box)
+		wonder_box.add_child(UiKit.label("Megaprojects", 15, Palette.ACTIVE))
+		wonder_box.add_child(_option_row(engine, planet, wonders, interactive))
+		_cards.add_child(wonder_card)
 	var ships := options.filter(func(o: Dictionary) -> bool: return o["kind"] == "unit")
 	if not ships.is_empty():
 		var card := UiKit.panel(Color(0.08, 0.1, 0.16, 0.95))
@@ -143,6 +155,7 @@ func _body_card(engine: GalaxyEngine, planet: Planet, b: Dictionary, options: Ar
 			if not built.is_empty() else UiKit.color_tag(def.get("description", ""), Palette.TEXT_DIM))
 	if EmpireRules.is_habitable(engine, b) and "colony" in b["buildings"]:
 		text += UiKit.color_tag("  ·  colony slots %d/%d" % [b["buildings"].size() - 1, EmpireRules.colony_slots(engine, b, planet.owner)], Palette.TEXT_DIM)
+		text += "\n" + _population_text(engine, b, planet.owner)
 	head.append_text(text)
 	box.add_child(head)
 	if not options.is_empty():
@@ -157,8 +170,14 @@ func _option_row(engine: GalaxyEngine, planet: Planet, options: Array, interacti
 		var label := "%s  ·  %s, %dt" % [o["name"], EmpireRules.cost_text(engine, o["cost"]), o["turns"]]
 		var b := UiKit.button(label, func() -> void:
 			command_requested.emit(QueueBuildCommand.new(planet.owner, planet.id, o["kind"], o["id"], o["body"])))
-		var desc: String = engine.data.buildings[o["id"]].get("description", "") if o["kind"] == "building" \
-				else engine.data.units[o["id"]].get("description", "")
+		var desc := ""
+		match o["kind"]:
+			"building":
+				desc = engine.data.buildings[o["id"]].get("description", "")
+			"megaproject":
+				desc = engine.data.megaprojects[o["id"]].get("description", "")
+			_:
+				desc = engine.data.units[o["id"]].get("description", "")
 		b.tooltip_text = desc + ("" if o["ok"] else "\n(%s)" % o["reason"])
 		b.disabled = not interactive or not o["ok"]
 		row.add_child(b)
@@ -167,7 +186,25 @@ func _option_row(engine: GalaxyEngine, planet: Planet, options: Array, interacti
 
 static func _queue_name(data: DataRegistry, planet: Planet) -> String:
 	var q := planet.queue
-	return data.buildings[q["item"]]["name"] if q["kind"] == "building" else data.units[q["item"]]["name"]
+	match q["kind"]:
+		"building":
+			return data.buildings[q["item"]]["name"]
+		"megaproject":
+			return data.megaprojects[q["item"]]["name"]
+	return data.units[q["item"]]["name"]
+
+
+## "Population 5 / 8   ·   growth +0.8/turn, next in 4 turns" for a colony body.
+static func _population_text(engine: GalaxyEngine, b: Dictionary, faction_id: String) -> String:
+	var cap := EmpireRules.pop_cap(engine, b, faction_id)
+	var current := EmpireRules.pop(b)
+	var text := "Population [b]%d / %d[/b]" % [current, cap]
+	if current >= cap:
+		return text + UiKit.color_tag("   ·   full", Palette.TEXT_DIM)
+	var rate := EmpireRules.growth_rate(engine, b, faction_id)
+	var progress := "%d/%d" % [floori(float(b.get("growth", 0.0))), ceili(EmpireRules.growth_cost(engine, current))]
+	return text + UiKit.color_tag("   ·   growth %+.1f/turn (%s), next pop in %d turns" % [rate, progress,
+			EmpireRules.turns_to_grow(engine, b, faction_id)], Palette.GOOD)
 
 
 func _build_scene(planet: Planet, engine: GalaxyEngine) -> void:

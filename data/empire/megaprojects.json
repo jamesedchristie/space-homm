@@ -1,0 +1,58 @@
+{
+  "stellar_forge": {
+    "name": "Stellar Forge",
+    "description": "A star-powered foundry: +8 alloys here and +10% alloys empire-wide. One per empire.",
+    "requires_tech": "stellar_engineering",
+    "scope": "empire",
+    "cost": {"credits": 120, "alloys": 220},
+    "turns": 8,
+    "yields": {"alloys": 8},
+    "effects": [{"type": "yield", "resource": "alloys", "mul": 1.1}]
+  },
+  "grand_archive": {
+    "name": "Grand Archive",
+    "description": "Every discovery of the empire, catalogued: +8 research here and +10% research empire-wide. One per empire.",
+    "requires_tech": "archival_science",
+    "scope": "empire",
+    "cost": {"credits": 180, "alloys": 150},
+    "turns": 8,
+    "yields": {"research": 8},
+    "effects": [{"type": "yield", "resource": "research", "mul": 1.1}]
+  },
+  "galactic_exchange": {
+    "name": "Galactic Exchange",
+    "description": "The sector's market floor: +10 credits here, +3 trade income per friendly minor power and better relations with everyone. One in the whole galaxy.",
+    "requires_tech": "interstellar_banking",
+    "scope": "galaxy",
+    "cost": {"credits": 260, "alloys": 180},
+    "turns": 10,
+    "yields": {"credits": 10},
+    "effects": [
+      {"type": "empire_modifier", "stat": "trade_income", "add": 3},
+      {"type": "empire_modifier", "stat": "opinion_drift", "add": 1}
+    ]
+  },
+  "fleet_command_nexus": {
+    "name": "Fleet Command Nexus",
+    "description": "A fleet-wide command net: +1 fleet movement, +10% hull repair per turn anywhere and +10 XP per turn for fleet commanders. One per empire.",
+    "requires_tech": "command_doctrine",
+    "scope": "empire",
+    "cost": {"credits": 150, "alloys": 260},
+    "turns": 10,
+    "effects": [
+      {"type": "empire_modifier", "stat": "fleet_speed", "add": 1},
+      {"type": "empire_modifier", "stat": "field_repair", "add": 0.1},
+      {"type": "empire_modifier", "stat": "hero_xp", "add": 10}
+    ]
+  },
+  "ascension_gate": {
+    "name": "Ascension Gate",
+    "description": "A gateway to something beyond: complete it and your people ascend. Wins the game by science. Everyone sees it being built.",
+    "requires_tech": "ascension_theory",
+    "scope": "empire",
+    "victory": "science",
+    "cost": {"credits": 350, "alloys": 350},
+    "turns": 15,
+    "effects": []
+  }
+}

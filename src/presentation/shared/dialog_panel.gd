@@ -45,7 +45,7 @@ func place(width: float, height: float) -> void:
 	UiKit.anchor(self, 0.5, 0.5, 0.5, 0.5, -width / 2.0, -height / 2.0, width / 2.0, height / 2.0)
 
 
-## choices: [{"id": String, "label": String}]
+## choices: [{"id": String, "label": String, "disabled"?: bool, "tooltip"?: String}]
 func ask(title: String, body_bbcode: String, choices: Array[Dictionary]) -> void:
 	_title.text = title
 	_body.clear()
@@ -54,9 +54,12 @@ func ask(title: String, body_bbcode: String, choices: Array[Dictionary]) -> void
 		c.queue_free()
 	for choice in choices:
 		var id: String = choice["id"]
-		_buttons.add_child(UiKit.button(choice["label"], func() -> void:
+		var button := UiKit.button(choice["label"], func() -> void:
 			visible = false
-			choice_made.emit(id)))
+			choice_made.emit(id))
+		button.disabled = choice.get("disabled", false)
+		button.tooltip_text = choice.get("tooltip", "")
+		_buttons.add_child(button)
 	visible = true
 
 

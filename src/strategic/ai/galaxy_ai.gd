@@ -2,9 +2,12 @@ class_name GalaxyAI
 extends RefCounted
 ## Rule-based strategic AI. Plays fair: it uses the same fog-of-war queries as
 ## the player, so it only reacts to enemy fleets it can see.
-## Each turn it first runs its empire (one command at a time):
-##   research the cheapest available tech; give every idle planet something to
-##   build (ships when outgunned, otherwise economy buildings); then diplomacy
+## Each turn it first answers any galactic event (scoring each choice), then
+## runs its empire (one command at a time):
+##   research along a priority road (growth and economy first, then the eras,
+##   then the road to the Ascension Gate); give every idle planet something to
+##   build (ships when outgunned and the upkeep is affordable, megaprojects when
+##   unlocked, growth/academy/exchange buildings otherwise); then diplomacy
 ##   (make peace with AI factions that will accept, declare war on hated weak ones).
 ## Then per fleet, in order:
 ##   1. Attack a visible fleet it is at war with and strong enough to beat.
@@ -17,7 +20,8 @@ extends RefCounted
 ## One move per fleet per turn, then it ends the turn.
 ##
 ## Personality: a campaign faction's "ai" entry can override attack_ratio,
-## hunt_range and retreat_hull_ratio (e.g. cautious traders, reckless raiders).
+## hunt_range, retreat_hull_ratio and war_ratio (how much stronger than a peaceful
+## neighbour it must be before declaring war), e.g. cautious traders, reckless raiders.
 
 ## Attack only if our strength is at least this multiple of theirs (default).
 const ATTACK_RATIO := 0.9
@@ -28,7 +32,39 @@ const HUNT_RANGE := 5
 ## there, instead of trickling out one ship at a time.
 const MUSTER_SIZE := 3
 ## Build order for economy buildings.
-const BUILD_PRIORITY := ["colony", "mining_base", "gas_refinery", "research_station", "trade_hub", "defense_platform", "shipyard"]
+const BUILD_PRIORITY := ["colony", "mining_base", "gas_refinery", "research_station", "hydroponic_farm", "trade_hub",
+		"defense_platform", "academy", "planetary_shield", "commerce_exchange", "orbital_habitat", "fleet_academy",
+		"sensor_array", "shipyard"]
+## Buildings worth buying while saving up for a megaproject (they pay for themselves).
+const SAVING_OK := ["colony", "mining_base", "gas_refinery", "research_station", "hydroponic_farm", "trade_hub",
+		"academy", "commerce_exchange"]
+## Megaprojects in the order the AI wants them.
+const MEGAPROJECT_PRIORITY := ["ascension_gate", "grand_archive", "stellar_forge", "galactic_exchange", "fleet_command_nexus"]
+## Techs in the order the AI likes them; anything not listed comes after, cheapest first.
+const RESEARCH_PRIORITY := ["hydroponics", "automated_mining", "trade_protocols", "deep_space_sensors", "reinforced_hulls",
+		"improved_drives", "colonial_medicine", "shield_harmonics", "terraforming", "orbital_defenses", "cryogenic_labs",
+		"scientific_method", "arcology_planning", "heavy_hulls", "galactic_commerce", "asteroid_refining", "logistics_corps",
+		"archival_science", "orbital_habitats", "targeting_computers", "stellar_engineering", "deflector_grids",
+		"fleet_doctrine", "field_repairs", "deep_core_taps", "quantum_computing", "nanofabrication", "genetic_uplift",
+		"interstellar_banking", "ascension_theory", "capital_ships", "command_doctrine"]
+## Researched first while a stronger enemy is at war with the AI.
+const MILITARY_TECHS := ["reinforced_hulls", "shield_harmonics", "targeting_computers", "heavy_hulls", "orbital_defenses"]
+## Keep this much net credit income after paying for a new ship's upkeep.
+const UPKEEP_MARGIN := 2
+## A rich empire (this much in stock) builds ships up to FLEET_BASE + FLEET_PER_COLONY per colony.
+const RICH_CREDITS := 140
+const RICH_ALLOYS := 90
+const FLEET_BASE := 5
+const FLEET_PER_COLONY := 2
+## Opportunistic war: the AI attacks a peaceful major power this much weaker than itself.
+const WAR_STRENGTH_RATIO := 2.5
+const WAR_MIN_TURN := 45
+## Balance of power: from CONTAIN_MIN_TURN the runaway score leader (this many times
+## the AI's own score) faces war from everyone who is not allied to it.
+const CONTAIN_RATIO := 2.0
+const CONTAIN_MIN_TURN := 60
+## A rival this close to the Ascension Gate (science progress 0..1) gets everyone's attention.
+const SCIENCE_ALARM := 0.7
 
 var _turn_key := ""
 var _done := {}
@@ -47,6 +83,8 @@ func decide(engine: GalaxyEngine) -> GalaxyCommand:
 		_done.clear()
 		_planned.clear()
 		_diplomacy_done = false
+	if not engine.state.pending_event.is_empty() and engine.state.pending_event["faction"] == faction_id:
+		return ResolveEventCommand.new(faction_id, choose_event_choice(engine))
 	var empire_cmd := _empire_command(engine, faction_id)
 	if empire_cmd != null:
 		return empire_cmd
@@ -236,7 +274,15 @@ func _empire_command(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
 	if s.research[faction_id]["current"] == "":
 		var options := ResearchRules.available(engine, faction_id)
 		if not options.is_empty():
+			var pressed := _outgunned(engine, faction_id)
 			options.sort_custom(func(a: String, b: String) -> bool:
+				var ra := RESEARCH_PRIORITY.find(a) if a in RESEARCH_PRIORITY else 999
+				var rb := RESEARCH_PRIORITY.find(b) if b in RESEARCH_PRIORITY else 999
+				if pressed:
+					ra = MILITARY_TECHS.find(a) - 100 if a in MILITARY_TECHS else ra
+					rb = MILITARY_TECHS.find(b) - 100 if b in MILITARY_TECHS else rb
+				if ra != rb:
+					return ra < rb
 				return ResearchRules.cost(engine, a) < ResearchRules.cost(engine, b))
 			return SetResearchCommand.new(faction_id, options[0])
 	for planet in s.planets_of(faction_id):
@@ -252,40 +298,239 @@ func _empire_command(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
 	return null
 
 
-## What an idle planet should build: ships when outgunned by the factions we
-## are at war with, otherwise economy buildings, otherwise more ships.
+## What an idle planet should build: a megaproject when one is unlocked (and
+## this is a good site), ships when outgunned by the factions we are at war
+## with and the upkeep is affordable, otherwise economy buildings, otherwise more ships.
 func choose_build(engine: GalaxyEngine, planet: Planet) -> Dictionary:
+	var faction_id := planet.owner
 	var ships: Array[Dictionary] = []
 	var buildings := {}
+	var megaprojects := {}
+	var saving := false
 	for option in EmpireRules.build_options(engine, planet):
+		if option["kind"] == "megaproject":
+			if option["ok"]:
+				megaprojects[option["id"]] = option
+			elif option["reason"] == "Can't afford it" or option["reason"] == "Already building something":
+				saving = true
+			continue
 		if not option["ok"]:
 			continue
 		if option["kind"] == "unit":
 			ships.append(option)
-		elif not buildings.has(option["id"]):
-			buildings[option["id"]] = option
+		else:
+			var keep: Dictionary = buildings.get(option["id"], {})
+			if keep.is_empty() or _body_pop(planet, option["body"]) > _body_pop(planet, keep["body"]):
+				if _building_sensible(engine, planet, option):
+					buildings[option["id"]] = option
 	ships.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return engine.data.units[a["id"]]["stats"]["max_hull"] > engine.data.units[b["id"]]["stats"]["max_hull"])
-	var mine := DiplomacyRules.military_strength(engine, planet.owner)
+	var mine := DiplomacyRules.military_strength(engine, faction_id)
 	var theirs := 0.0
 	for f in engine.state.factions:
-		if engine.state.at_war(planet.owner, f["id"]) and not engine.state.is_eliminated(f["id"]):
+		if engine.state.at_war(faction_id, f["id"]) and not engine.state.is_eliminated(f["id"]):
 			theirs = maxf(theirs, DiplomacyRules.military_strength(engine, f["id"]))
-	if not ships.is_empty() and mine < theirs * 0.9:
-		return ships[0]
+	var threatened := mine < theirs * 0.9
+	# Megaprojects: the best site is one of the most populous systems.
+	if not megaprojects.is_empty() and _good_megaproject_site(engine, planet):
+		for mp_id in MEGAPROJECT_PRIORITY:
+			if megaprojects.has(mp_id):
+				return megaprojects[mp_id]
+	var reserve := _megaproject_reserve(engine, faction_id)
+	saving = saving or not reserve.is_empty()
+	var affordable_ships: Array[Dictionary] = ships.filter(func(o: Dictionary) -> bool:
+		return _can_support(engine, faction_id, o["id"], threatened))
+	if not affordable_ships.is_empty() and mine < theirs * 0.9 and (not saving or threatened):
+		return affordable_ships[0]
+	# A rich empire keeps a navy (as far as its upkeep allows) rather than hoarding.
+	if not affordable_ships.is_empty() and _ship_count(engine, faction_id) < FLEET_BASE + FLEET_PER_COLONY * EmpireRules.colony_count(engine, faction_id):
+		var stock: Dictionary = engine.state.resources[faction_id]
+		if int(stock.get("credits", 0)) >= RICH_CREDITS + int(reserve.get("credits", 0)) \
+				and int(stock.get("alloys", 0)) >= RICH_ALLOYS + int(reserve.get("alloys", 0)):
+			return affordable_ships[0]
 	# Without any shipyard a faction can never rebuild its fleet: fix that first.
 	if buildings.has("shipyard"):
 		var any_yard := false
-		for p in engine.state.planets_of(planet.owner):
+		for p in engine.state.planets_of(faction_id):
 			any_yard = any_yard or EmpireRules.has_shipyard(engine, p)
 		if not any_yard:
 			return buildings["shipyard"]
 	for b_id in BUILD_PRIORITY:
-		if buildings.has(b_id):
+		if buildings.has(b_id) and (not saving or b_id in SAVING_OK):
 			return buildings[b_id]
-	if not ships.is_empty() and mine < theirs * 1.5:
-		return ships[0]
+	if not affordable_ships.is_empty() and mine < theirs * 1.5 and not saving:
+		return affordable_ships[0]
 	return {}
+
+
+## Whether an enemy the faction is at war with has a navy about as strong as its own or stronger.
+static func _outgunned(engine: GalaxyEngine, faction_id: String) -> bool:
+	var mine := DiplomacyRules.military_strength(engine, faction_id)
+	for f in engine.state.factions:
+		if engine.state.at_war(faction_id, f["id"]) and not engine.state.is_eliminated(f["id"]) \
+				and DiplomacyRules.military_strength(engine, f["id"]) * 1.2 > mine:
+			return true
+	return false
+
+
+## Population of a body of the planet (0 if none).
+static func _body_pop(planet: Planet, body_id: String) -> int:
+	return EmpireRules.pop(planet.body(body_id)) if not body_id.is_empty() else 0
+
+
+## Extra rules so the AI doesn't waste slots on buildings that do nothing for it yet.
+func _building_sensible(engine: GalaxyEngine, planet: Planet, option: Dictionary) -> bool:
+	var b := planet.body(option["body"])
+	var faction_id := planet.owner
+	match option["id"]:
+		"hydroponic_farm":
+			return not b.is_empty() and EmpireRules.pop(b) < EmpireRules.pop_cap(engine, b, faction_id) - 1
+		"orbital_habitat":
+			return not b.is_empty() and EmpireRules.pop(b) >= EmpireRules.pop_cap(engine, b, faction_id) - 1 and EmpireRules.pop(b) >= 4
+		"fleet_academy":
+			if EmpireRules.hero_xp_per_turn(engine, faction_id) > 0:
+				return false
+			for h in engine.state.heroes_of(faction_id):
+				if h.is_ready() and not h.fleet_id.is_empty():
+					return true
+			return false
+		"academy":
+			return EmpireRules.pop(b) >= 2
+		"commerce_exchange":
+			return EmpireRules.pop(b) >= 2
+		"sensor_array":
+			return engine.state.turn_number > 50 and int(engine.state.resources[faction_id].get("credits", 0)) > 250
+		"planetary_shield":
+			return int(engine.state.resources[faction_id].get("credits", 0)) > 200
+		"defense_platform":
+			return engine.state.turn_number > 15
+	return true
+
+
+## A system worth hosting a megaproject: among the faction's most populous idle systems.
+func _good_megaproject_site(engine: GalaxyEngine, planet: Planet) -> bool:
+	var best := 0
+	for p in engine.state.planets_of(planet.owner):
+		best = maxi(best, p.population())
+	return planet.population() * 10 >= best * 6
+
+
+## The cost of the megaproject the faction wants next (unlocked, not built or
+## started, still available), or {} if none: other spending should hold back for it.
+func _megaproject_reserve(engine: GalaxyEngine, faction_id: String) -> Dictionary:
+	for mp_id in MEGAPROJECT_PRIORITY:
+		if not engine.data.megaprojects.has(mp_id) or not EmpireRules.megaproject_unlocked(engine, faction_id, mp_id) \
+				or EmpireRules.megaproject_hidden(engine, mp_id):
+			continue
+		if EmpireRules.megaproject_site(engine, mp_id, faction_id) != null \
+				or EmpireRules.megaproject_under_construction(engine, mp_id, faction_id) != null:
+			continue
+		if engine.data.megaprojects[mp_id].get("scope", "empire") == "galaxy" \
+				and (EmpireRules.megaproject_site(engine, mp_id) != null or EmpireRules.megaproject_under_construction(engine, mp_id) != null):
+			continue
+		return engine.data.megaprojects[mp_id].get("cost", {})
+	return {}
+
+
+static func _ship_count(engine: GalaxyEngine, faction_id: String) -> int:
+	var n := 0
+	for f in engine.state.fleets_of(faction_id):
+		n += f.ships.size()
+	return n
+
+
+## Whether the faction can pay upkeep for another ship of this class (queued ships count).
+func _can_support(engine: GalaxyEngine, faction_id: String, unit_id: String, desperate: bool) -> bool:
+	if engine.state.faction(faction_id).get("role", "major") != "major":
+		return true
+	var queued := 0
+	for p in engine.state.planets_of(faction_id):
+		if p.queue.get("kind", "") == "unit":
+			queued += EmpireRules.ship_upkeep(engine, p.queue["item"])
+	var gross_after := EmpireRules.fleet_upkeep(engine, faction_id) + queued + EmpireRules.ship_upkeep(engine, unit_id)
+	var income := EmpireRules.income(engine, faction_id)
+	var net_after := int(income["gross_credits"]) - EmpireRules.upkeep_for(engine, faction_id, gross_after)
+	var credits := int(engine.state.resources[faction_id].get("credits", 0))
+	if desperate:
+		return net_after >= -2 and credits >= 40
+	return net_after >= UPKEEP_MARGIN and credits >= 0
+
+
+# --- Events -------------------------------------------------------------------
+
+## Index of the event choice the AI takes: the one with the best estimated value.
+func choose_event_choice(engine: GalaxyEngine) -> int:
+	var pending := engine.state.pending_event
+	var faction_id: String = pending["faction"]
+	var def: Dictionary = engine.data.events[pending["event"]]
+	var offered := EventRules.choices(engine, faction_id, pending)
+	var best := 0
+	var best_value := -1.0e9
+	for o in offered:
+		if not o["ok"]:
+			continue
+		var c: Dictionary = def["choices"][o["index"]]
+		var chance := float(c.get("chance", 1.0))
+		var value := chance * _effects_value(engine, faction_id, c.get("effects", []), pending)
+		if chance < 1.0:
+			value += (1.0 - chance) * _effects_value(engine, faction_id, c.get("fail_effects", []), pending)
+		for k: String in c.get("cost", {}):
+			value -= float(c["cost"][k])
+		if value > best_value:
+			best_value = value
+			best = o["index"]
+	return best
+
+
+## Rough worth of event effects to the faction, in "credits".
+func _effects_value(engine: GalaxyEngine, faction_id: String, effects: Array, pending: Dictionary) -> float:
+	var total := 0.0
+	var income := EmpireRules.income(engine, faction_id)
+	var colonies := maxi(EmpireRules.colony_count(engine, faction_id), 1)
+	for fx: Dictionary in effects:
+		match fx["type"]:
+			"resources":
+				total += float(fx.get("credits", 0)) + float(fx.get("alloys", 0))
+			"research":
+				total += float(fx.get("amount", 0)) * 1.2
+			"pop":
+				var n := float(colonies) if fx.get("target", "context") == "all" else 1.0
+				total += float(fx.get("amount", 0)) * 25.0 * n
+			"damage_building":
+				total -= 45.0
+			"free_building":
+				total += 50.0
+			"repair_fleets":
+				total += 20.0
+			"damage_fleets":
+				total -= float(fx.get("amount", 0.2)) * 150.0
+			"opinion":
+				var weight := 1.5 if fx.get("with", "") == "minor" else (2.0 if fx.get("with", "") == "war_target" else 1.0)
+				total += float(fx.get("amount", 0)) * weight
+			"raiders":
+				total -= 70.0 * int(fx.get("count", 1))
+			"free_ship":
+				total += 70.0
+			"free_hero":
+				total += 90.0
+			"item":
+				total += 30.0
+			"modifier":
+				var per_turn := 0.0
+				for e: Dictionary in fx.get("effects", []):
+					match e.get("type", ""):
+						"yield":
+							per_turn += (float(e.get("mul", 1.0)) - 1.0) * float(income.get(e.get("resource", ""), 0)) * 1.2
+						"empire_modifier":
+							match e.get("stat", ""):
+								"growth":
+									per_turn += float(e.get("add", 0.0)) * 10.0 * colonies
+								"field_repair":
+									per_turn += float(e.get("add", 0.0)) * 30.0
+								_:
+									per_turn += 5.0
+				total += per_turn * int(fx.get("turns", 0))
+	return total
 
 
 func _diplomacy(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
@@ -293,17 +538,32 @@ func _diplomacy(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
 	if s.faction(faction_id).get("always_hostile", false):
 		return null
 	var mine := DiplomacyRules.military_strength(engine, faction_id)
+	var leader := VictoryRules.score_leader(engine)
+	var my_score := EmpireRules.score(engine, faction_id)
 	for f in s.factions:
 		var other: String = f["id"]
 		if other == faction_id or s.is_eliminated(other):
 			continue
 		var theirs := DiplomacyRules.military_strength(engine, other)
+		var rival_major: bool = f.get("role", "major") == "major"
+		var racing := rival_major and VictoryRules.enabled(engine, "science") \
+				and VictoryRules.science_progress(engine, other) >= SCIENCE_ALARM
+		var runaway: bool = rival_major and other == leader and s.turn_number >= CONTAIN_MIN_TURN \
+				and float(EmpireRules.score(engine, other)) > float(my_score) * CONTAIN_RATIO
 		if s.at_war(faction_id, other):
-			# Make peace with AI factions that would accept, unless we're crushing them.
-			if f["controller"] != "player" and mine < theirs * 1.5 \
+			# Make peace with AI factions that would accept, unless we're crushing them
+			# or they are about to win by science.
+			if f["controller"] != "player" and mine < theirs * 1.5 and not racing and not runaway \
 					and DiplomacyRules.peace_refusal(engine, other, faction_id).is_empty():
 				return DiplomacyCommand.new(faction_id, other, "propose_peace")
 		elif s.opinion(faction_id, other) <= -40 and mine > theirs * 1.5:
+			return DiplomacyCommand.new(faction_id, other, "declare_war")
+		elif runaway and mine > theirs * 0.6 and s.turn_number - int(s.relation(faction_id, other)["since"]) >= 10:
+			return DiplomacyCommand.new(faction_id, other, "declare_war")
+		elif rival_major and racing and mine > theirs * 0.5 and VictoryRules.science_progress(engine, faction_id) < SCIENCE_ALARM:
+			return DiplomacyCommand.new(faction_id, other, "declare_war")
+		elif rival_major and s.turn_number >= WAR_MIN_TURN and mine > theirs * personality(engine, faction_id, "war_ratio", WAR_STRENGTH_RATIO) \
+				and s.turn_number - int(s.relation(faction_id, other)["since"]) >= 20:
 			return DiplomacyCommand.new(faction_id, other, "declare_war")
 	return null
 

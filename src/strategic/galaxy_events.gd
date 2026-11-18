@@ -47,3 +47,12 @@ const WAR_DECLARED := "war_declared"            # {faction, target}
 const PEACE_SIGNED := "peace_signed"            # {factions: [a, b]}
 const PEACE_REFUSED := "peace_refused"          # {faction, target, reason}
 const GIFT_SENT := "gift_sent"                  # {faction, target, credits}
+
+# Empire depth
+const POP_GREW := "pop_grew"                    # {planet, body, pop}
+const MEGAPROJECT_STARTED := "megaproject_started"      # {planet, megaproject, faction}
+const MEGAPROJECT_COMPLETED := "megaproject_completed"  # {planet, megaproject, faction}
+const BUDGET_CRISIS := "budget_crisis"          # {faction, credits}: upkeep drove the treasury negative
+const EVENT_OFFERED := "event_offered"          # {faction, event, planet}
+const EVENT_RESOLVED := "event_resolved"        # {faction, event, choice, label, success, text, lines: [String]}
+const MODIFIER_EXPIRED := "modifier_expired"    # {faction, modifier, name}

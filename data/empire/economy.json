@@ -1,0 +1,27 @@
+{
+  "_doc": "Tuning for population, upkeep, debt and events. See docs/architecture.md (Empire depth).",
+  "growth": {
+    "base": 1.0,
+    "cost_base": 5.0,
+    "cost_per_pop": 1.5,
+    "slowdown": 0.5,
+    "capture_pop_loss": 0.25,
+    "plunder_pop_loss": 1
+  },
+  "upkeep": {
+    "free_base": 4,
+    "free_per_colony": 3
+  },
+  "debt": {
+    "hull_loss": 0.05
+  },
+  "events": {
+    "every": 5,
+    "chance": 0.75,
+    "first_turn": 6,
+    "repeat_cooldown": 30
+  },
+  "hero_names": ["Cmdr. Isra Kovac", "Capt. Dara Whitlock", "Lt. Emeka Roth", "Cmdr. Yuki Bram", "Capt. Soren Adeyemi", "Lt. Mira Castellan", "Cmdr. Odin Reyes-Park", "Capt. Lena Voss"],
+  "megaproject_score": 150,
+  "pop_score": 8
+}

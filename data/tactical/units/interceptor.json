@@ -25,7 +25,8 @@
       "alloys": 20,
       "credits": 25
     },
-    "build_turns": 2
+    "build_turns": 2,
+    "upkeep": 1
   },
   "visual": {
     "placeholder": "interceptor",

@@ -25,7 +25,8 @@
       "alloys": 45,
       "credits": 40
     },
-    "build_turns": 3
+    "build_turns": 3,
+    "upkeep": 2
   },
   "visual": {
     "placeholder": "frigate",

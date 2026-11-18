@@ -5,6 +5,7 @@
     "category": "habitable",
     "size": 1.0,
     "colony_slots": 3,
+    "pop_cap": 8,
     "bonus": {"credits": 2},
     "surface": {"base": "#2c66a0", "accent": "#4f9a5a", "atmosphere": "#7fc4ff"}
   },
@@ -14,6 +15,7 @@
     "category": "habitable",
     "size": 1.0,
     "colony_slots": 3,
+    "pop_cap": 8,
     "bonus": {"credits": 1, "research": 1},
     "surface": {"base": "#1c4c86", "accent": "#3f8fae", "atmosphere": "#8fd0ff"}
   },
@@ -23,6 +25,7 @@
     "category": "habitable",
     "size": 0.9,
     "colony_slots": 2,
+    "pop_cap": 6,
     "bonus": {"alloys": 1},
     "surface": {"base": "#a8703a", "accent": "#e2b86e", "atmosphere": "#f0c890"}
   },
@@ -32,6 +35,7 @@
     "category": "habitable",
     "size": 0.85,
     "colony_slots": 2,
+    "pop_cap": 5,
     "bonus": {"research": 1},
     "surface": {"base": "#7fa8c0", "accent": "#e6f2f8", "atmosphere": "#bfe6ff", "ice_caps": 1.0}
   },

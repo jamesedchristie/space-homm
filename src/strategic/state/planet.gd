@@ -27,8 +27,14 @@ var buildings: Array[String]:
 			for building_id: String in b.get("buildings", []):
 				out.append(building_id)
 		return out
-## Current build: {} when idle, else {"kind": "building"|"unit", "item": id, "body": body id, "progress": int, "turns": int}
+## Current build: {} when idle, else {"kind": "building"|"unit"|"megaproject", "item": id, "body": body id, "progress": int, "turns": int}
 var queue: Dictionary = {}
+## Completed megaprojects (data/empire/megaprojects.json) standing in this system.
+## They pass to whoever captures the system.
+var megaprojects: Array[String] = []
+
+## Colony bodies carry "pop" (population, 1..cap) and "growth" (progress toward the next pop).
+const START_POP := 1
 
 
 func body(body_id: String) -> Dictionary:
@@ -44,6 +50,9 @@ func add_building(body_id: String, building_id: String) -> void:
 		b = bodies[0]
 	if not b.is_empty():
 		b["buildings"].append(building_id)
+		if building_id == "colony":
+			b["pop"] = int(b.get("pop", START_POP))
+			b["growth"] = float(b.get("growth", 0.0))
 
 
 ## Removes one instance of a building (e.g. a destroyed defense platform).
@@ -52,6 +61,23 @@ func remove_building(building_id: String) -> void:
 		if building_id in b["buildings"]:
 			b["buildings"].erase(building_id)
 			return
+
+
+## Colony bodies (habitable worlds with a colony building).
+func colonies() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for b in bodies:
+		if "colony" in b["buildings"]:
+			out.append(b)
+	return out
+
+
+func population() -> int:
+	var n := 0
+	for b in bodies:
+		if "colony" in b["buildings"]:
+			n += int(b.get("pop", START_POP))
+	return n
 
 
 func has_colony() -> bool:

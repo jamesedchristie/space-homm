@@ -192,9 +192,12 @@ unexplored enemy planets, nearest first) as well as `xp`, `items`, `loyalty`, `t
 galaxy terrain never changes. The RNG state is stored, so a loaded game continues exactly as
 the original would have (a test plays both to the end and compares). Files go to
 `user://saves/<slot>.save` via `FileAccess.store_var` and are read with objects disallowed, so
-a save can only hold data. Saves are only taken between turns (no pending battle or mission);
-the galaxy screen autosaves at the start of each human turn. Bump `GalaxySave.VERSION` and
-migrate in `from_dict()` when the state's shape changes.
+a save can only hold data. Saves are only taken between turns (no pending battle or mission;
+a pending galactic event is saved with the state); the galaxy screen autosaves at the start of
+each human turn. Bump `GalaxySave.VERSION` and migrate in `from_dict()` when the state's shape
+changes. Version 3 adds colony population and growth (inside the bodies), megaprojects on
+systems, temporary modifiers, the event log and pending event, and why the game ended; older
+saves are refused.
 
 ### Battle views (2D and 2.5D)
 
@@ -329,12 +332,17 @@ always agree:
 
 - `EmpireRules`: planet yields (type + buildings, times tech multipliers), income, costs, build
   options per planet (slots, shipyard, unlocks), defense units, tech effects, and the score.
-- `ResearchRules`: tech status (known / available / locked by `requires`).
+- `ResearchRules`: tech status (known / available / locked by `requires` and by era), era gating, costs.
 - `DiplomacyRules`: opinions, peace acceptance, military strength.
+- `EventRules`: galactic events (conditions, rolling, choices, applying outcomes).
+- `VictoryRules`: which victories a campaign uses and how close each major power is.
 
-**Turn start** (`GalaxyEngine._run_economy`): add income to the stockpiles. Research points
-go into the current tech (unspent points are banked). Each planet's build queue advances, and
-finished ships join the fleet in orbit or form a new one. Opinions of factions at peace drift up.
+**Turn start** (`GalaxyEngine._run_economy`): add income (net of ship upkeep) to the stockpiles.
+Research points go into the current tech (unspent points are banked). Each planet's build queue
+advances, and finished ships join the fleet in orbit or form a new one; finished megaprojects
+are added to the system. Colonies grow (unless the treasury is in debt), temporary modifiers
+tick down, and opinions of factions at peace drift up. Then fleets repair, commanders earn
+Fleet Academy XP and, for a major power in a campaign with events, a galactic event may be offered.
 
 **Commands:** `SetResearchCommand`, `QueueBuildCommand` (paid up front, one item per planet),
 `DiplomacyCommand` (`propose_peace`, `declare_war`, `gift`).
@@ -344,10 +352,13 @@ finished ships join the fleet in orbit or form a new one. Opinions of factions a
 | Effect | Meaning |
 | --- | --- |
 | `ship_status` | a (hidden, permanent) status every ship starts battles with |
-| `empire_modifier` | `fleet_speed`, `sensor`, `field_repair` bonuses |
+| `empire_modifier` | `fleet_speed`, `sensor`, `field_repair`, `growth` (added to every colony's growth per turn), `upkeep` (added to the upkeep multiplier, e.g. -0.2), `trade_income` (extra credits per friendly minor power), `opinion_drift` (extra opinion per turn at peace), `hero_xp` (XP per turn for fleet commanders) |
 | `yield` | multiplies a resource's output |
-| `body_bonus` | per-body bonus: `body_types` and/or `categories` (neither = every body), optional `building` the body must hold, `yields` added to that body's output (before `yield` multipliers) and/or `colony_slots` added to its colony slots. Applied by `EmpireRules.body_yields` / `colony_slots` for the owner |
-| `unlock_building` / `unlock_unit` | makes a building or ship buildable (matching `requires_tech`) |
+| `body_bonus` | per-body bonus: `body_types` and/or `categories` (neither = every body), optional `building` the body must hold, `yields` added to that body's output (before `yield` multipliers), `colony_slots` added to its colony slots, `pop_cap` added to its population cap and/or `growth` added to its growth rate. Applied by `EmpireRules.body_yields` / `colony_slots` / `pop_cap` / `growth_rate` for the owner |
+| `unlock_building` / `unlock_unit` / `unlock_megaproject` | informational: what the tech opens (the real gate is the `requires_tech` on the building, unit or megaproject) |
+
+Species effects, megaproject effects and active event modifiers use the same effect types, and
+`EmpireRules.tech_effects` merges all four sources.
 
 The colony techs use `body_bonus`: Terraforming (+1 colony slot on desert and arctic worlds),
 Orbital Habitats (+1 credits per colony), Asteroid Refining (+2 alloys per belt mining base),
@@ -365,14 +376,76 @@ any battle at that planet. A fleet entering a defended enemy planet with no flee
 the platforms; if it wins and none survive, it moves in and captures the planet. Destroyed
 platforms are removed.
 
-**End of the war:** the last faction standing wins. If every survivor is at peace with every
-other, the highest `EmpireRules.score` wins (planets, techs, fleet hull, hero levels).
+**Victory** (`VictoryRules`, `GalaxyEngine._check_eliminations` / `_complete_megaproject` /
+`_end_faction_turn`). A campaign ends when:
+- *conquest*: the last major power stands (or the scenario's `victory.eliminate` target is gone:
+  `reason` "objective");
+- *treaty* ("peace"): every surviving major is at peace with every other, and the highest
+  `EmpireRules.score` wins (switch off with `"victory": {"peace": false}`; random_sector does);
+- *science*: a megaproject flagged `"victory": "science"` (the Ascension Gate) completes;
+- *score*: the turn limit passes and the highest score wins; without it ("max_turns") nobody does.
 
-**AI:** each turn it picks the cheapest available tech, gives idle planets a build order
-(ships when outgunned or when it has no shipyard; otherwise economy buildings in priority
-order), makes peace with AI factions that would accept, and declares war on hated, weaker
-neighbours. Small fleets wait at their shipyard for ships under construction. Fleets only hunt
-enemy fleets within 5 jumps; beyond that they go for planets.
+The campaign's `victory` block turns kinds on or off (`science`, `score`, `peace`). A campaign with
+an `eliminate` objective has science and score off unless the block says otherwise, so The Drift
+keeps its objective ending. `state.victory_reason` records which one ended the game. The empire
+panel's Victory tab renders `VictoryRules.progress(engine)`.
+`EmpireRules.score` = 100/system + 25/tech + 8/pop + 150/megaproject + hull/10 + 10/hero level.
+
+**AI:** each turn it first answers a pending galactic event (scoring every choice), then researches
+along a priority road (`GalaxyAI.RESEARCH_PRIORITY`: growth and economy, then the eras, then the
+road to Ascension), gives idle planets a build order (a megaproject when unlocked and the system is
+among its most populous; ships when outgunned, or when rich, as long as `income` stays above the
+upkeep margin; otherwise economy buildings in priority order, skipping buildings that would do
+nothing yet, and holding back to save for a megaproject), makes peace with AI factions that would
+accept, and declares war on hated weaker neighbours, on a rival close to the Ascension Gate, on a
+runaway score leader, or on a much weaker neighbour (`war_ratio` personality). Small fleets wait at
+their shipyard for ships under construction. Fleets only hunt enemy fleets within 5 jumps; beyond
+that they go for planets.
+
+### Empire depth: population, upkeep, eras, megaprojects, events
+
+**Population.** A colony body has `pop` (1..cap) and `growth` (progress). Cap = the body type's
+`pop_cap` + trait `pop_cap` + building `pop_cap` (Orbital Habitat +4) + `body_bonus` techs.
+Growth per turn = (`economy.growth.base` + building `growth` + `growth` techs/modifiers) x
+(1 - `slowdown` x pop/cap): it slows as the colony fills and stops at the cap. A pop costs
+`cost_base + cost_per_pop x pop` progress. Buildings yield their flat `yields` plus `pop_yields`
+for each pop above the first, so a new colony pays exactly what it always did. Capturing a system
+costs each colony `capture_pop_loss` (25%, rounded up) of its people; barbarian plunder costs
+`plunder_pop_loss`; never below 1. New colonies start at 1 (`SystemBuilder`: `"pop"` on a body def
+overrides it, and the generator gives home worlds 3).
+
+**Upkeep.** Units' `strategic.upkeep` is the credits a ship costs per turn. A major power's colonies
+carry `free_base + free_per_colony x colonies` credits of it for free; `upkeep_mul` techs
+(`empire_modifier` stat `upkeep`) scale the rest. `EmpireRules.income()["credits"]` is net;
+`gross_credits` and `upkeep` are returned alongside. If the treasury goes negative
+(`BUDGET_CRISIS`): colonies stop growing, fleets stop repairing, and every ship loses
+`debt.hull_loss` of its max hull (never below 1) each turn, until it is positive again.
+
+**Eras.** Techs carry `era` (1-3). `data/empire/eras.json` gives each era a `name`, a
+`cost_mul` (research cost multiplier) and `requires: {era, count}`: it opens once the faction knows
+`count` techs of that earlier era. `ResearchRules.status` is LOCKED until the era is open and the
+`requires` prerequisites are known.
+
+**Megaprojects** (`data/empire/megaprojects.json`). Built like buildings (`QueueBuildCommand` with
+kind `"megaproject"`, paid up front, one item per system) in a system with a colony, once the
+`requires_tech` is known. `scope: "empire"` allows one per empire (also blocked while it is being
+built elsewhere); `scope: "galaxy"` allows one in the whole galaxy: nobody can start it once it
+stands anywhere or while another empire is building it. They are stored on the system
+(`Planet.megaprojects`) and pass to whoever captures it; their `yields` go to the system and their
+`effects` to the owner. `MEGAPROJECT_STARTED` and `MEGAPROJECT_COMPLETED` are galaxy-wide events.
+One flagged `"victory": "science"` ends the game when it completes (hidden when the campaign has
+science victory off).
+
+**Galactic events** (`data/strategic/events.json`, campaigns opt in with `"events": true`). At a
+major power's turn start, once `first_turn` has passed and `every` turns after its last event, there
+is a `chance` it is offered a random eligible event (`EventRules.roll`, from the campaign RNG:
+weighted, conditions met, not seen within `repeat_cooldown`). The pending event
+(`state.pending_event`) blocks all other commands until a `ResolveEventCommand(faction, choice)`
+answers it; the galaxy screen shows a dialog, the AI scores the choices
+(`GalaxyAI.choose_event_choice`).
+
+**Tools.** `tools/simulate_campaign.gd` prints win shares, how games end, and the majors' economy;
+add `--verbose` for a line per run.
 
 ### How later layers plug in
 
@@ -546,6 +619,63 @@ player builds. Saves are version 2; version 1 saves (planets with types) are ref
 }
 ```
 The faction's position in `factions` is its team number (and color) in battles.
+
+### Empire depth content
+
+**Economy tuning** (`data/empire/economy.json`)
+```jsonc
+{ "growth": { "base": 1.0, "cost_base": 5.0, "cost_per_pop": 1.5, "slowdown": 0.5, "capture_pop_loss": 0.25, "plunder_pop_loss": 1 },
+  "upkeep": { "free_base": 3, "free_per_colony": 2 },
+  "debt": { "hull_loss": 0.05 },
+  "events": { "every": 5, "chance": 0.75, "first_turn": 6, "repeat_cooldown": 30 },
+  "hero_names": ["..."], "megaproject_score": 150, "pop_score": 8 }
+```
+
+**Eras** (`data/empire/eras.json`): `{"2": {"name", "description", "requires": {"era": 1, "count": 5}, "cost_mul": 1.6}}`.
+A tech's `"era"` (default 1) puts it in one; a tech can't require one of a later era.
+
+**Buildings** (`data/empire/buildings.json`) gained: `pop_yields` (per pop above the first, like
+`yields`), `pop_cap`, `growth`, `sensor` (system sensor range), `hero_xp` (XP per turn for fleet
+commanders), next to `yields`, `cost`, `turns`, `needs`/`on`, `requires_tech`, `shipyard`,
+`defense_unit`. Body types have `pop_cap`; traits may have `pop_cap`; units may have
+`strategic.upkeep`.
+
+**Megaprojects** (`data/empire/megaprojects.json`)
+```jsonc
+{ "stellar_forge": { "name": "...", "description": "...", "requires_tech": "stellar_engineering",
+    "scope": "empire",            // or "galaxy": one in the whole galaxy
+    "victory": "science",         // optional: completing it wins the game (needs science victory on)
+    "cost": {"credits": 120, "alloys": 220}, "turns": 8,
+    "yields": {"alloys": 8},      // added to the system
+    "effects": [{"type": "yield", "resource": "alloys", "mul": 1.1}] } }  // tech-style effects for the owner
+```
+
+**Galactic events** (`data/strategic/events.json`)
+```jsonc
+{ "market_boom": { "name": "Market Boom", "weight": 3, "min_turn": 8, "max_turn": 999,
+    "conditions": [ {"type": "has_colony"} ],
+    "text": "... {planet} ...",
+    "choices": [   // 2-3
+      { "label": "Invest in the boom", "hint": "shown under the label", "cost": {"alloys": 20},
+        "requires": [ {"type": "has_building", "building": "mining_base"} ],
+        "chance": 0.6,                       // optional (default 1): else fail_effects / fail_result
+        "effects": [ {"type": "modifier", "id": "market_boom", "name": "Market boom", "turns": 8,
+                      "effects": [ {"type": "yield", "resource": "credits", "mul": 1.25} ]} ],
+        "result": "...", "fail_effects": [], "fail_result": "..." } ] } }
+```
+Conditions (`EventRules.CONDITIONS`): `has_colony`, `growing_colony`, `pop_min {n}`, `min_colonies {n}`,
+`turn_min {n}`, `turn_max {n}`, `at_war`, `at_war_major`, `at_peace_minor`, `barbarians`,
+`has_building {building}`, `has_shipyard`, `has_fleet`, `researching`, `credits_min {n}`,
+`credits_max {n}`, `tech_known {tech}`, `has_hero`.
+Effects (`EventRules.EFFECTS`): `resources {credits, alloys}`, `research {amount}`,
+`pop {amount, target: context|random|all|largest}`, `damage_building`, `free_building {building}`,
+`repair_fleets {amount}`, `damage_fleets {amount}`, `opinion {with: minor|random_major|war_target|all_majors, amount}`,
+`raiders {count}`, `free_ship {unit}`, `free_hero`, `modifier {id, name, turns, effects}` (effects
+of type `yield`, `empire_modifier` or `body_bonus`), `item {item}`. The content test rejects unknown
+types, resources, units and buildings.
+
+**Campaign** additions: `"events": true`, `"victory": {"eliminate": faction, "science": bool, "score": bool, "peace": bool}`,
+faction `"ai": {"war_ratio": n}`, and a body's `"pop": n` for starting colonies.
 
 ## Conventions
 

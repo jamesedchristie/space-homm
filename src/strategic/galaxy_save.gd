@@ -14,7 +14,9 @@ extends RefCounted
 
 const FORMAT := "space-homm-save"
 ## 2: star systems with bodies (planets have "bodies" instead of type/buildings/traits).
-const VERSION := 2
+## 3: empire depth: colony population and growth (in the bodies), megaprojects, temporary
+## modifiers, event log and pending event, why the game ended.
+const VERSION := 3
 const DIR := "user://saves"
 const AUTOSAVE := "autosave"
 const QUICKSAVE := "quicksave"
@@ -29,7 +31,7 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 	for p: Planet in s.planets.values():
 		planets.append({"id": p.id, "name": p.name, "star": p.star, "cell": p.cell, "owner": p.owner,
 				"sensor": p.sensor, "description": p.description, "bodies": p.bodies.duplicate(true),
-				"queue": p.queue.duplicate(true)})
+				"queue": p.queue.duplicate(true), "megaprojects": p.megaprojects.duplicate()})
 	var fleets := []
 	for f: Fleet in s.fleets.values():
 		fleets.append({"id": f.id, "name": f.name, "owner": f.owner, "cell": f.cell,
@@ -78,6 +80,10 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 			"research": s.research.duplicate(true),
 			"relations": s.relations.duplicate(true),
 			"opinions": s.opinions.duplicate(true),
+			"modifiers": s.modifiers.duplicate(true),
+			"event_log": s.event_log.duplicate(true),
+			"pending_event": s.pending_event.duplicate(true),
+			"victory_reason": s.victory_reason,
 		},
 	}
 
@@ -89,8 +95,8 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 		return {"error": "Not a save file"}
 	if int(save.get("version", 0)) > VERSION:
 		return {"error": "This save is from a newer version of the game"}
-	if int(save.get("version", 0)) < 2:
-		return {"error": "This save is from before star systems were added and can't be loaded"}
+	if int(save.get("version", 0)) < 3:
+		return {"error": "This save is from before population, upkeep and megaprojects were added and can't be loaded"}
 	var campaign_id: String = save.get("campaign", "")
 	if not data.campaigns.has(campaign_id):
 		return {"error": "Unknown campaign '%s'" % campaign_id}
@@ -123,6 +129,7 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 			body["buildings"] = buildings
 			p.bodies.append(body)
 		p.queue = p_d["queue"]
+		p.megaprojects.assign(p_d.get("megaprojects", []))
 		s.planets[p.id] = p
 	for f_d: Dictionary in d["fleets"]:
 		var f := Fleet.new()
@@ -173,6 +180,10 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 	s.research = d["research"]
 	s.relations = d["relations"]
 	s.opinions = d["opinions"]
+	s.modifiers = d.get("modifiers", {})
+	s.event_log = d.get("event_log", {})
+	s.pending_event = d.get("pending_event", {})
+	s.victory_reason = d.get("victory_reason", "")
 	# Typed arrays inside dictionaries come back untyped; the rules only read them.
 	for faction_id: String in s.research:
 		var known: Array[String] = []

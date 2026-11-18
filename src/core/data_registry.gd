@@ -45,6 +45,13 @@ var missions: Dictionary = {}
 var resources: Dictionary = {}
 var buildings: Dictionary = {}
 var techs: Dictionary = {}
+## Tuning for population, upkeep, debt and events (data/empire/economy.json).
+var economy: Dictionary = {}
+## Tech eras: era number (as a string) -> {"name", "requires": {"era", "count"}}.
+var eras: Dictionary = {}
+var megaprojects: Dictionary = {}
+## Galactic events (data/strategic/events.json).
+var events: Dictionary = {}
 
 # 3D model recipes (presentation only)
 var models: Dictionary = {}
@@ -88,6 +95,11 @@ func load_from(root: String) -> bool:
 	_load_keyed_file(root.path_join("empire/resources.json"), resources)
 	_load_keyed_file(root.path_join("empire/buildings.json"), buildings)
 	_load_keyed_file(root.path_join("empire/techs.json"), techs)
+	_load_keyed_file(root.path_join("empire/eras.json"), eras)
+	_load_keyed_file(root.path_join("empire/megaprojects.json"), megaprojects)
+	_load_keyed_file(root.path_join("strategic/events.json"), events)
+	var eco: Variant = JsonUtil.load_file(root.path_join("empire/economy.json"))
+	economy = eco if eco is Dictionary else {}
 	_load_keyed_file(root.path_join("models/models.json"), models)
 	validate()
 	return errors.is_empty()
@@ -220,6 +232,9 @@ func _validate_empire() -> void:
 				"unlock_unit":
 					if not units.has(e.get("unit", "")):
 						_err("tech '%s': unknown unit '%s'" % [id, e.get("unit", "")])
+				"unlock_megaproject":
+					if not megaprojects.has(e.get("megaproject", "")):
+						_err("tech '%s': unknown megaproject '%s'" % [id, e.get("megaproject", "")])
 				"yield":
 					if not resources.has(e.get("resource", "")):
 						_err("tech '%s': unknown resource '%s'" % [id, e.get("resource", "")])
@@ -233,6 +248,28 @@ func _validate_empire() -> void:
 		var req: String = units[id].get("strategic", {}).get("requires_tech", "")
 		if not req.is_empty() and not techs.has(req):
 			_err("unit '%s': unknown tech '%s'" % [id, req])
+	for id: String in techs:
+		var era: int = int(techs[id].get("era", 1))
+		if not eras.has(str(era)):
+			_err("tech '%s': unknown era %d" % [id, era])
+		for req: String in techs[id].get("requires", []):
+			if int(techs.get(req, {}).get("era", 1)) > era:
+				_err("tech '%s' (era %d) requires '%s' of a later era" % [id, era, req])
+	for id: String in eras:
+		var need: Dictionary = eras[id].get("requires", {})
+		if not need.is_empty() and not eras.has(str(int(need.get("era", 0)))):
+			_err("era '%s': requires unknown era %s" % [id, need.get("era", "")])
+	for id: String in megaprojects:
+		var def: Dictionary = megaprojects[id]
+		if not techs.has(def.get("requires_tech", "")):
+			_err("megaproject '%s': unknown tech '%s'" % [id, def.get("requires_tech", "")])
+		if def.get("scope", "empire") not in ["empire", "galaxy"]:
+			_err("megaproject '%s': scope must be empire or galaxy" % id)
+		for k: String in def.get("cost", {}).keys() + def.get("yields", {}).keys():
+			if not resources.has(k):
+				_err("megaproject '%s': unknown resource '%s'" % [id, k])
+	for id: String in events:
+		EventRules.validate_event(self, id, events[id])
 	for id: String in campaigns:
 		var def: Dictionary = campaigns[id]
 		for p: Dictionary in def.get("planets", []):
@@ -256,8 +293,9 @@ func _validate_body_bonus(tech_id: String, e: Dictionary) -> void:
 	for k: String in e.get("yields", {}):
 		if not resources.has(k):
 			_err("tech '%s': unknown resource '%s'" % [tech_id, k])
-	if e.get("yields", {}).is_empty() and int(e.get("colony_slots", 0)) == 0:
-		_err("tech '%s': body_bonus gives nothing (needs yields or colony_slots)" % tech_id)
+	if e.get("yields", {}).is_empty() and int(e.get("colony_slots", 0)) == 0 and int(e.get("pop_cap", 0)) == 0 \
+			and float(e.get("growth", 0.0)) == 0.0:
+		_err("tech '%s': body_bonus gives nothing (needs yields, colony_slots, pop_cap or growth)" % tech_id)
 
 
 func _validate_mission(id: String, def: Dictionary) -> void:

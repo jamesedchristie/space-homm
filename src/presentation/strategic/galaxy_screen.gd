@@ -208,6 +208,9 @@ func _continue(token: int) -> void:
 		if engine.has_pending_mission():
 			await _resolve_mission(token)
 			continue
+		if engine.has_pending_event() and _is_human_turn():
+			await _resolve_event(token)
+			continue
 		if _is_human_turn():
 			break
 		var result := engine.submit(ai.decide(engine))
@@ -315,6 +318,44 @@ func _resolve_mission(token: int) -> void:
 		await hud.dialog_choice
 
 
+## The player's galactic event: a dialog with the choices (costs and effects in
+## the hint), then a report of what happened.
+func _resolve_event(token: int) -> void:
+	var pending := engine.state.pending_event
+	var def: Dictionary = data.events[pending["event"]]
+	var offered := EventRules.choices(engine, player_faction, pending)
+	var lines := PackedStringArray([EventRules.fill(engine, def["text"], pending.get("planet", "")), ""])
+	var buttons: Array[Dictionary] = []
+	for o in offered:
+		var hint: String = o["hint"]
+		var line := "[b]%d. %s[/b]" % [int(o["index"]) + 1, o["label"]]
+		if not hint.is_empty():
+			line += "  " + UiKit.color_tag(hint, Palette.TEXT_DIM)
+		if not o["ok"]:
+			line += "  " + UiKit.color_tag("(%s)" % o["reason"], Palette.BAD)
+		lines.append(line)
+		buttons.append({"id": str(o["index"]), "label": "%d. %s" % [int(o["index"]) + 1, o["label"]],
+				"disabled": not o["ok"], "tooltip": o["reason"]})
+	hud.ask(def["name"], "\n".join(lines), buttons, Vector2(700, 320))
+	var choice := int(await hud.dialog_choice)
+	if token != _token:
+		return
+	var result := engine.submit(ResolveEventCommand.new(player_faction, choice))
+	if not result.ok:
+		hud.set_hint(result.error)
+		return
+	await _play(result.events, token)
+	if token != _token or engine.state.is_over:
+		return
+	for e in result.events:
+		if e["type"] == GalaxyEvents.EVENT_RESOLVED:
+			var body := PackedStringArray([e["text"], ""])
+			for l: String in e["lines"]:
+				body.append(UiKit.color_tag(l, Palette.ACTIVE))
+			hud.ask(def["name"], "\n".join(body), [{"id": "ok", "label": "Continue"}], Vector2(560, 320))
+			await hud.dialog_choice
+
+
 ## Fills in the open battle/mission dialog with auto-resolve odds as the
 ## simulations finish (in the background; the player can answer any time).
 func _show_odds(scenario: Dictionary, team: int, body: String) -> void:
@@ -406,8 +447,9 @@ func _refresh_resources() -> void:
 	var research := "choose research (E)" if r["current"].is_empty() else "%s %d/%d" % [
 			data.techs[r["current"]]["name"], r["progress"], ResearchRules.cost(engine, r["current"])]
 	var dim := Palette.hex(Palette.TEXT_DIM)
-	hud.set_resources("%s %d [color=#%s](%+d)[/color]    %s %d [color=#%s](%+d)[/color]    %s %+d: %s" % [
-			UiKit.color_tag("Credits", Color(data.resources["credits"]["color"])), stock["credits"], dim, income["credits"],
+	var upkeep_note := ", upkeep %d" % income["upkeep"] if int(income["upkeep"]) > 0 else ""
+	hud.set_resources("%s %d [color=#%s](%+d%s)[/color]    %s %d [color=#%s](%+d)[/color]    %s %+d: %s" % [
+			UiKit.color_tag("Credits", Color(data.resources["credits"]["color"])), stock["credits"], dim, income["credits"], upkeep_note,
 			UiKit.color_tag("Alloys", Color(data.resources["alloys"]["color"])), stock["alloys"], dim, income["alloys"],
 			UiKit.color_tag("Research", Color(data.resources["research"]["color"])), income["research"], research])
 
@@ -476,6 +518,19 @@ func _play(events: Array[Dictionary], token: int) -> void:
 					if not autoplay:
 						hud.ask(e["name"], "%s\n\n%s" % [e["text"], _reward_text(e["rewards"])], [{"id": "ok", "label": "Continue"}])
 						await hud.dialog_choice
+			GalaxyEvents.POP_GREW:
+				if engine.state.planets[e["planet"]].owner == player_faction and _visible.has(engine.state.planets[e["planet"]].cell):
+					board.float_text_at_planet(e["planet"], "+1 pop", Palette.GOOD)
+			GalaxyEvents.MEGAPROJECT_COMPLETED:
+				board.refresh_planet(e["planet"])
+				board.float_text_at_planet(e["planet"], data.megaprojects[e["megaproject"]]["name"],
+						Palette.team_color(engine.state.faction(e["faction"])["team"]))
+				if e["faction"] == player_faction and not autoplay \
+						and data.megaprojects[e["megaproject"]].get("victory", "") != "science":
+					hud.ask("Megaproject complete", "The [b]%s[/b] at %s is finished.\n\n%s" % [
+							data.megaprojects[e["megaproject"]]["name"], engine.state.planets[e["planet"]].name,
+							data.megaprojects[e["megaproject"]].get("description", "")], [{"id": "ok", "label": "Continue"}])
+					await hud.dialog_choice
 			GalaxyEvents.CAMPAIGN_ENDED:
 				_sync_views()
 				_game_over()
@@ -511,7 +566,10 @@ func _game_over() -> void:
 		title = "%s wins" % s.faction(s.winner)["name"]
 	var majors_left := s.factions.filter(func(f: Dictionary) -> bool:
 		return f.get("role", "major") == "major" and not s.is_eliminated(f["id"])).size()
-	var how := "your empire has fallen" if player_out else ("by conquest" if majors_left <= 1 else "by treaty")
+	var endings := {"science": "by ascension: the Ascension Gate was completed", "score": "by score at the turn limit",
+			"objective": "the objective was met", "peace": "by treaty", "max_turns": "at the turn limit"}
+	var how: String = "your empire has fallen" if player_out else endings.get(s.victory_reason,
+			"by conquest" if majors_left <= 1 else "by treaty")
 	var lines := PackedStringArray(["The campaign is over after %d turns (%s)." % [s.turn_number, how], ""])
 	for f in s.factions:
 		if not s.is_eliminated(f["id"]):
@@ -811,11 +869,15 @@ func _planet_info(planet: Planet) -> String:
 	for b in planet.bodies:
 		var bdef: Dictionary = data.body_types.get(b["type"], {})
 		var line := "%s %s" % [UiKit.color_tag("●", Color(bdef.get("surface", {}).get("accent", "#aaaaaa"))), bdef.get("name", b["type"])]
+		if "colony" in b["buildings"]:
+			line += " (pop %d/%d)" % [EmpireRules.pop(b), EmpireRules.pop_cap(engine, b, planet.owner)]
 		if not b["buildings"].is_empty():
 			line += ": " + ", ".join(b["buildings"].map(func(x: String) -> String: return data.buildings[x]["name"]))
 		if not b["traits"].is_empty():
 			line += "  " + UiKit.color_tag(", ".join(b["traits"].map(func(t: String) -> String: return data.planet_traits[t]["name"])), Palette.ACTIVE)
 		text += "\n" + line
+	for mp_id in planet.megaprojects:
+		text += "\n" + UiKit.color_tag("Wonder: %s" % data.megaprojects[mp_id]["name"], Palette.ACTIVE)
 	text += "\n" + UiKit.color_tag("Click your system or press S to open it.", Palette.TEXT_DIM)
 	var defenses := EmpireRules.defense_units(engine, planet).size()
 	if defenses > 0:
@@ -825,7 +887,7 @@ func _planet_info(planet: Planet) -> String:
 			text += "\n" + UiKit.color_tag("Idle: open the system (S) to build.", Palette.TEXT_DIM)
 		else:
 			var q := planet.queue
-			var item: String = data.buildings[q["item"]]["name"] if q["kind"] == "building" else data.units[q["item"]]["name"]
+			var item := SystemView._queue_name(data, planet)
 			text += "\n" + UiKit.color_tag("Building %s (%d/%d turns)" % [item, q["progress"], q["turns"]], Palette.ACTIVE)
 	elif not planet.owner.is_empty() and not engine.state.at_war(player_faction, planet.owner):
 		text += "\n" + UiKit.color_tag("At peace with you: can't be captured.", Palette.TEXT_DIM)
@@ -976,6 +1038,29 @@ func _describe(e: Dictionary) -> String:
 			if s.planets[e["planet"]].owner != player_faction:
 				return ""
 			return "   New %s launched at %s" % [data.units[e["unit"]]["name"], s.planets[e["planet"]].name]
+		GalaxyEvents.MEGAPROJECT_STARTED:
+			var mp: Dictionary = data.megaprojects[e["megaproject"]]
+			var builder := s.faction(e["faction"])
+			if e["faction"] != player_faction and mp.get("victory", "") != "science" and mp.get("scope", "empire") != "galaxy":
+				return ""
+			return UiKit.color_tag("%s begins the %s at %s" % [builder["name"], mp["name"], s.planets[e["planet"]].name],
+					Palette.BAD if e["faction"] != player_faction else Palette.ACTIVE)
+		GalaxyEvents.MEGAPROJECT_COMPLETED:
+			var mp: Dictionary = data.megaprojects[e["megaproject"]]
+			return UiKit.color_tag("[b]%s completes the %s at %s[/b]" % [s.faction(e["faction"])["name"], mp["name"],
+					s.planets[e["planet"]].name], Palette.ACTIVE)
+		GalaxyEvents.BUDGET_CRISIS:
+			if e["faction"] != player_faction:
+				return ""
+			return UiKit.color_tag("Budget crisis: upkeep has emptied the treasury (%d credits). Colonies stop growing, fleets stop repairing and ships lose hull until you are in the black again." % e["credits"], Palette.BAD)
+		GalaxyEvents.EVENT_RESOLVED:
+			if e["faction"] != player_faction:
+				return ""
+			return "   %s: %s" % [data.events[e["event"]]["name"], ", ".join(e["lines"]) if not e["lines"].is_empty() else e["label"]]
+		GalaxyEvents.MODIFIER_EXPIRED:
+			if e["faction"] != player_faction:
+				return ""
+			return UiKit.color_tag("   %s has worn off" % e["name"], Palette.TEXT_DIM)
 		GalaxyEvents.WAR_DECLARED:
 			return UiKit.color_tag("[b]%s declares war on %s[/b]" % [s.faction(e["faction"])["name"], s.faction(e["target"])["name"]], Palette.BAD)
 		GalaxyEvents.PEACE_SIGNED:
