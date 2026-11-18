@@ -89,3 +89,51 @@ func test_generated_sector_is_seeded_and_saves() -> void:
 	assert_true(loaded.has("engine"), str(loaded.get("error", "")))
 	assert_eq(_state_text(loaded["engine"]), _state_text(a))
 	assert_eq(loaded["engine"].state.grid.cells().size(), a.state.grid.cells().size())
+
+
+func test_round_trip_keeps_population_wonders_modifiers_and_events() -> void:
+	var e := _campaign_at_turn(8)
+	var home := e.state.home_planet("patrol")
+	var body := home.colonies()[0]
+	body["pop"] = 5
+	body["growth"] = 2.5
+	home.megaprojects.append("grand_archive")
+	e.state.modifiers["patrol"].append({"id": "market_boom", "name": "Market boom", "turns": 6,
+			"effects": [{"type": "yield", "resource": "credits", "mul": 1.25}]})
+	e.state.event_log["patrol"] = {"last": 7, "seen": {"plague": 7}}
+	e.state.pending_event = {"faction": "patrol", "event": "market_boom", "turn": 8, "planet": home.id}
+	var save := GalaxySave.to_dict(e, "the_drift")
+	assert_false(save.is_empty(), "a pending event doesn't stop saving")
+	assert_eq(save["version"], GalaxySave.VERSION)
+	var loaded := GalaxySave.from_dict(e.data, save)
+	assert_true(loaded.has("engine"), str(loaded.get("error", "")))
+	var e2: GalaxyEngine = loaded["engine"]
+	var home2: Planet = e2.state.planets[home.id]
+	assert_eq(EmpireRules.pop(home2.colonies()[0]), 5)
+	assert_eq(float(home2.colonies()[0]["growth"]), 2.5)
+	assert_eq(home2.megaprojects, ["grand_archive"] as Array[String])
+	assert_eq(e2.state.modifiers["patrol"][0]["turns"], 6)
+	assert_eq(e2.state.event_log["patrol"]["seen"]["plague"], 7)
+	assert_eq(e2.state.pending_event["event"], "market_boom")
+	assert_eq(EmpireRules.income(e2, "patrol"), EmpireRules.income(e, "patrol"), "modifiers and wonders still count")
+	assert_eq(_state_text(e2), _state_text(e))
+	# The restored event can be answered.
+	var answered := e2.submit(ResolveEventCommand.new("patrol", 0))
+	assert_true(answered.ok, answered.error)
+
+
+func test_saves_remember_how_the_game_ended() -> void:
+	var e := GalaxyEngine.from_campaign(DataRegistry.get_default(), "random_sector", 6)
+	e.start()
+	e._finish("patrol", "science")
+	var loaded := GalaxySave.from_dict(e.data, GalaxySave.to_dict(e, "random_sector"))
+	assert_eq(loaded["engine"].state.victory_reason, "science")
+	assert_eq(loaded["engine"].state.winner, "patrol")
+
+
+func test_old_saves_are_rejected() -> void:
+	var e := _campaign_at_turn(2)
+	var save := GalaxySave.to_dict(e, "the_drift")
+	save["version"] = 2
+	var loaded := GalaxySave.from_dict(e.data, save)
+	assert_true(loaded.has("error"), "version 2 saves predate population and megaprojects")

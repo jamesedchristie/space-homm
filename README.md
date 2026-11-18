@@ -27,6 +27,10 @@ and Mass Effect-style hero missions, all built on **one shared tactical engine**
   yields, defense platforms, the Destroyer, and colony techs that deepen the body economy:
   Terraforming, Orbital Habitats, Asteroid Refining, Deep Core Taps, Cryogenic Labs); a third faction, the Ceres Free Traders, with
   war/peace, opinion, peace proposals and gifts; defended planets that fight back.
+- **Step 5 (done):** a deeper galaxy. Colonies grow in **population** (yields scale with it),
+  ships cost **upkeep**, the tech tree has 32 techs in three **eras**, five **megaprojects**
+  (wonders) can be built, there are three ways to win (conquest, **science**, **score**) and
+  twenty **galactic events** ask you to make choices.
 
 ## Running it
 
@@ -61,7 +65,7 @@ and press **F6** (run current scene).
 | Right-click / `Esc` | Deselect (`Esc` with nothing selected opens the menu) |
 | `F5` / `F9` | Quicksave / load the quicksave |
 | `Space` / `Enter` | End turn |
-| `E` | Empire panel: colonies and build queues, research, diplomacy |
+| `E` | Empire panel: systems (population, upkeep), research by era, diplomacy, victory progress |
 | `H` | Heroes panel: gear, levels, assign/relieve fleet commanders |
 | `A` | Toggle autoplay (AI plays your faction too) |
 | `V` | Switch between the 2.5D (3D) and top-down (2D) galaxy map |
@@ -116,11 +120,50 @@ One build at a time per system; ships need a shipyard. Friendly fleets in your s
 25% hull per turn. Nebulae and asteroid fields cost 2 moves, and battles there are fought on
 matching battle maps.
 
-Empire (E): every system's output, research (points flow into the tech you pick) and
-diplomacy. The Free Traders start at peace with you and at war with
+Empire (E): four tabs. **Systems** (every system's output, population and growth, upkeep, active
+effects, wonders), **Research** (the tech tree by era; points flow into the tech you pick),
+**Diplomacy** and **Victory** (how close every major power is to each way of winning).
+Diplomacy: The Free Traders start at peace with you and at war with
 the raiders. At peace you can't attack each other or take each other's planets. Propose peace,
 declare war or send gifts in the Diplomacy tab. The raiders never negotiate. The war ends when
 nobody left is at war (the highest score wins) or when one faction stands alone.
+
+**Population and growth.** A colony starts at 1 population and grows toward a cap set by its world
+(terran and ocean 8, desert 6, arctic 5, plus traits, buildings and techs: Colonial Medicine,
+Arcology Planning, Genetic Uplift, Orbital Habitats and the Orbital Habitat building). New people
+take several turns each and come slower as the colony fills (Hydroponics, Hydroponic Farms and
+Genetic Uplift speed it up). Every extra pop adds credits, research and alloys, and buildings like the
+Research Academy and Commerce Exchange scale with it. The system view shows a colony's population,
+its growth and the turns to the next pop. Conquest costs a quarter of a colony's people and raiders'
+plunder costs one.
+
+**Upkeep.** Every ship costs credits each turn (interceptor 1, frigate 2, destroyer 3, cruiser 4).
+Your colonies carry some of it for free (3, plus 2 per colony), and the top bar and Systems tab show
+what you actually pay. If upkeep drives the treasury below zero you have a **budget crisis**:
+colonies stop growing, fleets stop repairing and every ship loses 5% hull each turn until you are
+back in the black. Logistics Corps cuts upkeep by 20%.
+
+**Tech eras.** Frontier (11 techs), Expansion (14, opens after 5 Frontier techs, costs x1.6) and
+Ascendant (7, opens after 6 Expansion techs, costs x2.5). New buildings: Research Academy, Commerce
+Exchange, Hydroponic Farms, Orbital Habitat, Sensor Array, Planetary Shield (a tougher defense than the
+platform) and Fleet Academy (commanders earn XP every turn). Capital Ships unlocks the **Cruiser**.
+
+**Megaprojects.** Expensive, multi-turn wonders built in a system with a colony (the system's build
+slot is busy meanwhile): the **Stellar Forge** (alloys), **Grand Archive** (research), **Fleet Command
+Nexus** (fleet speed, repair, commander XP), **Galactic Exchange** (credits, trade and diplomacy; only
+one in the whole galaxy) and the **Ascension Gate**. You can have one of each (except the Exchange).
+Wonders count towards score, announce themselves to everyone, and pass to whoever captures the system.
+
+**Ways to win.** *Conquest*: be the last major power (or finish the scenario's objective). *Science*:
+research Ascension Theory and complete the Ascension Gate: everyone is told when it is begun, so
+rivals can stop you by taking the system. *Score*: when the turn limit arrives the highest score wins.
+In **Random Sector** treaties alone no longer end the game (elsewhere, a war where everyone is at peace ends with the highest score winning). The Drift keeps its objective: destroy the
+raiders.
+
+**Galactic events.** Every few turns each major power may be offered an event (a solar flare, a refugee
+convoy, an outbreak, a market boom, a derelict signal, a mining strike, ...) with two or three choices
+that cost resources, gamble on a chance, or change population, research, opinions, buildings, fleets,
+or give a temporary modifier, a free ship or hero. The AI picks by scoring each choice.
 
 Heroes: a hero commanding a fleet gives its ships a doctrine bonus in battle (Vanguard: -10%
 damage taken, Marksman: +10% damage, Technician: shield regeneration) and earns XP. To pick
@@ -219,8 +262,12 @@ CI runs the tests and both smoke tests on every push (`.github/workflows/tests.y
 - **Heroes:** classes, items, traits and XP thresholds in `data/heroes/`; named heroes, starting
   inventory and anomalies in the campaign file.
 - **Economy:** `data/empire/` (resources, buildings with `on: [body categories]` or
-  `needs: "colony"`, techs); ship `strategic.cost`/`build_turns`/`requires_tech` in unit files;
-  campaign `resources`, `relations`, `techs`, system `bodies` with `buildings`.
+  `needs: "colony"`, techs with an `era`, eras, megaprojects, `economy.json` tuning); ship
+  `strategic.cost`/`build_turns`/`requires_tech`/`upkeep` in unit files; campaign `resources`,
+  `relations`, `techs`, system `bodies` with `buildings` and a colony's starting `pop`.
+- **Galactic events:** `data/strategic/events.json` (conditions, 2-3 choices with costs, chances and
+  effects); a campaign switches them on with `"events": true`.
+- **Victory:** a campaign's `victory` block (`eliminate`, `science`, `score`, `peace`).
 - **New mission:** `data/missions/<id>.json` (map, enemies, objectives, story triggers with choices,
   rewards, follow-up on failure), plus a square-grid map with `deployment.squad`.
 
