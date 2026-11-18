@@ -384,6 +384,7 @@ func test_barbarian_den_falls_to_warships_alone() -> void:
 	var e := _world([["a", "test_fast_dummy", 8, 4], ["b", "test_dummy", 1, 0]])
 	e.state.faction("b")["role"] = "barbarian"
 	var home_b: Planet = e.state.planets["home_b"]
+	home_b.bodies[0]["buildings"].append("defense_platform")  # dens field only their own platforms, no base garrison
 	var fleet := _fleet_of(e, "a")
 	e.submit(MoveFleetCommand.new("a", fleet.id, home_b.cell))
 	_win_battle(e)
