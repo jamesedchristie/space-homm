@@ -10,8 +10,10 @@ extends RefCounted
 ##
 ## "generate": {
 ##   "width", "height",
-##   "neutral_planets": n,
+##   "neutral_planets": n, "spacing": minimum hexes between star systems (default 3),
 ##   "terrain": {"nebula": [blobs, size], "asteroid_belt": [...], "rift": [...]},
+##              rifts grow as long, mostly straight walls (chokepoints); a wall
+##              that would cut anything off from the first home is dropped.
 ##   "homes": {faction id: planet def without "at" (id/name/type/buildings/...)},
 ##   "fleets": [fleet defs without "at": placed next to the owner's home],
 ##   "heroes": [hero defs; "planet": "home" means the owner's home world],
@@ -63,8 +65,9 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 	# Neutral planets: spread out, not too close to anything.
 	var names: Array = gen.get("planet_names", []).duplicate()
 	_shuffle(names, rng)
+	var spacing := int(gen.get("spacing", 3))
 	for i in int(gen.get("neutral_planets", 6)):
-		var at := _farthest(grid, w, h, occupied.keys(), occupied, rng, 4, 3)
+		var at := _farthest(grid, w, h, occupied.keys(), occupied, rng, 6, spacing)
 		if at == Vector2i(-1, -1):
 			break
 		occupied[at] = true
@@ -110,22 +113,39 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 	var spec: Dictionary = gen.get("terrain", {})
 	var kinds := spec.keys()
 	kinds.sort()
+	out["map"] = {"grid": "hex", "width": w, "height": h, "terrain": terrain}
 	for kind: String in kinds:
 		var blobs := int(spec[kind][0])
 		var size := int(spec[kind][1])
-		var cells: Array = []
+		var impassable: bool = not data.galaxy_terrain.get(kind, {}).get("passable", true)
+		terrain[kind] = []
 		for b in blobs:
+			var blob: Array = []
 			var at := Vector2i(rng.randi_range(0, w - 1), rng.randi_range(0, h - 1))
+			var heading := rng.randi() % 6
 			for s in size:
-				if not occupied.has(at) and not _near_any(grid, at, home_at.values(), 2):
+				if not occupied.has(at) and not _near_any(grid, at, home_at.values(), 2) and grid.has_cell(grid.cell_from_layout(at)):
 					occupied[at] = true
-					cells.append([at.x, at.y])
+					blob.append([at.x, at.y])
 				var options := grid.neighbors(grid.cell_from_layout(at))
-				at = grid.layout_from_cell(options[rng.randi() % options.size()]) if not options.is_empty() else at
-		terrain[kind] = cells
-	out["map"] = {"grid": "hex", "width": w, "height": h, "terrain": terrain}
-	if not _all_reachable(data, out, home_at[faction_order[0]]):
-		terrain.erase("rift")
+				if options.is_empty():
+					break
+				# Walls keep their heading (with a little wander); clouds drift anywhere.
+				if impassable and rng.randf() < 0.75:
+					at = grid.layout_from_cell(options[heading % options.size()])
+				else:
+					if impassable:
+						heading = (heading + (1 if rng.randf() < 0.5 else options.size() - 1)) % options.size()
+					at = grid.layout_from_cell(options[rng.randi() % options.size()])
+			terrain[kind].append_array(blob)
+			if impassable and not _all_reachable(data, out, home_at[faction_order[0]]):
+				# This wall cuts something off: drop it.
+				for c: Array in blob:
+					terrain[kind].erase(c)
+					occupied.erase(Vector2i(int(c[0]), int(c[1])))
+	for kind: String in terrain.keys():
+		if terrain[kind].is_empty():
+			terrain.erase(kind)
 
 	var backdrops: Array = gen.get("backdrops", [])
 	if not backdrops.is_empty():

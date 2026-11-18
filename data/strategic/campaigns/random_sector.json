@@ -2,7 +2,7 @@
   "id": "random_sector",
   "name": "Random Sector",
   "description": "The main game: a new sector every time. Three powers compete for the stars: you, the Vel'tari Concord and the Kesh Dominion. Raiders prey on everyone; the Free Traders deal with anyone who treats them well.",
-  "max_turns": 150,
+  "max_turns": 200,
   "events": true,
   "victory": {
     "peace": false
@@ -10,7 +10,7 @@
   "random": {
     "planet_traits": 0.7,
     "discoveries": {
-      "count": 9,
+      "count": 16,
       "min_distance": 2
     }
   },
@@ -166,21 +166,26 @@
     }
   ],
   "generate": {
-    "width": 22,
-    "height": 14,
-    "neutral_planets": 10,
+    "width": 34,
+    "height": 22,
+    "neutral_planets": 22,
+    "spacing": 4,
     "terrain": {
       "nebula": [
-        3,
-        4
+        7,
+        7
       ],
       "asteroid_belt": [
+        6,
+        5
+      ],
+      "ion_storm": [
         3,
         4
       ],
       "rift": [
-        2,
-        3
+        6,
+        7
       ]
     },
     "homes": {
@@ -501,7 +506,21 @@
       "Ostrava",
       "Pell",
       "Quorra",
-      "Riven"
+      "Riven",
+      "Astraea",
+      "Belisar",
+      "Cygnar",
+      "Draven's Hold",
+      "Eos",
+      "Fallow",
+      "Garnet",
+      "Hesper",
+      "Ilium",
+      "Jarrow",
+      "Kestrine",
+      "Lyra's Rest",
+      "Meridian",
+      "Nysa"
     ],
     "backdrops": [
       {
