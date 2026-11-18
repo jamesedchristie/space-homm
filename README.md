@@ -136,6 +136,18 @@ the raiders. At peace you can't attack each other or take each other's planets. 
 declare war or send gifts in the Diplomacy tab. The raiders never negotiate. The war ends when
 nobody left is at war (the highest score wins) or when one faction stands alone.
 
+**Leaders and diplomacy screens.** Every power has a face. When one of your fleets or systems
+first comes into view of another power (or theirs of yours) you meet their leader on a
+Civ-style diplomacy screen: a 3D bust (Terran admiral, Vel'tari archon with crystalline
+brow, Kesh warlord with braids and heavy brow, Sorn director with a smooth cranial crest, the
+raider warlord, the traders' factor) who speaks in their own voice, typewriter style, while their
+mouth moves and their mood shifts. The same screen opens when an AI **declares war** on you, when
+it **offers you peace** (accept or refuse; a losing or war-weary AI offers, and a refused offer
+is not repeated for 8 turns) and from the **Contact** button on each faction in the Empire >
+Diplomacy tab, where you can propose peace, send a gift or declare war and hear the answer.
+Raiders only taunt. Leaders live in `data/strategic/leaders.json`; screens are skipped in
+autoplay.
+
 **Population and growth.** A colony starts at 1 population and grows toward a cap set by its world
 (terran and ocean 8, desert 6, arctic 5, plus traits, buildings and techs: Colonial Medicine,
 Arcology Planning, Genetic Uplift, Orbital Habitats and the Orbital Habitat building). New people

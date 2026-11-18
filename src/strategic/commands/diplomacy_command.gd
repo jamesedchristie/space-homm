@@ -2,6 +2,8 @@ class_name DiplomacyCommand
 extends GalaxyCommand
 ## action: "propose_peace" (the target answers by DiplomacyRules),
 ##         "declare_war", or "gift" (credits, improves the target's opinion).
+## An AI faction offers a player-run one peace with "offer_peace"; the player answers
+## with "accept_peace" or "refuse_peace" (target = the offerer).
 
 var target: String
 var action: String
