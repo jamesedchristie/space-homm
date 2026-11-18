@@ -7,6 +7,23 @@
     "color": "#4a4038",
     "decoration": "rocks"
   },
+  "planet": {
+    "name": "Planet",
+    "description": "A world or moon in the system. Impassable. Blocks line of sight.",
+    "passable": false,
+    "blocks_sight": true,
+    "color": "#1c2740",
+    "decoration": "planet"
+  },
+  "debris": {
+    "name": "Debris Field",
+    "description": "Drifting rubble and ring dust. Costs 2 AP to enter. Half cover (-30% damage) from attacks on this side.",
+    "passable": true,
+    "move_cost": 2,
+    "color": "#3a3530",
+    "decoration": "debris",
+    "cover": "half"
+  },
   "nebula": {
     "name": "Nebula",
     "description": "Ionised gas. Costs 2 AP to enter and blocks line of sight through it.",

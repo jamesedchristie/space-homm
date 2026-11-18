@@ -999,7 +999,7 @@ func _battle_preview(b: Dictionary, attacker: Fleet, defender: Fleet) -> String:
 		for ship in (fleet as Fleet).ships:
 			ships.append("%s (%d hull)" % [ship["name"], ship["hull"]])
 		lines.append("[b]%s[/b]: %s" % [_fleet_name(fleet), ", ".join(ships)])
-	var map_name: String = data.maps[engine.battle_map_for(b["cell"])].get("name", "")
+	var map_name: String = BattleEngine.map_def_for(data, engine.pending_battle_scenario()).get("name", "")
 	lines.append("")
 	lines.append(UiKit.color_tag("Battlefield: %s. Damage to hulls carries over after the battle." % map_name, Palette.TEXT_DIM))
 	return "\n".join(lines)

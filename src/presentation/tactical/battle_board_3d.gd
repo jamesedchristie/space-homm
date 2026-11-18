@@ -58,8 +58,11 @@ func setup(p_engine: BattleEngine, p_data: DataRegistry, floor_style: String) ->
 		var w := world(c)
 		lo = Vector3(minf(lo.x, w.x), 0, minf(lo.z, w.z))
 		hi = Vector3(maxf(hi.x, w.x), 0, maxf(hi.z, w.z))
+	var in_system := not engine.state.scenery.is_empty()
 	BoardGeometry.space_scenery(_world, (lo + hi) / 2.0, Vector2(hi.x - lo.x, hi.z - lo.z) / 2.0,
-			engine.state.seed_value, _floor == "deck")
+			engine.state.seed_value, _floor == "deck", not in_system)
+	if in_system:  # a battle inside a star system: its planets and star (SystemBattleMap)
+		SystemScenery3D.build(_world, engine.state.scenery, data, engine.state.grid, world, lo, hi, engine.state.seed_value)
 	_overlay_mesh = BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material())
 	_fog_mesh = BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material())
 	_marker_root = Node3D.new()
@@ -147,6 +150,8 @@ func _build_board() -> void:
 			BoardGeometry.prism(glass, _cell_poly(c, 0.95), -0.02, 0.0, fill.darkened(0.3), fill)
 			if deco == "rocks":
 				BoardGeometry.rocks(_world, world(c), hash(c), 1.0, true)
+			elif deco == "debris":
+				BoardGeometry.rocks(_world, world(c), hash(c), 0.5, true)
 			if terrain.get("blocks_sight", false) and terrain.get("passable", true):
 				BoardGeometry.nebula_puffs(_world, world(c), Color(terrain.get("color", "#553377")), hash(c) + 7, 1.5)
 		polys.append(_cell_poly(c, 0.95))

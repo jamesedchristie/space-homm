@@ -497,6 +497,11 @@ func pending_battle_scenario() -> Dictionary:
 	var planet := state.planet_at(cell)
 	var defending_faction: String = defender.owner if defender != null else planet.owner
 	var defended_planet: Planet = planet if planet != null and planet.owner == defending_faction else null
+	var map_def: Dictionary = {}  # battles in a star system are fought inside it (SystemBattleMap)
+	if planet != null:
+		map_def = SystemBattleMap.build(data, planet, defended_planet != null)
+		map_id = map_def["id"]
+		deployment = map_def["deployment"]
 	var teams: Array = [
 		_battle_side(attacker, attacker.owner, deployment.get("west", []), null),
 		_battle_side(defender, defending_faction, deployment.get("east", []), defended_planet),
@@ -505,6 +510,7 @@ func pending_battle_scenario() -> Dictionary:
 		"id": "galaxy_battle",
 		"name": "Battle %s" % location_phrase(cell),
 		"map": map_id,
+		"map_def": map_def,
 		"max_rounds": int(campaign.get("battle_max_rounds", 30)),
 		"teams": teams,
 		"objectives": [{"type": "eliminate_all", "description": "Destroy the enemy fleet"}],

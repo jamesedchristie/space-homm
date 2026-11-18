@@ -14,6 +14,8 @@ uniform float seed = 1.0;
 // 0..1: lit cities on a colonised world (clusters on the land, glowing at night).
 uniform float city_lights = 0.0;
 uniform vec4 city_color : source_color = vec4(1.0, 0.82, 0.5, 1.0);
+// World-space direction towards the sun (the night side faces away from it).
+uniform vec3 light_dir = vec3(-0.33, 0.82, 0.47);
 
 varying vec3 local_n;
 
@@ -69,7 +71,7 @@ void fragment() {
 		// Sprawl on the land masses: fine clusters, brightest on the night side.
 		float land = smoothstep(0.45, 0.6, h);
 		float sprawl = smoothstep(0.62, 0.8, noise3(n * 38.0 + seed)) * smoothstep(0.4, 0.7, noise3(n * 9.0 - seed));
-		float night = 1.0 - smoothstep(-0.1, 0.35, dot(normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz), normalize(vec3(-0.33, 0.82, 0.47))));
+		float night = 1.0 - smoothstep(-0.1, 0.35, dot(normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz), normalize(light_dir)));
 		glow += city_color.rgb * sprawl * land * city_lights * (0.6 + 2.2 * night);
 	}
 	EMISSION = glow;

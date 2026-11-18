@@ -21,10 +21,40 @@ func setup(p_engine: BattleEngine, p_data: DataRegistry, floor_style: String) ->
 	map_view.setup(engine.state.grid, floor_style)
 	if not engine.state.fog_enabled:
 		map_view.clear_fog()
+	_set_scenery()
+
+
+## Discs for the planets (and a glow for the star) of a battle inside a star system.
+func _set_scenery() -> void:
+	var bodies: Array[Dictionary] = []
+	var star_info: Dictionary = {}
+	var scenery := engine.state.scenery
+	if not scenery.is_empty():
+		var grid := engine.state.grid
+		for body: Dictionary in scenery.get("bodies", []):
+			if body.get("kind", "planet") != "planet":
+				continue
+			var center := Vector2.ZERO
+			for p: Array in body["cells"]:
+				center += map_view.cell_center(grid.cell_from_layout(Vector2i(int(p[0]), int(p[1]))))
+			center /= float((body["cells"] as Array).size())
+			var surface: Dictionary = data.body_types.get(body["type"], {}).get("surface", {})
+			bodies.append({"center": center, "radius": float(body["radius"]) * GridMapView.CELL_SIZE,
+					"base": Color(surface.get("base", "#888888")), "accent": Color(surface.get("accent", "#bbbbbb")),
+					"atmosphere": Color(surface.get("atmosphere", "#00000000")),
+					"ring": body["type"] == "gas_giant", "colony": body.get("colony", false)})
+		var star: Dictionary = scenery.get("star", {})
+		if star.has("dir"):
+			var rect := map_view.bounds()
+			var dir := Vector2(float(star["dir"][0]), float(star["dir"][1])).normalized()
+			star_info = {"pos": rect.get_center() + dir * (rect.size.length() * 0.5 * 0.8),
+					"color": Color(data.star_types.get(star.get("type", ""), {}).get("color", "#ffd88a"))}
+	map_view.set_scenery(bodies, star_info)
 
 
 func teardown() -> void:
 	_clear_units()
+	map_view.set_scenery([], {})
 	map_view.visible = false
 
 
