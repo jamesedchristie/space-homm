@@ -25,8 +25,10 @@ func _scale(raw: float, source: BattleUnit, target: BattleUnit, engine: BattleEn
 	# Standing in terrain like crates reduces damage from every direction.
 	var cover: float = engine.state.grid.terrain_def(target.cell).get("damage_taken", 1.0)
 	# Directional cover / flanking (see CoverRules); area attacks ignore it, and so
-	# does damage over time (no ability in progress, e.g. a status ticking).
-	if source != null and not engine.current_ability.is_empty() and int(engine.current_ability.get("radius", 0)) == 0:
+	# does damage over time (no ability in progress, e.g. a status ticking) and
+	# melee ("melee": true abilities hit adjacent targets, cover or not).
+	if source != null and not engine.current_ability.is_empty() and int(engine.current_ability.get("radius", 0)) == 0 \
+			and not engine.current_ability.get("melee", false):
 		var from: Vector2i = source.cell if engine.preview_from_cell == null else engine.preview_from_cell
 		cover *= CoverRules.evaluate(engine.state, from, target.cell)["multiplier"]
 	return raw * dealt * target.get_stat("damage_taken") * cover * engine.damage_scale

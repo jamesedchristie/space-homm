@@ -15,6 +15,7 @@
   },
   "abilities": [
     "rifle_burst",
+    "combat_knife",
     "throw_grenade",
     "overwatch"
   ],

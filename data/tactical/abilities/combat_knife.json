@@ -1,0 +1,15 @@
+{
+  "id": "combat_knife",
+  "name": "Combat Knife",
+  "description": "Hand to hand: a quick, brutal strike on an adjacent enemy. Ignores cover.",
+  "ap_cost": 1,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [1, 1],
+  "requires_los": true,
+  "melee": true,
+  "effects": [
+    {"type": "damage", "amount": [8, 11], "damage_type": "kinetic"}
+  ],
+  "fx": "melee"
+}

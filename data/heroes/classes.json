@@ -16,7 +16,8 @@
     },
     "skills": {
       "1": [
-        "bulwark"
+        "bulwark",
+        "shield_bash"
       ],
       "2": [
         "shockwave"
@@ -49,7 +50,8 @@
     },
     "skills": {
       "1": [
-        "aimed_shot"
+        "aimed_shot",
+        "combat_knife"
       ],
       "2": [
         "suppress"
@@ -82,7 +84,8 @@
     },
     "skills": {
       "1": [
-        "patch_up"
+        "patch_up",
+        "stun_baton"
       ],
       "2": [
         "overload"

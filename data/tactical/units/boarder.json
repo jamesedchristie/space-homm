@@ -3,7 +3,8 @@
   "name": "Boarder",
   "description": "Raider shock trooper with a breaching shotgun.",
   "tags": [
-    "infantry"
+    "infantry",
+    "rusher"
   ],
   "stats": {
     "max_hull": 45,
@@ -15,6 +16,7 @@
   },
   "abilities": [
     "boarder_shotgun",
+    "vibro_blade",
     "overwatch"
   ],
   "visual": {

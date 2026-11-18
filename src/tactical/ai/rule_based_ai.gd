@@ -20,6 +20,9 @@ const MIN_SCORE := 1.0
 ## Bonus per nearby enemy for a firing position with cover from it
 ## (scaled by how much damage the cover stops).
 const COVER_WEIGHT := 14.0
+## Units tagged "rusher" (raiders, the infected) like hand to hand: melee abilities
+## score this much higher for them, so they close in rather than hang back.
+const RUSHER_MELEE_BONUS := 1.5
 
 var _moved_turn_key := ""
 
@@ -122,6 +125,8 @@ func score_action(engine: BattleEngine, unit: BattleUnit, ability_id: String, ab
 		else:
 			score += net * (FRIENDLY_FIRE_WEIGHT if net < 0.0 else 1.0)
 
+	if score > 0.0 and ability.get("melee", false) and "rusher" in unit.tags:
+		score *= RUSHER_MELEE_BONUS
 	var radius := int(ability.get("radius", 0))
 	var affects: String = ability.get("affects", AbilityRules.default_affects(ability.get("target", "enemy")))
 	if from_cell != unit.cell and radius > 0 and affects != "enemies" \

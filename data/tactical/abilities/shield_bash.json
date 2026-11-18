@@ -1,0 +1,16 @@
+{
+  "id": "shield_bash",
+  "name": "Shield Bash",
+  "description": "Slam an adjacent enemy with your shield: heavy damage and a 50% chance to stagger it for a turn. Ignores cover.",
+  "ap_cost": 2,
+  "cooldown": 2,
+  "target": "enemy",
+  "range": [1, 1],
+  "requires_los": true,
+  "melee": true,
+  "effects": [
+    {"type": "damage", "amount": [15, 20], "damage_type": "kinetic"},
+    {"type": "apply_status", "status": "disabled", "duration": 1, "chance": 0.5}
+  ],
+  "fx": "melee"
+}

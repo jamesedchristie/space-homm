@@ -1,0 +1,15 @@
+{
+  "id": "vibro_blade",
+  "name": "Vibro-Blade",
+  "description": "A humming raider blade that finds the gaps in armour. Adjacent enemies only; ignores cover.",
+  "ap_cost": 1,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [1, 1],
+  "requires_los": true,
+  "melee": true,
+  "effects": [
+    {"type": "damage", "amount": [8, 12], "damage_type": "kinetic", "ignore_armor": true}
+  ],
+  "fx": "melee"
+}
