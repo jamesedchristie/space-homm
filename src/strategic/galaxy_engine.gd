@@ -63,6 +63,8 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 			known.append(tech_id)
 		s.research[f["id"]] = {"current": "", "progress": 0, "known": known}
 		s.opinions[f["id"]] = {}
+		s.modifiers[f["id"]] = []
+		s.event_log[f["id"]] = {"last": 0, "seen": {}}
 		team += 1
 
 	for p_def: Dictionary in def.get("planets", []):
@@ -227,6 +229,8 @@ func submit(cmd: GalaxyCommand) -> CommandResult:
 		_do_split(cmd)
 	elif cmd is DiplomacyCommand:
 		_do_diplomacy(cmd)
+	elif cmd is ResolveEventCommand:
+		_do_resolve_event(cmd)
 	return CommandResult.success(_flush())
 
 
@@ -239,6 +243,17 @@ func validate(cmd: GalaxyCommand) -> String:
 		return "Decide on the mission first"
 	if cmd == null or cmd.faction_id != current_faction_id():
 		return "It is not that faction's turn"
+	if not state.pending_event.is_empty():
+		if not cmd is ResolveEventCommand:
+			return "Answer the event first"
+		var offered := EventRules.choices(self, cmd.faction_id, state.pending_event)
+		if cmd.choice < 0 or cmd.choice >= offered.size():
+			return "No such choice"
+		if not offered[cmd.choice]["ok"]:
+			return offered[cmd.choice]["reason"]
+		return ""
+	if cmd is ResolveEventCommand:
+		return "There is no event to answer"
 	if cmd is MoveFleetCommand:
 		var fleet: Fleet = state.fleets.get(cmd.fleet_id)
 		if fleet == null or fleet.owner != cmd.faction_id:
@@ -345,7 +360,7 @@ func visible_cells(faction_id: String) -> Dictionary:
 		for c in state.grid.cells_within(f.cell, f.sensor(data) + bonus):
 			vis[c] = true
 	for p in state.planets_of(faction_id):
-		for c in state.grid.cells_within(p.cell, p.sensor + bonus):
+		for c in state.grid.cells_within(p.cell, EmpireRules.planet_sensor(self, p) + bonus):
 			vis[c] = true
 	return vis
 
@@ -443,6 +458,10 @@ func attack_targets(fleet_id: String, reach: Dictionary = {}) -> Array[Vector2i]
 
 func has_pending_battle() -> bool:
 	return not state.pending_battle.is_empty()
+
+
+func has_pending_event() -> bool:
+	return not state.pending_event.is_empty()
 
 
 ## Tactical map for a battle at `cell`: planet type, then terrain, then default.
@@ -1046,12 +1065,23 @@ func _capture_planet(planet: Planet, fleet: Fleet) -> void:
 		emit({"type": GalaxyEvents.DEN_CLEARED, "planet": planet.id, "faction": fleet.owner, "loot": loot})
 	planet.owner = fleet.owner
 	planet.queue = {}
+	if not previous.is_empty():
+		_lose_population(planet, float(data.economy.get("growth", {}).get("capture_pop_loss", 0.25)), 0)
 	_evacuate_heroes(planet, previous)
 	DiplomacyRules.change_opinion(state, previous, fleet.owner, DiplomacyRules.PLANET_TAKEN_OPINION)
 	emit({"type": GalaxyEvents.PLANET_CAPTURED, "planet": planet.id, "faction": fleet.owner,
 			"previous_owner": previous, "fleet": fleet.id})
 	_update_explored()
 	_check_eliminations()
+
+
+## Conquest and plunder cost population: each colony loses `fraction` of its
+## people (rounded up) plus `flat`, never dropping below 1, and its growth restarts.
+func _lose_population(planet: Planet, fraction: float, flat: int) -> void:
+	for b in planet.colonies():
+		var current := EmpireRules.pop(b)
+		b["pop"] = maxi(current - ceili(current * fraction) - flat, 1)
+		b["growth"] = 0.0
 
 
 ## Heroes waiting at a system its owner just lost fall back to the owner's
@@ -1069,6 +1099,12 @@ func _begin_faction_turn() -> void:
 	var faction_id := current_faction_id()
 	_run_economy(faction_id)
 	_barbarian_spawns(faction_id)
+	var in_debt := int(state.resources[faction_id].get("credits", 0)) < 0
+	var academy_xp := EmpireRules.hero_xp_per_turn(self, faction_id)
+	if academy_xp > 0:
+		for h in state.heroes_of(faction_id):
+			if h.is_ready() and not h.fleet_id.is_empty():
+				_grant_xp(h, academy_xp)
 	for h in state.heroes_of(faction_id):
 		if (h.status == Hero.ON_MISSION or h.status == Hero.INJURED) and state.turn_number >= h.busy_until:
 			h.status = Hero.READY
@@ -1079,7 +1115,7 @@ func _begin_faction_turn() -> void:
 		var planet := state.planet_at(fleet.cell)
 		var at_home := planet != null and planet.owner == faction_id
 		var rate := REPAIR_RATE if at_home else field_repair
-		if rate > 0.0:
+		if rate > 0.0 and not in_debt:
 			var repaired := 0
 			for ship in fleet.ships:
 				var max_hull := int(data.units[ship["unit"]]["stats"]["max_hull"])
@@ -1091,6 +1127,12 @@ func _begin_faction_turn() -> void:
 						"planet": planet.id if at_home else ""})
 	_update_explored()
 	emit({"type": GalaxyEvents.TURN_STARTED, "turn": state.turn_number, "faction": faction_id})
+	if not state.is_over:
+		var offered := EventRules.roll(self, faction_id)
+		if not offered.is_empty():
+			state.pending_event = offered
+			emit({"type": GalaxyEvents.EVENT_OFFERED, "faction": faction_id, "event": offered["event"],
+					"planet": offered["planet"]})
 
 
 func _end_faction_turn() -> void:
@@ -1102,7 +1144,10 @@ func _end_faction_turn() -> void:
 		if current_faction_id() not in state.eliminated:
 			break
 	if state.turn_number > state.max_turns:
-		_finish("", "max_turns")
+		if VictoryRules.enabled(self, "score"):
+			_finish(VictoryRules.score_leader(self), "score")
+		else:
+			_finish("", "max_turns")
 		return
 	_begin_faction_turn()
 
@@ -1114,6 +1159,8 @@ func _run_economy(faction_id: String) -> void:
 	stock["credits"] = int(stock.get("credits", 0)) + int(gained["credits"])
 	stock["alloys"] = int(stock.get("alloys", 0)) + int(gained["alloys"])
 	emit({"type": GalaxyEvents.INCOME, "faction": faction_id, "income": gained})
+	if int(stock["credits"]) < 0:
+		_budget_crisis(faction_id)
 
 	# Research points flow into the current tech; unspent points carry over.
 	var r: Dictionary = state.research[faction_id]
@@ -1136,14 +1183,81 @@ func _run_economy(faction_id: String) -> void:
 			emit({"type": GalaxyEvents.BUILDING_COMPLETED, "planet": planet.id, "building": planet.queue["item"],
 					"body": planet.queue.get("body", "")})
 			planet.queue = {}
+		elif planet.queue["kind"] == "megaproject":
+			_complete_megaproject(planet, faction_id)
 		elif _launch_ship(planet, planet.queue["item"]):
 			planet.queue = {}
 		# else: no room to launch (orbit full); it waits, finished, for next turn
 
+	# Colonies grow (not while the treasury is in debt).
+	if int(stock["credits"]) >= 0:
+		_grow_colonies(faction_id)
+
+	# Temporary modifiers wear off.
+	var active: Array = state.modifiers.get(faction_id, [])
+	for i in range(active.size() - 1, -1, -1):
+		active[i]["turns"] = int(active[i]["turns"]) - 1
+		if int(active[i]["turns"]) <= 0:
+			emit({"type": GalaxyEvents.MODIFIER_EXPIRED, "faction": faction_id, "modifier": active[i]["id"],
+					"name": active[i]["name"]})
+			active.remove_at(i)
+
 	# Time at peace slowly builds trust.
 	for f in state.factions:
 		if f["id"] != faction_id and not state.is_eliminated(f["id"]) and not state.at_war(faction_id, f["id"]):
-			DiplomacyRules.change_opinion(state, faction_id, f["id"], DiplomacyRules.PEACE_DRIFT)
+			DiplomacyRules.change_opinion(state, faction_id, f["id"],
+					DiplomacyRules.PEACE_DRIFT + int(EmpireRules.modifier(self, faction_id, "opinion_drift")))
+
+
+## Population growth for a faction's colonies at the start of its turn.
+func _grow_colonies(faction_id: String) -> void:
+	for planet in state.planets_of(faction_id):
+		for b in planet.colonies():
+			var rate := EmpireRules.growth_rate(self, b, faction_id)
+			if rate <= 0.0:
+				b["growth"] = 0.0
+				continue
+			b["growth"] = float(b.get("growth", 0.0)) + rate
+			var cost := EmpireRules.growth_cost(self, EmpireRules.pop(b))
+			if float(b["growth"]) >= cost:
+				b["growth"] = float(b["growth"]) - cost
+				b["pop"] = EmpireRules.pop(b) + 1
+				emit({"type": GalaxyEvents.POP_GREW, "planet": planet.id, "body": b["id"], "pop": b["pop"]})
+
+
+## Upkeep pushed the treasury below zero: colonies stop growing, fleets stop
+## repairing and every ship loses a slice of hull until the books balance.
+func _budget_crisis(faction_id: String) -> void:
+	var loss := float(data.economy.get("debt", {}).get("hull_loss", 0.05))
+	for fleet in state.fleets_of(faction_id):
+		for ship in fleet.ships:
+			var max_hull := int(data.units[ship["unit"]]["stats"]["max_hull"])
+			ship["hull"] = maxi(1, int(ship["hull"]) - ceili(max_hull * loss))
+	emit({"type": GalaxyEvents.BUDGET_CRISIS, "faction": faction_id, "credits": state.resources[faction_id]["credits"]})
+
+
+## A megaproject's build finished: it stands in the system for good (and passes
+## to whoever captures it). The great ones end the game.
+func _complete_megaproject(planet: Planet, faction_id: String) -> void:
+	var mp_id: String = planet.queue["item"]
+	planet.queue = {}
+	if mp_id not in planet.megaprojects:
+		planet.megaprojects.append(mp_id)
+	emit({"type": GalaxyEvents.MEGAPROJECT_COMPLETED, "planet": planet.id, "megaproject": mp_id, "faction": faction_id})
+	var kind: String = data.megaprojects[mp_id].get("victory", "")
+	if kind == "science" and VictoryRules.enabled(self, "science") and not state.is_over:
+		_finish(faction_id, "science")
+
+
+## Applies the faction's answer to the pending galactic event.
+func _do_resolve_event(cmd: ResolveEventCommand) -> void:
+	var pending := state.pending_event
+	var def: Dictionary = data.events[pending["event"]]
+	var result := EventRules.apply(self, cmd.faction_id, pending, cmd.choice)
+	state.pending_event = {}
+	emit({"type": GalaxyEvents.EVENT_RESOLVED, "faction": cmd.faction_id, "event": pending["event"],
+			"choice": cmd.choice, "label": def["choices"][cmd.choice]["label"], "success": result["success"],
+			"text": result["text"], "lines": result["lines"], "planet": pending.get("planet", "")})
 
 
 ## Barbarians don't hold what they take: they strip a system (credits from
@@ -1165,6 +1279,7 @@ func _plunder(planet: Planet, fleet: Fleet) -> void:
 		planet.remove_building(wrecked)
 	planet.queue = {}
 	planet.owner = ""
+	_lose_population(planet, 0.0, int(data.economy.get("growth", {}).get("plunder_pop_loss", 1)))
 	_evacuate_heroes(planet, previous)
 	DiplomacyRules.change_opinion(state, previous, fleet.owner, DiplomacyRules.PLANET_TAKEN_OPINION)
 	emit({"type": GalaxyEvents.SYSTEM_PLUNDERED, "planet": planet.id, "faction": fleet.owner, "previous_owner": previous,
@@ -1232,8 +1347,14 @@ func _launch_ship(planet: Planet, unit_id: String) -> bool:
 
 func _do_queue(cmd: QueueBuildCommand) -> void:
 	var planet: Planet = state.planets[cmd.planet_id]
-	var source: Dictionary = data.buildings[cmd.item_id] if cmd.kind == "building" \
-			else data.units[cmd.item_id].get("strategic", {})
+	var source: Dictionary
+	match cmd.kind:
+		"building":
+			source = data.buildings[cmd.item_id]
+		"megaproject":
+			source = data.megaprojects[cmd.item_id]
+		_:
+			source = data.units[cmd.item_id].get("strategic", {})
 	var cost: Dictionary = source.get("cost", {})
 	EmpireRules.pay(self, cmd.faction_id, cost)
 	var turns := int(source.get("turns", source.get("build_turns", 1)))
@@ -1246,6 +1367,9 @@ func _do_queue(cmd: QueueBuildCommand) -> void:
 	planet.queue = {"kind": cmd.kind, "item": cmd.item_id, "body": body_id, "progress": 0, "turns": turns}
 	emit({"type": GalaxyEvents.BUILD_QUEUED, "planet": planet.id, "kind": cmd.kind, "item": cmd.item_id,
 			"turns": turns})
+	if cmd.kind == "megaproject":
+		emit({"type": GalaxyEvents.MEGAPROJECT_STARTED, "planet": planet.id, "megaproject": cmd.item_id,
+				"faction": cmd.faction_id})
 
 
 func _validate_diplomacy(cmd: DiplomacyCommand) -> String:
@@ -1340,6 +1464,8 @@ func _check_eliminations() -> void:
 	if remaining.size() <= 1:
 		_finish(remaining[0] if remaining.size() == 1 else "", "elimination")
 		return
+	if not VictoryRules.enabled(self, "peace"):
+		return
 	for a in remaining:
 		for b in remaining:
 			if state.at_war(a, b):
@@ -1354,6 +1480,7 @@ func _check_eliminations() -> void:
 func _finish(winner: String, reason: String) -> void:
 	state.is_over = true
 	state.winner = winner
+	state.victory_reason = reason
 	emit({"type": GalaxyEvents.CAMPAIGN_ENDED, "winner": winner, "reason": reason})
 
 

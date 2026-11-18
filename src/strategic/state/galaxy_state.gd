@@ -26,6 +26,8 @@ var pending_battle: Dictionary = {}
 var is_over := false
 ## Winning faction id; "" for a draw or while running.
 var winner := ""
+## Why the campaign ended: "elimination", "objective", "peace", "science", "score" or "max_turns" ("" while running).
+var victory_reason := ""
 
 var next_uid := 0
 
@@ -52,6 +54,14 @@ var research: Dictionary = {}
 var relations: Dictionary = {}
 ## faction id -> {other faction id: opinion -100..100}: how the first feels about the second.
 var opinions: Dictionary = {}
+## faction id -> [{"id", "name", "turns": int left, "effects": [tech-style effects]}]: temporary
+## modifiers (from galactic events) that count like tech effects while they last.
+var modifiers: Dictionary = {}
+## faction id -> {"last": turn of its last event, "seen": {event id: turn}}.
+var event_log: Dictionary = {}
+## While non-empty, a faction has to answer a galactic event before anything else happens:
+## {"faction", "event": id, "turn", "planet": system id or ""}
+var pending_event: Dictionary = {}
 
 
 func current_faction() -> Dictionary:

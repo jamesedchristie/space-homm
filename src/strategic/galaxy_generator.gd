@@ -20,6 +20,8 @@ extends RefCounted
 ## }
 
 const EDGE := 1
+## Population of a home world's capital colony at the start.
+const HOME_POP := 3
 
 
 static func generate(data: DataRegistry, template: Dictionary, seed_value: int) -> Dictionary:
@@ -144,6 +146,7 @@ static func _home_bodies(data: DataRegistry, rng: RandomNumberGenerator, p: Dict
 		if b["type"] == "terran" and not out.any(func(x: Dictionary) -> bool: return x.has("buildings")):
 			entry["name"] = p.get("name", b["name"])
 			entry["buildings"] = ["colony"] + capital_buildings.filter(func(x: String) -> bool: return x != "colony")
+			entry["pop"] = HOME_POP
 		out.append(entry)
 	return out
 

@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ## Campaign system entry:
 ##   {"id", "name", "at": [c, r], "owner"?, "star"?, "sensor"?, "description"?,
-##    "bodies": [{"type", "name"?, "buildings"?: [ids], "traits"?: [ids]}]
+##    "bodies": [{"type", "name"?, "buildings"?: [ids], "traits"?: [ids], "pop"?: starting population of a colony}]
 ##              or omitted / "random": rolled from the seed,
 ##    "home": true  (random bodies always include a terran world)}
 
@@ -27,8 +27,12 @@ static func bodies_from_def(data: DataRegistry, def: Dictionary, system_name: St
 			traits.assign(b.get("traits", []))
 			var buildings: Array[String] = []
 			buildings.assign(b.get("buildings", []))
-			out.append({"id": "%s_%d" % [def.get("id", system_name), i], "type": b["type"],
-					"name": b.get("name", _body_name(system_name, b["type"], i)), "traits": traits, "buildings": buildings})
+			var body := {"id": "%s_%d" % [def.get("id", system_name), i], "type": b["type"],
+					"name": b.get("name", _body_name(system_name, b["type"], i)), "traits": traits, "buildings": buildings}
+			if "colony" in buildings:
+				body["pop"] = int(b.get("pop", Planet.START_POP))
+				body["growth"] = 0.0
+			out.append(body)
 		return out
 	return random_bodies(data, rng, def.get("id", system_name), system_name, def.get("home", false))
 
