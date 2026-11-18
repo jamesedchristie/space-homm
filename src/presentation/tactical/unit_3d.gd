@@ -19,6 +19,11 @@ var status_text := ""
 ## Height of the overlay anchor (bars/name) above the unit's cell.
 var label_height := 0.9
 
+## How high this ship flies above its hex (space battles stagger them).
+var altitude := SHIP_ALTITUDE
+## Extra height and roll while maneuvering (tweened by move_along).
+var _lift := 0.0
+var _bank := 0.0
 var _model: Node3D
 var _active_ring: MeshInstance3D
 var _is_ship := false
@@ -27,7 +32,8 @@ var _t := 0.0
 var _trail: CPUParticles3D
 
 
-func setup(u: BattleUnit, data: DataRegistry, color: Color, style: String = "") -> void:
+## p_altitude < 0 keeps the default ship height.
+func setup(u: BattleUnit, data: DataRegistry, color: Color, style: String = "", p_altitude: float = -1.0) -> void:
 	unit_id = u.id
 	display_name = u.name
 	team_color = color
@@ -40,11 +46,15 @@ func setup(u: BattleUnit, data: DataRegistry, color: Color, style: String = "") 
 	_model.scale = Vector3(s, s, s)
 	add_child(_model)
 	if _is_ship and not _spins:
-		_model.position.y = SHIP_ALTITUDE
+		if p_altitude >= 0.0:
+			altitude = p_altitude
+		_model.position.y = altitude
 		_trail = BoardGeometry.engine_trail(color, 1.3)
-		_trail.position.y = SHIP_ALTITUDE
+		_trail.position.y = altitude
 		add_child(_trail)
-	label_height = (SHIP_ALTITUDE + 0.75) if _is_ship else 1.6
+		if altitude > SHIP_ALTITUDE + 0.1:
+			_add_tether(color)
+	label_height = (altitude + 0.75) if _is_ship else 1.6
 	_t = randf() * TAU
 
 	# Team marker on the floor: faint disc plus a crisp ring.
@@ -113,8 +123,10 @@ func _process(delta: float) -> void:
 	if _spins:
 		_model.rotation.y += delta * 0.4
 	elif _is_ship:
-		_model.position.y = SHIP_ALTITUDE + sin(_t * 1.6) * 0.035
-		_model.rotation.x = sin(_t * 1.1) * 0.03
+		_model.position.y = altitude + _lift + sin(_t * 1.6) * 0.035
+		_model.rotation.x = sin(_t * 1.1) * 0.03 + _bank
+		if _trail != null:
+			_trail.position.y = _model.position.y
 	if is_active:
 		_active_ring.rotation.y += delta * 0.8
 
@@ -124,16 +136,48 @@ func move_along(points: Array[Vector3], step_time: float = 0.16) -> void:
 		return
 	var tw := create_tween()
 	var prev := position
+	var heading := -rotation.y
 	for p in points:
 		var d := p - prev
-		tw.tween_callback(face_angle.bind(atan2(d.z, d.x)))
+		var angle := atan2(d.z, d.x)
+		if _is_ship and not _spins:
+			# Bank into the turn, then level out over the step.
+			var turn := wrapf(angle - heading, -PI, PI)
+			tw.tween_callback(func() -> void: _bank = clampf(-turn * 0.6, -0.6, 0.6))
+		tw.tween_callback(face_angle.bind(angle))
 		tw.tween_property(self, "position", p, step_time).set_trans(Tween.TRANS_SINE)
+		if _is_ship and not _spins:
+			tw.parallel().tween_property(self, "_bank", 0.0, step_time).set_trans(Tween.TRANS_SINE)
+		heading = angle
 		prev = p
+	if _is_ship and not _spins:
+		# Climb out and settle back: a shallow arc over the whole move.
+		var total := step_time * points.size()
+		var arc := create_tween()
+		arc.tween_property(self, "_lift", minf(0.18 + 0.05 * points.size(), 0.45), total * 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		arc.tween_property(self, "_lift", 0.0, total * 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	if _trail != null:
 		_trail.emitting = true
 	await tw.finished
 	if _trail != null:
 		_trail.emitting = false
+
+
+## A faint holo line from the ship down to its hex, so height reads as
+## height rather than as position.
+func _add_tether(color: Color) -> void:
+	var tether := MeshInstance3D.new()
+	var line := CylinderMesh.new()
+	line.top_radius = 0.016
+	line.bottom_radius = 0.016
+	line.height = altitude - 0.08
+	line.radial_segments = 6
+	line.rings = 1
+	tether.mesh = line
+	tether.material_override = _additive_material(Color(color, 1.0) * 0.6)
+	tether.position.y = 0.02 + line.height / 2.0
+	tether.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(tether)
 
 
 func play_hit() -> void:

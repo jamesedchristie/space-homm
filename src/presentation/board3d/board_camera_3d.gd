@@ -104,8 +104,10 @@ func handle_input(event: InputEvent) -> bool:
 		if _panning:
 			_pan(-event.relative * distance * 0.0016)
 			return true
-		if _rotating and absf(event.relative.x) > 0.0:
+		if _rotating and event.relative != Vector2.ZERO:
+			# Sideways turns the view, up/down tilts it.
 			yaw -= event.relative.x * 0.008
+			pitch = clampf(pitch + event.relative.y * 0.005, deg_to_rad(22.0), deg_to_rad(80.0))
 			update()
 			return true
 	elif event is InputEventKey and event.pressed:

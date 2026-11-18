@@ -53,8 +53,9 @@ and press **F6** (run current scene).
 | --- | --- |
 | Click your fleet | Select it (blue hexes = move, red = attack) |
 | Click a blue / red hex | Move there / attack the fleet there |
-| Click a planet or visible enemy | Show info |
-| `Tab` | Next fleet with moves left |
+| Click a planet or visible enemy | Show info (click your own system to open it) |
+| Click your selected fleet again / `S` | Open the system it's parked in |
+| `Tab` / **Next Fleet** | Next fleet with moves left (the button counts them; fleets that can still move have a bouncing arrow, spent ones fade) |
 | Click your other fleet | Merge into it (asks first; up to 6 ships, one commander) |
 | `D` | Detach ships into a new fleet on a neighbouring system |
 | Right-click / `Esc` | Deselect (`Esc` with nothing selected opens the menu) |
@@ -64,7 +65,7 @@ and press **F6** (run current scene).
 | `H` | Heroes panel: gear, levels, assign/relieve fleet commanders |
 | `A` | Toggle autoplay (AI plays your faction too) |
 | `V` | Switch between the 2.5D (3D) and top-down (2D) galaxy map |
-| Mouse wheel / `Q` `R` / right-drag / arrows / middle-drag | 3D map: zoom / rotate / rotate / pan / pan |
+| Mouse wheel / `Q` `R` / right-drag / arrows / middle-drag | 3D map: zoom / rotate / rotate and tilt / pan / pan |
 
 The 3D map opens on the area you've explored; zoom out with the wheel to see the whole sector.
 
@@ -139,7 +140,7 @@ afterwards, and the fleet loses its doctrine bonus meanwhile.
 | `A` | Toggle autoplay |
 | `R` | Restart (standalone battles only) |
 | `V` | Switch between the 2.5D (3D) and top-down (2D) battle view |
-| Mouse wheel / `Q` `E` / right-drag / arrows / middle-drag | 3D view: zoom / rotate / rotate / pan / pan |
+| Mouse wheel / `Q` `E` / right-drag / arrows / middle-drag | 3D view: zoom / rotate / rotate and tilt / pan / pan |
 
 Hover over targets to see the expected damage before you commit. In missions, the green ★
 marks the objective, yellow **?** marks something to investigate, and enemies stay hidden

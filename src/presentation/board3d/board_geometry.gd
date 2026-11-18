@@ -181,29 +181,39 @@ static func line_material() -> StandardMaterial3D:
 
 
 ## A cluster of faint additive glows (nebula terrain).
-static func nebula_puffs(parent: Node3D, center: Vector3, color: Color, rng_seed: int) -> void:
+## height: how far up the puffs billow (battles use a taller column than the galaxy map).
+static func nebula_puffs(parent: Node3D, center: Vector3, color: Color, rng_seed: int, height: float = 0.6) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = rng_seed
-	for i in 4:
+	var count := 4 if height <= 0.6 else 7
+	for i in count:
 		var puff := MeshInstance3D.new()
 		var sphere := SphereMesh.new()
 		sphere.radius = rng.randf_range(0.35, 0.6)
 		sphere.height = sphere.radius * 0.8
 		puff.mesh = sphere
-		puff.material_override = additive_material(color.lightened(0.3) * 0.12)
-		puff.position = center + Vector3(rng.randf_range(-0.5, 0.5), rng.randf_range(0.1, 0.6), rng.randf_range(-0.5, 0.5))
+		puff.material_override = additive_material(color.lightened(0.3) * (0.12 if height <= 0.6 else 0.09))
+		puff.position = center + Vector3(rng.randf_range(-0.5, 0.5), rng.randf_range(0.1, height), rng.randf_range(-0.5, 0.5))
 		parent.add_child(puff)
 
 
 ## One or two faceted boulders scattered over a cell (asteroid terrain).
-static func rocks(parent: Node3D, center: Vector3, rng_seed: int, scale: float = 1.0) -> void:
+## floating: battle maps stack 3-4 slowly tumbling rocks at different
+## heights instead of two resting near the plane.
+static func rocks(parent: Node3D, center: Vector3, rng_seed: int, scale: float = 1.0, floating: bool = false) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = rng_seed
-	for i in 2:
-		var r := (rng.randf_range(0.42, 0.62) if i == 0 else rng.randf_range(0.2, 0.3)) * scale
+	var count := 2 if not floating else 3 + rng.randi() % 2
+	for i in count:
+		var r := (rng.randf_range(0.42, 0.62) if i == 0 else rng.randf_range(0.2, 0.32)) * scale
 		var rock := ModelFactory.build_rock(rng.randi(), r)
-		rock.position = center + Vector3(rng.randf_range(-0.3, 0.3), rng.randf_range(0.15, 0.4), rng.randf_range(-0.3, 0.3)) * scale
+		var y := rng.randf_range(0.15, 0.4) if not floating else rng.randf_range(-0.35, 1.5)
+		rock.position = center + Vector3(rng.randf_range(-0.3, 0.3) * scale, y * scale, rng.randf_range(-0.3, 0.3) * scale)
 		rock.rotation = Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU)
+		if floating:
+			var tumble := Tumbler.new()
+			tumble.spin = Vector3(rng.randf_range(-0.25, 0.25), rng.randf_range(-0.3, 0.3), rng.randf_range(-0.2, 0.2))
+			rock.add_child(tumble)
 		parent.add_child(rock)
 
 
@@ -348,7 +358,7 @@ static func space_scenery(parent: Node3D, center: Vector3, extent: Vector2, rng_
 	var side := -1.0 if rng.randf() < 0.5 else 1.0
 	# Low and far beyond the board's back edge, off to one side: it rises
 	# behind the board at the top of the view rather than under the ships.
-	body.position = center + Vector3(side * (extent.x * 0.9 + radius * 0.6), -(radius + 14.0), -(extent.y + radius * 2.2 + 10.0))
+	body.position = center + Vector3(side * (extent.x * 0.9 + radius * 0.6), -(radius * 0.9 + 9.0), -(extent.y + radius * 2.4 + 32.0))
 	body.rotation = Vector3(0.3, rng.randf() * TAU, 0.2)
 	parent.add_child(body)
 	var shell := MeshInstance3D.new()

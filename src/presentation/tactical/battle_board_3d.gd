@@ -117,6 +117,9 @@ func _unit_ground(u: BattleUnit) -> Vector3:
 func _build_environment() -> void:
 	BoardGeometry.build_environment(_world)
 	_rig = BoardCamera3D.new()
+	if _floor != "deck":
+		# Space: a lower view so ships at different heights read as a 3D formation.
+		_rig.pitch = deg_to_rad(40.0)
 	_world.add_child(_rig)
 	camera = _rig.camera
 
@@ -136,15 +139,16 @@ func _build_board() -> void:
 		if _floor == "deck":
 			pass  # dressed by DeckKit
 		else:
-			var fill := Color(0.05, 0.08, 0.15, 0.1)
+			# A faint holographic plane: the ships and rocks above it carry the depth.
+			var fill := Color(0.05, 0.08, 0.15, 0.05)
 			if terrain.has("color"):
 				fill = Color(terrain["color"])
-				fill.a = 0.32
+				fill.a = 0.16
 			BoardGeometry.prism(glass, _cell_poly(c, 0.95), -0.02, 0.0, fill.darkened(0.3), fill)
 			if deco == "rocks":
-				BoardGeometry.rocks(_world, world(c), hash(c))
+				BoardGeometry.rocks(_world, world(c), hash(c), 1.0, true)
 			if terrain.get("blocks_sight", false) and terrain.get("passable", true):
-				BoardGeometry.nebula_puffs(_world, world(c), Color(terrain.get("color", "#553377")), hash(c) + 7)
+				BoardGeometry.nebula_puffs(_world, world(c), Color(terrain.get("color", "#553377")), hash(c) + 7, 1.5)
 		polys.append(_cell_poly(c, 0.95))
 
 	BoardGeometry.mesh_node(_world, BoardGeometry.tile_material(false)).mesh = solid.commit()
@@ -174,10 +178,19 @@ func _crates(st: SurfaceTool, c: Vector2i) -> void:
 func add_unit(u: BattleUnit) -> void:
 	var view := Unit3D.new()
 	_world.add_child(view)
-	view.setup(u, data, Palette.team_color(u.team), engine.state.team_info(u.team).get("species", ""))
+	view.setup(u, data, Palette.team_color(u.team), engine.state.team_info(u.team).get("species", ""), _ship_altitude(u))
 	view.position = _unit_ground(u)
 	view.face_angle(0.0 if u.team == 0 else PI)
 	views[u.id] = view
+
+
+## Ships in open space fly at staggered heights (stable per unit); on decks
+## and for stations, the default.
+func _ship_altitude(u: BattleUnit) -> float:
+	if _floor == "deck" or "ship" not in u.tags or "immobile" in u.tags:
+		return -1.0
+	var h := absi(hash(u.id + "alt")) % 1000 / 1000.0
+	return lerpf(0.3, 1.35, h)
 
 
 func move_unit(unit_id: String, path: Array, animate: bool) -> void:
@@ -371,6 +384,24 @@ func _outline_cell(im: Dictionary, c: Vector2i, y: float, width: float, color: C
 func cell_at_mouse() -> Variant:
 	if _rig == null:
 		return null
+	# Ships fly above their hexes: pointing at the model picks its cell.
+	var mouse := camera.get_viewport().get_mouse_position()
+	var best_d := 30.0
+	var best: Variant = null
+	for id: String in views:
+		var view: Unit3D = views[id]
+		var u: BattleUnit = engine.state.units.get(id)
+		if u == null or not u.alive or not view.visible or view.altitude <= Unit3D.SHIP_ALTITUDE + 0.1:
+			continue
+		var at := view.aim_point()
+		if camera.is_position_behind(at):
+			continue
+		var d := camera.unproject_position(at).distance_to(mouse)
+		if d < best_d:
+			best_d = d
+			best = u.cell
+	if best != null:
+		return best
 	var hit: Variant = _rig.pick(_floor_y)
 	if hit == null:
 		return null
