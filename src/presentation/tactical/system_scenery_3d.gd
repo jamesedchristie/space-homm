@@ -109,7 +109,7 @@ static func _planet(parent: Node3D, body: Dictionary, def: Dictionary, center: V
 		torus.outer_radius = r * 1.6
 		torus.rings = 64
 		rings.mesh = torus
-		rings.material_override = BoardGeometry.flat_material(Color(Color(surface.get("accent", "#ccbbaa")), 0.4))
+		rings.material_override = BoardGeometry.flat_material(Color(Color(surface.get("accent", "#ccbbaa")), 0.3))
 		rings.scale = Vector3(1, 0.03, 1)
 		rings.rotation.z = 0.3
 		rings.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
