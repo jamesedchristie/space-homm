@@ -207,6 +207,8 @@ static func _meshes_for(data: DataRegistry, model_id: String, style: String = ""
 		push_warning("ModelFactory: unknown model '%s'" % model_id)
 		def = {"parts": [{"type": "box", "size": [0.6, 0.3, 0.4], "material": "accent"}]}
 	var parts := _parts_of(data, def, 0)
+	if def.get("plating", false):
+		parts.append_array(_greebles(parts, absi(hash(model_id))))
 	if not style.is_empty():
 		var extra: Dictionary = data.species.get(style, {}).get("style", {}).get("extra", {})
 		parts.append_array(extra.get(model_id, []))
@@ -243,6 +245,55 @@ static func _styled_material(material_name: String, team_color: Color, style_def
 		m.emission = Color(style_def[material_name])
 	_material_cache[key] = m
 	return m
+
+
+## Surface detail for plated ships: small blocks (vents, sensor housings,
+## conduits) scattered over the top faces of the main hull parts, so the
+## silhouettes read as machinery rather than smooth toys. Deterministic per model.
+static func _greebles(parts: Array, rng_seed: int) -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = rng_seed
+	var out: Array = []
+	for part: Dictionary in parts:
+		if part.get("type", "") != "hull" or part.get("material", "") != "hull" or float(part.get("rot", 0.0)) != 0.0:
+			continue
+		var h := float(part.get("height", 0.2))
+		if h < 0.1:
+			continue
+		var outline := PackedVector2Array()
+		var centre := Vector2.ZERO
+		for p: Array in part.get("outline", []):
+			outline.append(Vector2(float(p[0]), float(p[1])))
+			centre += Vector2(float(p[0]), float(p[1]))
+		if outline.size() < 3:
+			continue
+		centre /= outline.size()
+		var top := PackedVector2Array()
+		for p in outline:
+			top.append(p.lerp(centre, float(part.get("bevel", 0.3)) + 0.08))
+		var lo := Vector2(INF, INF)
+		var hi := Vector2(-INF, -INF)
+		for p in top:
+			lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.y))
+			hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.y))
+		var area := (hi.x - lo.x) * (hi.y - lo.y)
+		var count := clampi(int(area * 60.0), 3, 14)
+		var at := _vec3(part.get("at", [0, 0, 0]))
+		var placed := 0
+		for attempt in count * 6:
+			if placed >= count:
+				break
+			var q := Vector2(rng.randf_range(lo.x, hi.x), rng.randf_range(lo.y, hi.y))
+			if not Geometry2D.is_point_in_polygon(q, top):
+				continue
+			var size := Vector3(rng.randf_range(0.04, 0.12), rng.randf_range(0.012, 0.035), rng.randf_range(0.025, 0.07))
+			if rng.randf() < 0.3:
+				size = Vector3(size.z, size.y, size.x)
+			out.append({"type": "box", "size": [size.x, size.y, size.z],
+				"at": [at.x + q.x, at.y + h + size.y / 2.0 - 0.004, at.z + q.y],
+				"material": "dark" if rng.randf() < 0.7 else "hull", "mirror": part.get("mirror", false)})
+			placed += 1
+	return out
 
 
 ## The plating shader carrying a standard material's colour and finish.
