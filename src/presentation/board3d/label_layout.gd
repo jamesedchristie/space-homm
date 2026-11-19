@@ -20,7 +20,9 @@ static func resolve(boxes: Array[Rect2], gap: float = 2.0, max_shift: float = 90
 		var r := boxes[i]
 		var shift := 0.0
 		var moved := true
-		while moved and -shift < max_shift:
+		var tries := placed.size() + 1  # each placed box can push this one at most once (and huge, far off-screen coordinates can't loop)
+		while moved and -shift < max_shift and tries > 0:
+			tries -= 1
 			moved = false
 			var test := Rect2(r.position + Vector2(0, shift), r.size)
 			for p in placed:

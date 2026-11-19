@@ -64,6 +64,7 @@ static func from_scenario(p_data: DataRegistry, scenario: Variant, p_seed: int =
 			"name": team_def.get("name", "Team %d" % team),
 			"controller": team_def.get("controller", "ai"),
 			"species": team_def.get("species", ""),
+			"role": team_def.get("role", ""),
 		})
 		var index := 0
 		for entry: Dictionary in team_def.get("units", []):

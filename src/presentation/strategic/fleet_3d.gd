@@ -1,10 +1,14 @@
 class_name Fleet3D
 extends Node3D
-## A fleet on the 3D galaxy board: a model of its biggest ship with up to two
-## smaller escorts, hovering over a team-colored ring. Name, hull bar, ship
-## count and move pips are drawn in 2D by GalaxyOverlay3D.
+## A fleet on the 3D galaxy board: a small task group in its species' ship
+## designs (ModelFactory.model_for): the biggest ship leads and up to four more
+## fly escort in a V behind it, hovering over a team-colored ring. Name, hull
+## bar, ship count and move pips are drawn in 2D by GalaxyOverlay3D.
 
 const ALTITUDE := 0.32
+## Escort slots behind the lead (model space: +x forward).
+const ESCORT_SLOTS := [Vector3(-0.3, -0.04, -0.27), Vector3(-0.3, -0.04, 0.27), Vector3(-0.55, 0.02, -0.5),
+		Vector3(-0.55, 0.02, 0.5)]
 
 var fleet_id := ""
 var display_name := ""
@@ -28,11 +32,14 @@ var _disc_material: StandardMaterial3D
 
 
 var _style := ""
+var _variant := ""
 
 
-func setup(fleet: Fleet, team: int, data: DataRegistry, owned_by_player: bool, style: String = "") -> void:
+## variant: "raider" for raider fleets (their scrappy designs where there are some).
+func setup(fleet: Fleet, team: int, data: DataRegistry, owned_by_player: bool, style: String = "", variant: String = "") -> void:
 	fleet_id = fleet.id
 	_style = style
+	_variant = variant
 	_data = data
 	color = Palette.team_color(team)
 	show_moves = owned_by_player
@@ -107,19 +114,18 @@ func refresh(fleet: Fleet, data: DataRegistry, max_moves_override: int = -1) -> 
 func _build_models(fleet: Fleet) -> void:
 	for child in _models.get_children():
 		child.queue_free()
-	# Biggest ship leads; the next two biggest fly escort behind it.
+	# Biggest ship leads; the next biggest fly escort in a V behind it.
 	var defs: Array[Dictionary] = []
 	for ship in fleet.ships:
 		defs.append(_data.units[ship["unit"]])
 	defs.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return a["stats"]["max_hull"] > b["stats"]["max_hull"])
-	var slots := [Vector3(0.08, 0, 0), Vector3(-0.3, -0.04, -0.3), Vector3(-0.3, -0.04, 0.3)]
-	for i in mini(defs.size(), slots.size()):
+	for i in mini(defs.size(), ESCORT_SLOTS.size() + 1):
 		var visual: Dictionary = defs[i].get("visual", {})
-		var model := ModelFactory.build(_data, visual.get("model", "frigate"), color, _style)
-		var s := float(visual.get("size", 1.0)) * (0.8 if i == 0 else 0.5)
+		var model := ModelFactory.build(_data, Unit3D.model_id_for(_data, defs[i], _style, _variant), color, _style, i > 0)
+		var s := float(visual.get("size", 1.0)) * (0.55 if i == 0 else 0.34)
 		model.scale = Vector3(s, s, s)
-		model.position = slots[i]
+		model.position = Vector3(0.12, 0, 0) if i == 0 else ESCORT_SLOTS[i - 1]
 		_models.add_child(model)
 
 

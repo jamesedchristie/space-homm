@@ -571,7 +571,7 @@ func _battle_side(fleet: Fleet, faction_id: String, slots: Array, planet: Planet
 		if not defenses.is_empty():
 			names.append("%s defenses" % planet.name)
 	return {"team": faction["team"], "name": " + ".join(names), "controller": faction["controller"], "units": units,
-			"species": faction.get("species", "")}
+			"species": faction.get("species", ""), "role": faction.get("role", "major")}
 
 
 ## Deterministic seed for the next battle (so campaigns replay exactly).

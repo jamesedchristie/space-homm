@@ -37,6 +37,8 @@ var _sprite: Sprite2D
 var _is_ship := false
 var _spins := false
 var _t := 0.0
+## Craft in the full squadron (unit visual "squadron"; 1 for single ships).
+var _squadron := 1
 
 
 func setup(unit: BattleUnit, def: Dictionary, cell_size: float) -> void:
@@ -50,6 +52,7 @@ func setup(unit: BattleUnit, def: Dictionary, cell_size: float) -> void:
 
 	_is_ship = "ship" in unit.tags
 	_spins = "immobile" in unit.tags
+	_squadron = Squadron.size_of(def) if _is_ship else 1
 	var sprite_path: String = visual.get("sprite", "")
 	var variants: Array = visual.get("sprite_variants", Palette.TEAM_SPRITE_COLORS)
 	sprite_path = sprite_path.replace("{team}", variants[unit.team % variants.size()])
@@ -189,6 +192,13 @@ func _draw() -> void:
 	_draw_bar(Vector2(-bar_w / 2.0, y + 5.0), bar_w, float(_hull) / _max_hull, Palette.HULL)
 
 	var font := ThemeDB.fallback_font
+	if _squadron > 1:
+		# Squadron badge: craft still flying (they drop out with the hull, as in a Heroes stack).
+		var count := maxi(1, Squadron.craft_count(_squadron, _hull, _max_hull))
+		var badge := Vector2(radius * 0.8, -radius * 0.8)
+		draw_circle(badge, 8.0, Color(0, 0, 0, 0.75))
+		draw_arc(badge, 8.0, 0, TAU, 20, team_color.lightened(0.2), 1.5, true)
+		draw_string(font, badge + Vector2(-8, 4), str(count), HORIZONTAL_ALIGNMENT_CENTER, 16, 11, Palette.TEXT)
 	draw_string(font, Vector2(-60, y + 20.0), display_name, HORIZONTAL_ALIGNMENT_CENTER, 120, 11, Palette.TEXT)
 	if not _status_text.is_empty():
 		draw_string(font, Vector2(-70, -radius - 6.0), _status_text, HORIZONTAL_ALIGNMENT_CENTER, 140, 10, Palette.ACTIVE)

@@ -137,10 +137,11 @@ table is built before threads start) and one run per frame on the single-threade
 `data/strategic/species.json`: each species has `effects` in the tech effect format (`yield`,
 `empire_modifier`, `ship_status`), which `EmpireRules.tech_effects` adds to the faction's tech
 effects, so species bonuses flow through the same code as research. `squad_ability` is added to
-every hero and marine of that species on missions (`MissionFactory.squad_for`). `style` repaints
-models (`hull` / `dark` / `glass` colours) and adds `extra` parts per model id or base
-(`humanoid`), so the four species share ship classes but look distinct (`ModelFactory.build(...,
-style)`; battle teams carry `species`). Campaign factions set `species` and `role`:
+every hero and marine of that species on missions (`MissionFactory.squad_for`). Each species
+flies its own ship designs (see "Ship models" below); `style` repaints models (`hull` / `dark` /
+`glass` / `trim` / `glow` / `engine` colours, a `finish` of metallic / roughness per material) and
+adds `extra` parts per model id or base (`humanoid`) (`ModelFactory.build(..., style)`; battle
+teams carry `species` and `role`). Campaign factions set `species` and `role`:
 - `major` (default) plays to win. Victory and the "everyone at peace" ending consider majors
   only; a campaign can instead set `"victory": {"eliminate": faction}` (The Drift).
 - `barbarian`: always hostile; `barbarian: {spawn_every, max_fleets, fleet, den_loot}`: each den
@@ -347,6 +348,32 @@ and fitting the view to the HUD-free area. There are two implementations:
   (`Unit3D` + `ModelFactory`) and effects are 3D (`Fx3D`). Bars, names and floating text are
   drawn in 2D on top (`BoardOverlay3D`). The nebula backdrop shows behind the scene via
   `Environment.BG_CANVAS`.
+
+**Ship models.** Recipes live in `data/models/models.json` (see "Model recipe" in the content
+schema). Each ship class has a shared design (the Terran one: `frigate`, `cruiser`, `station`, ...)
+and per-species designs named `<model>_<species>` (`frigate_veltari`, `cruiser_kesh`,
+`station_sorn`, ...); `ModelFactory.model_for(data, model, species)` picks the species' own design
+when there is one, else the shared one. Raider (barbarian) teams and fleets ask for the
+`<model>_raider` variant first (scrappy salvage: interceptor, frigate, destroyer). Silhouettes
+carry the identity: Terran long spines, boxy blocks, engine banks and rotating rings; Vel'tari
+smooth pearl blades and crescents with crystal veins; Kesh bronze birds of prey (a head on a neck,
+forward-swept wings, weapon pods, crimson plates); Sorn slate triangular monoliths through level
+rings with teal light strips. `Unit3D.model_id_for()` and `Fleet3D` (a lead ship and up to four
+escorts in a V on the galaxy map) both go through it.
+
+**Squadrons.** A unit with `visual.squadron` > 1 is drawn on the 3D board as that many craft in
+formation inside its hex (`Squadron`: interceptors 5, frigates 3, destroyers 2), each scaled by
+`visual.craft_size`; capital ships (cruisers) and stations are one larger model that may overhang
+its hex (gameplay stays one hex). Like a Heroes stack, the craft shown follow the hull:
+`ceil(n * hull / max_hull)`, at least one while the unit lives; `Unit3D.sync_craft()` breaks up
+lost craft (the board plays a small explosion at each) and brings repaired ones back. `Unit3D`
+keeps a short history of the formation's transform: each craft takes the formation's place from
+a moment ago (its lag in `Squadron.LAGS`) plus its slot, then bobs and rolls on its own, so wings
+bank, wheel into broadsides and fly strafing runs slightly staggered without per-craft animation
+code. Broadsides ripple down a squadron's craft, every ship of a squadron charges and fires its
+spinal gun, and incoming fire lands on a craft (`hit_point()`). Small craft cast no shadows and
+get light engine trails; meshes and materials (plumes included) are shared per model, so a
+squadron costs draw calls but no extra resources. The 2D board shows a craft-count badge.
 
 The view is chosen per screen (`BattleScreen.view_mode`, toggled with V, even mid-battle) and is
 rebuilt from engine state, so the views can never disagree about the game. On big maps the 3D
@@ -613,9 +640,38 @@ shifted right on hex maps). The engine converts them internally.
 }
 ```
 `visual.sprite` is optional. When it is set and the file exists, it replaces the placeholder shape.
-`visual.model` names the 3D model (data/models/models.json). `visual.attack_style` sets how a ship
-delivers its direct-fire (projectile/beam) weapons on the 3D board: `run` (strafing pass and loop
-back, fighters), `broadside` (turns side-on and ripple-fires), `spinal` (charge, one heavy slug, recoil).
+`visual.model` names the 3D model (data/models/models.json; species fly `<model>_<species>` when
+it exists). `visual.attack_style` sets how a ship delivers its direct-fire (projectile/beam)
+weapons on the 3D board: `run` (strafing pass and loop back, fighters), `broadside` (turns side-on
+and ripple-fires), `spinal` (charge, one heavy slug, recoil). `visual.squadron` (1-8, default 1)
+draws the unit as that many craft in formation and `visual.craft_size` scales each craft (or the
+single ship) on the 3D board; `visual.size` still scales the 2D sprite and galaxy models.
+
+**Model recipe** (`data/models/models.json`, built by `ModelFactory`; +x is forward, +y up, one
+unit is a hex radius)
+```jsonc
+"frigate_kesh": {
+  "plating": true,            // hull-plating shader + greebles ("greebles": false, "windows": 0-1, "panels": scale)
+  "base": "",                 // optional: another model whose parts come first (people build on "humanoid")
+  "parts": [
+    {"type": "hull", "outline": [[x, z], ...], "height": 0.2, "bevel": 0.3, "taper": 0.15, "material": "hull"},
+    {"type": "sweep", "path": [[x, y, z, half_width, half_height], ...], "shape": "hex", "subdiv": 3,
+     "smooth": true, "material": "trim", "mirror": true},
+    {"type": "ring", "radius": 0.4, "tube": [0.05, 0.03], "axis": "y", "arc": 250, "start": 55,
+     "taper": true, "material": "hull"},
+    {"type": "cylinder", "radius": 0.06, "length": 0.03, "axis": "x", "at": [-0.7, 0.15, 0.1], "material": "engine"}
+  ]
+}
+```
+Part types: `hull` (extruded, bevelled top-view polygon), `box`, `cylinder`, `cone`, `sphere`, `rock`,
+`sweep` (a cross-section, `diamond` / `box` / `oct` / `hex` / `lens` / `blade` / `tri` / `keel` / `wedge` /
+`round` or custom, swept along a Catmull-Rom path; zero size makes a tip) and `ring` (a torus or a
+tapered arc: crescents). Any part takes `at`, `mirror` (copy across z), `rot` / `pitch` / `roll`
+(degrees), and `spin` (degrees per second around x through `pivot`: rotating sections).
+Materials: `hull`, `dark`, `trim`, `glass`, `glow`, `accent` (team colour), `stripe` (glowing team
+colour), `engine` (glowing; cylinders along x get exhaust plumes), `gold`, `visor`, `rock`,
+`hazard`, and the blinking `light_red` / `light_green` / `beacon`. Triangles are wound to match
+their normals. Ship recipes are authored with mirrored parts and kept symmetric except for raiders.
 
 **Ability** (`data/tactical/abilities/*.json`)
 ```jsonc

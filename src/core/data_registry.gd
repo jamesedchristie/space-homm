@@ -17,6 +17,8 @@ const TRIGGER_EFFECTS := ["effect", "spawn", "alert", "alarm", "reward"]
 const SKILLS := ["combat", "tech", "command"]
 const VALID_AFFECTS := ["enemies", "allies", "all"]
 const REQUIRED_UNIT_STATS := ["max_hull", "max_shields", "armor", "initiative", "max_ap"]
+## Part types ModelFactory can build (data/models/models.json).
+const MODEL_PART_TYPES := ["hull", "box", "cylinder", "cone", "sphere", "rock", "sweep", "ring"]
 
 var units: Dictionary = {}
 var abilities: Dictionary = {}
@@ -203,6 +205,9 @@ func validate() -> PackedStringArray:
 		var model: String = units[id].get("visual", {}).get("model", "")
 		if not model.is_empty() and not models.has(model):
 			_err("unit '%s': unknown model '%s'" % [id, model])
+		var squadron: Variant = units[id].get("visual", {}).get("squadron", 1)
+		if not (squadron is float or squadron is int) or int(squadron) < 1 or int(squadron) > 8:
+			_err("unit '%s': visual.squadron must be 1-8" % id)
 	for id: String in species:
 		var ability: String = species[id].get("squad_ability", "")
 		if not ability.is_empty() and not abilities.has(ability):
@@ -220,6 +225,9 @@ func validate() -> PackedStringArray:
 		var base: String = models[id].get("base", "")
 		if not base.is_empty() and not models.has(base):
 			_err("model '%s': unknown base '%s'" % [id, base])
+		for part: Dictionary in models[id].get("parts", []):
+			if part.get("type", "box") not in MODEL_PART_TYPES:
+				_err("model '%s': unknown part type '%s'" % [id, part.get("type", "")])
 	return errors
 
 

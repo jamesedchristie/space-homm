@@ -13,12 +13,34 @@ extends RefCounted
 ##   cone      same as cylinder; the tip points along +axis
 ##   sphere    "radius", "detail" (0-2), "squash": [x, y, z]
 ##   rock      "radius", "seed": an irregular faceted boulder
+##   sweep     a tube swept along "path": [[x, y, z, half_width, half_height], ...]
+##             (long spines, curved blades, necks, arms). "shape" is the cross
+##             section (see SHAPES, or [[a, b], ...] in -1..1), "subdiv": n smooths
+##             the path (Catmull-Rom, n steps per segment), "smooth": true shades it
+##             smoothly instead of faceted, "closed": true joins the ends. A point
+##             with zero width and height is a sharp tip.
+##   ring      a torus (or an arc of one): "radius", "tube": [radial, axial] half
+##             sizes, "axis", "segments", "shape", "arc" and "start" (degrees, 0 =
+##             +x, counter-clockwise seen from +axis), "taper": true sharpens the
+##             ends of an arc into points (crescents).
+## Any part may also turn: "rot" (degrees around y), "pitch" (around z, nose
+## up) and "roll" (around x). Mirrored copies mirror the turn too.
+## A part with "spin": degrees per second (around x, through its "pivot", by
+## default its "at") is built into a node that turns slowly (habitat rings).
 ## A model may name a "base" model whose parts come first (e.g. "humanoid").
+## "plating": true models get the hull-plating shader and greebles ("greebles":
+## false keeps the panels but skips the surface detail; "windows": 0..1 sets how
+## many side panels carry lit windows; "panels" scales the panel density).
 ## Engine parts ("material": "engine") on the x axis also get an exhaust plume
 ## pointing backwards. Lights: "light_red", "light_green", "beacon" blink;
 ## "stripe" is a brightly glowing team-color strip.
 ## Materials: hull, dark, accent (team color), glass, engine (glowing), gold,
-## visor (glowing team color), rock, hazard.
+## visor (glowing team color), rock, hazard, trim (a second paint colour), glow
+## (crystal veins and light strips: a self-lit species colour).
+##
+## Species: data/strategic/species.json "style" repaints hull / dark / glass /
+## trim / glow / engine and may set a "finish" ({material: [metallic, roughness]}).
+## model_for() picks a species' own design ("frigate_kesh") when there is one.
 
 const PLUME := preload("res://src/presentation/shaders/engine_plume.gdshader")
 const NAV_LIGHT := preload("res://src/presentation/shaders/nav_light.gdshader")
@@ -42,29 +64,70 @@ static var _center := Vector3.ZERO
 ## style: a species id (data/strategic/species.json "style"): its colours
 ## repaint hull / dark / glass, and its "extra" parts are added to the model
 ## (and to every model built on the same base, e.g. "humanoid").
-static func build(data: DataRegistry, model_id: String, team_color: Color, style: String = "") -> Node3D:
+## lite: small craft (squadrons, escorts) skip engine halos and nav lights: fewer draw calls.
+static func build(data: DataRegistry, model_id: String, team_color: Color, style: String = "", lite: bool = false) -> Node3D:
 	var root := Node3D.new()
 	root.name = model_id
 	var style_def: Dictionary = data.species.get(style, {}).get("style", {})
-	var meshes := _meshes_for(data, model_id, style if not style_def.is_empty() else "")
-	var plated := bool(data.models.get(model_id, {}).get("plating", false))
-	for material_name: String in meshes:
-		var mi := MeshInstance3D.new()
-		mi.mesh = meshes[material_name]
-		var mat := _styled_material(material_name, team_color, style_def)
-		if plated and PLATED.has(material_name) and mat is StandardMaterial3D:
-			mat = _plated(mat as StandardMaterial3D, float(PLATED[material_name]))
-		mi.material_override = mat
-		root.add_child(mi)
-	_add_plumes(root, data, model_id, team_color)
+	var groups := _meshes_for(data, model_id, style if not style_def.is_empty() else "")
+	var def: Dictionary = data.models.get(model_id, {})
+	var plated := bool(def.get("plating", false))
+	for group: String in groups:
+		var parent := root
+		var entry: Dictionary = groups[group]
+		if not group.is_empty():
+			var spinner := ModelSpinner.new()
+			spinner.speed = deg_to_rad(float(entry["spin"]))
+			spinner.position = entry["at"]
+			root.add_child(spinner)
+			parent = spinner
+		var meshes: Dictionary = entry["meshes"]
+		for material_name: String in meshes:
+			if lite and material_name in LIGHTS:
+				continue  # blinking nav lights are lost at this size anyway
+			var mi := MeshInstance3D.new()
+			mi.mesh = meshes[material_name]
+			var mat := _styled_material(material_name, team_color, style_def)
+			if plated and PLATED.has(material_name) and mat is StandardMaterial3D:
+				var windows := float(def.get("windows", PLATED[material_name])) if material_name == "hull" else 0.0
+				mat = _plated(mat as StandardMaterial3D, windows, float(def.get("panels", 1.0)))
+			mi.material_override = mat
+			parent.add_child(mi)
+	_add_plumes(root, data, model_id, team_color, style_def, lite)
 	return root
 
 
+## The model a species flies for a ship class: "<model>_<style>" when the
+## content has one (e.g. "frigate_kesh"), else the shared design.
+static func model_for(data: DataRegistry, model_id: String, style: String) -> String:
+	if style.is_empty():
+		return model_id
+	var own := "%s_%s" % [model_id, style]
+	return own if data.models.has(own) else model_id
+
+
+## Bounding box of a built model (all its meshes, in model space).
+static func bounds(model: Node3D) -> AABB:
+	var box := AABB()
+	var first := true
+	for child in model.get_children():
+		var mi := child as MeshInstance3D
+		if mi == null or mi.mesh == null or mi.material_override is ShaderMaterial and (mi.material_override as ShaderMaterial).shader == PLUME:
+			continue
+		var b := mi.transform * mi.mesh.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return box
+
+
 ## Exhaust cones behind every engine part that points along x.
-static func _add_plumes(root: Node3D, data: DataRegistry, model_id: String, team_color: Color) -> void:
+static func _add_plumes(root: Node3D, data: DataRegistry, model_id: String, team_color: Color, style_def: Dictionary = {},
+		lite: bool = false) -> void:
 	var tint := team_color.lerp(Color(1.0, 0.6, 0.25), 0.35)
+	if style_def.has("engine"):
+		tint = team_color.lerp(Color(style_def["engine"]), 0.8)
 	var def: Dictionary = data.models.get(model_id, {})
-	var phase := 0.0
+	var phase := 0
 	for part: Dictionary in _parts_of(data, def, 0):
 		if part.get("material", "") != "engine" or part.get("type", "") != "cylinder" or part.get("axis", "x") != "x":
 			continue
@@ -73,46 +136,77 @@ static func _add_plumes(root: Node3D, data: DataRegistry, model_id: String, team
 		var nozzle := at.x - float(part.get("length", 0.03)) / 2.0
 		for zsign in ([1.0, -1.0] if part.get("mirror", false) else [1.0]):
 			var plume := MeshInstance3D.new()
-			var cone := CylinderMesh.new()
 			var length := r * 6.0
-			cone.top_radius = r * 1.05
-			cone.bottom_radius = r * 0.15
-			cone.height = length
-			cone.radial_segments = 12
-			cone.rings = 1
-			cone.cap_top = false
-			cone.cap_bottom = false
-			plume.mesh = cone
-			var mat := ShaderMaterial.new()
-			mat.shader = PLUME
-			mat.set_shader_parameter("phase", phase)
-			mat.set_shader_parameter("core_color", tint.lerp(Color.WHITE, 0.6))
-			mat.set_shader_parameter("tail_color", tint)
-			phase += 1.9
-			plume.material_override = mat
+			plume.mesh = _plume_mesh(r)
+			plume.material_override = _plume_material(tint, phase % 3)
+			phase += 1
 			# CylinderMesh runs along +y with the top at +height/2: turn it so
 			# the wide end sits on the nozzle and the tip points backwards (-x).
 			plume.rotation_degrees = Vector3(0, 0, 90)
 			plume.position = Vector3(nozzle - length / 2.0, at.y, at.z * zsign)
 			plume.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			root.add_child(plume)
+			if lite:
+				continue
 			var halo := MeshInstance3D.new()
-			var dot := SphereMesh.new()
-			dot.radius = r * 1.6
-			dot.height = r * 3.2
-			dot.radial_segments = 10
-			dot.rings = 5
-			halo.mesh = dot
-			var glow := StandardMaterial3D.new()
-			glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			glow.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-			glow.albedo_color = tint * 0.3
-			glow.cull_mode = BaseMaterial3D.CULL_DISABLED
-			glow.no_depth_test = false
-			halo.material_override = glow
+			halo.mesh = _halo_mesh(r)
+			halo.material_override = _halo_material(tint)
 			halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			halo.position = Vector3(nozzle - r * 0.3, at.y, at.z * zsign)
 			root.add_child(halo)
+
+
+## Plume and halo meshes and materials are shared (per radius / tint), so a
+## squadron of identical craft costs no extra resources.
+static func _plume_mesh(r: float) -> Mesh:
+	var key := "plume:%.4f" % r
+	if not _mesh_cache.has(key):
+		var cone := CylinderMesh.new()
+		cone.top_radius = r * 1.05
+		cone.bottom_radius = r * 0.15
+		cone.height = r * 6.0
+		cone.radial_segments = 10
+		cone.rings = 1
+		cone.cap_top = false
+		cone.cap_bottom = false
+		_mesh_cache[key] = cone
+	return _mesh_cache[key]
+
+
+static func _halo_mesh(r: float) -> Mesh:
+	var key := "halo:%.4f" % r
+	if not _mesh_cache.has(key):
+		var dot := SphereMesh.new()
+		dot.radius = r * 1.6
+		dot.height = r * 3.2
+		dot.radial_segments = 8
+		dot.rings = 4
+		_mesh_cache[key] = dot
+	return _mesh_cache[key]
+
+
+static func _plume_material(tint: Color, slot: int) -> Material:
+	var key := "plume:%s:%d" % [tint.to_html(), slot]
+	if not _material_cache.has(key):
+		var mat := ShaderMaterial.new()
+		mat.shader = PLUME
+		mat.set_shader_parameter("phase", slot * 1.9)
+		mat.set_shader_parameter("core_color", tint.lerp(Color.WHITE, 0.6))
+		mat.set_shader_parameter("tail_color", tint)
+		_material_cache[key] = mat
+	return _material_cache[key]
+
+
+static func _halo_material(tint: Color) -> Material:
+	var key := "halo:%s" % tint.to_html()
+	if not _material_cache.has(key):
+		var glow := StandardMaterial3D.new()
+		glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		glow.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		glow.albedo_color = tint * 0.3
+		glow.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_material_cache[key] = glow
+	return _material_cache[key]
 
 
 ## A standalone faceted boulder (asteroid terrain on the 3D board).
@@ -190,24 +284,34 @@ static func material(material_name: String, team_color: Color = Color.WHITE) -> 
 		"hazard":
 			m.albedo_color = Color("d9b026")
 			m.roughness = 0.7
+		"trim":
+			m.albedo_color = Color("d8dadf")
+			m.metallic = 0.3
+			m.roughness = 0.45
+		"glow":
+			m.albedo_color = Color("bfe6ff")
+			m.emission_enabled = true
+			m.emission = Color("9fd8ff")
+			m.emission_energy_multiplier = 1.6
 		_:
 			m.albedo_color = Color.MAGENTA
 	_material_cache[key] = m
 	return m
 
 
-## Meshes per material for a model (geometry is shared by every team).
+## Meshes per material for a model (geometry is shared by every team), in
+## groups: "" is the hull; each spinning part gets its own group
+## {"meshes": {material: Mesh}, "spin": degrees per second, "at": Vector3}.
 static func _meshes_for(data: DataRegistry, model_id: String, style: String = "") -> Dictionary:
 	var cache_key := model_id + "@" + style
 	if _mesh_cache.has(cache_key):
 		return _mesh_cache[cache_key]
-	var tools := {}  # material name -> SurfaceTool
 	var def: Dictionary = data.models.get(model_id, {})
 	if def.is_empty():
 		push_warning("ModelFactory: unknown model '%s'" % model_id)
 		def = {"parts": [{"type": "box", "size": [0.6, 0.3, 0.4], "material": "accent"}]}
 	var parts := _parts_of(data, def, 0)
-	if def.get("plating", false):
+	if def.get("plating", false) and def.get("greebles", true):
 		parts.append_array(_greebles(parts, absi(hash(model_id))))
 	if not style.is_empty():
 		var extra: Dictionary = data.species.get(style, {}).get("style", {}).get("extra", {})
@@ -215,34 +319,66 @@ static func _meshes_for(data: DataRegistry, model_id: String, style: String = ""
 		var base: String = def.get("base", "")
 		if not base.is_empty():
 			parts.append_array(extra.get(base, []))
-	for part: Dictionary in parts:
+	var group_tools := {"": {}}  # group -> material name -> SurfaceTool
+	var groups := {"": {"spin": 0.0, "at": Vector3.ZERO}}
+	for i in parts.size():
+		var part: Dictionary = parts[i]
+		var group := ""
+		if part.has("spin"):
+			# Parts with the same speed and pivot turn together on one node.
+			var at := _vec3(part.get("at", [0, 0, 0]))
+			var pivot := _vec3(part.get("pivot", part.get("at", [0, 0, 0])))
+			group = "spin:%s:%s" % [part["spin"], pivot]
+			if not groups.has(group):
+				groups[group] = {"spin": float(part["spin"]), "at": pivot}
+				group_tools[group] = {}
+			part = part.duplicate()
+			var local := at - pivot
+			part["at"] = [local.x, local.y, local.z]
+		var tools: Dictionary = group_tools[group]
 		var copies: Array = [1.0, -1.0] if part.get("mirror", false) else [1.0]
 		for zsign in copies:
-			var st: SurfaceTool = tools.get(part.get("material", "hull"))
+			var material_name: String = part.get("material", "hull")
+			var st: SurfaceTool = tools.get(material_name)
 			if st == null:
 				st = SurfaceTool.new()
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
-				tools[part.get("material", "hull")] = st
+				tools[material_name] = st
 			_add_part(st, part, zsign)
-	var meshes := {}
-	for material_name: String in tools:
-		var st: SurfaceTool = tools[material_name]
-		meshes[material_name] = st.commit()
-	_mesh_cache[cache_key] = meshes
-	return meshes
+	var out := {}
+	for group: String in group_tools:
+		var meshes := {}
+		for material_name: String in group_tools[group]:
+			var st: SurfaceTool = group_tools[group][material_name]
+			meshes[material_name] = st.commit()
+		var entry: Dictionary = groups[group]
+		entry["meshes"] = meshes
+		out[group] = entry
+	_mesh_cache[cache_key] = out
+	return out
 
 
-## A material recoloured by a species style (hull / dark / glass colours).
+## A material recoloured by a species style: hull / dark / glass / trim / glow /
+## engine colours, plus an optional "finish" {material: [metallic, roughness]}.
 static func _styled_material(material_name: String, team_color: Color, style_def: Dictionary) -> Material:
-	if not style_def.has(material_name):
+	var finish: Array = style_def.get("finish", {}).get(material_name, [])
+	if not style_def.has(material_name) and finish.is_empty():
 		return material(material_name, team_color)
-	var key := "%s:%s:%s" % [material_name, team_color.to_html(), style_def[material_name]]
+	var key := "%s:%s:%s:%s" % [material_name, team_color.to_html(), style_def.get(material_name, ""), str(finish)]
 	if _material_cache.has(key):
 		return _material_cache[key]
-	var m: StandardMaterial3D = (material(material_name, team_color) as StandardMaterial3D).duplicate()
-	m.albedo_color = Color(style_def[material_name])
-	if m.emission_enabled:
-		m.emission = Color(style_def[material_name])
+	var base := material(material_name, team_color) as StandardMaterial3D
+	if base == null:
+		return material(material_name, team_color)
+	var m: StandardMaterial3D = base.duplicate()
+	if style_def.has(material_name):
+		var c := Color(style_def[material_name])
+		m.albedo_color = c.lightened(0.25) if material_name in ["glow", "engine"] else c
+		if m.emission_enabled:
+			m.emission = c
+	if finish.size() >= 2:
+		m.metallic = float(finish[0])
+		m.roughness = float(finish[1])
 	_material_cache[key] = m
 	return m
 
@@ -255,7 +391,8 @@ static func _greebles(parts: Array, rng_seed: int) -> Array:
 	rng.seed = rng_seed
 	var out: Array = []
 	for part: Dictionary in parts:
-		if part.get("type", "") != "hull" or part.get("material", "") != "hull" or float(part.get("rot", 0.0)) != 0.0:
+		if part.get("type", "") != "hull" or part.get("material", "") != "hull" or float(part.get("rot", 0.0)) != 0.0 \
+				or float(part.get("roll", 0.0)) != 0.0 or float(part.get("pitch", 0.0)) != 0.0:
 			continue
 		var h := float(part.get("height", 0.2))
 		if h < 0.1:
@@ -297,8 +434,9 @@ static func _greebles(parts: Array, rng_seed: int) -> Array:
 
 
 ## The plating shader carrying a standard material's colour and finish.
-static func _plated(base: StandardMaterial3D, windows: float) -> ShaderMaterial:
-	var key := "plated:%s:%s:%s" % [base.albedo_color.to_html(), base.emission.to_html() if base.emission_enabled else "-", windows]
+static func _plated(base: StandardMaterial3D, windows: float, panels: float = 1.0) -> ShaderMaterial:
+	var key := "plated:%s:%s:%s:%s:%s:%s" % [base.albedo_color.to_html(), base.emission.to_html() if base.emission_enabled else "-",
+			windows, panels, base.metallic, base.roughness]
 	if _material_cache.has(key):
 		return _material_cache[key]
 	var m := ShaderMaterial.new()
@@ -310,6 +448,7 @@ static func _plated(base: StandardMaterial3D, windows: float) -> ShaderMaterial:
 		m.set_shader_parameter("emission_color", base.emission)
 		m.set_shader_parameter("emission_energy", base.emission_energy_multiplier)
 	m.set_shader_parameter("window_density", windows)
+	m.set_shader_parameter("panel_scale", 5.5 * panels)
 	_material_cache[key] = m
 	return m
 
@@ -329,10 +468,13 @@ static func _parts_of(data: DataRegistry, def: Dictionary, depth: int) -> Array:
 
 static func _add_part(st: SurfaceTool, part: Dictionary, zsign: float) -> void:
 	var at := _vec3(part.get("at", [0, 0, 0]))
-	at.z *= zsign
-	var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(float(part.get("rot", 0.0))) * zsign), at)
+	var basis := Basis(Vector3.UP, deg_to_rad(float(part.get("rot", 0.0)))) \
+			* Basis(Vector3.BACK, deg_to_rad(float(part.get("pitch", 0.0)))) \
+			* Basis(Vector3.RIGHT, deg_to_rad(float(part.get("roll", 0.0))))
+	var xf := Transform3D(basis, at)
 	if zsign < 0.0:
-		xf = xf * Transform3D(Basis.from_scale(Vector3(1, 1, -1)), Vector3.ZERO)
+		# The mirrored copy is the reflection of the whole part across the XY plane.
+		xf = Transform3D(Basis.from_scale(Vector3(1, 1, -1)), Vector3.ZERO) * xf
 	_center = Vector3.ZERO
 	if part.get("type", "") == "hull":
 		var c := Vector2.ZERO
@@ -353,6 +495,10 @@ static func _add_part(st: SurfaceTool, part: Dictionary, zsign: float) -> void:
 			_sphere(st, xf, part, zsign < 0.0)
 		"rock":
 			_rock(st, xf, float(part.get("radius", 0.4)), int(part.get("seed", 1)), zsign < 0.0)
+		"sweep":
+			_sweep_part(st, xf, part)
+		"ring":
+			_ring(st, xf, part)
 		_:
 			push_warning("ModelFactory: unknown part type '%s'" % part.get("type", ""))
 
@@ -362,13 +508,16 @@ static func _tri(st: SurfaceTool, xf: Transform3D, a: Vector3, b: Vector3, c: Ve
 	var wa := xf * a
 	var wb := xf * b
 	var wc := xf * c
-	var n := (wb - wa).cross(wc - wa)
-	if n.length_squared() < 1e-12:
+	var raw := (wb - wa).cross(wc - wa)
+	if raw.length_squared() < 1e-12:
 		return
-	n = n.normalized()
+	var n := raw.normalized()
 	if n.dot((wa + wb + wc) / 3.0 - xf * _center) < 0.0:
 		n = -n
-	for v in [wa, wb, wc]:
+	# Wind the triangle to match its normal (Godot's front faces are clockwise
+	# seen from outside), so back-face culling and two-sided lighting agree.
+	var order := [wa, wc, wb] if raw.dot(n) > 0.0 else [wa, wb, wc]
+	for v in order:
 		st.set_normal(n)
 		st.add_vertex(v)
 
@@ -482,6 +631,203 @@ static func _rock(st: SurfaceTool, xf: Transform3D, r: float, rock_seed: int, fl
 		var b: Vector3 = tris[i + 1] * bumps[tris[i + 1].snapped(Vector3.ONE * 0.001)] * r * squash
 		var c: Vector3 = tris[i + 2] * bumps[tris[i + 2].snapped(Vector3.ONE * 0.001)] * r * squash
 		_tri(st, xf, a, b, c, flipped)
+
+
+## Cross sections for sweeps and rings: (side, up) pairs in -1..1.
+const SHAPES := {
+	"diamond": [[1, 0], [0, 1], [-1, 0], [0, -1]],
+	"box": [[1, 1], [-1, 1], [-1, -1], [1, -1]],
+	"oct": [[1, 0.45], [0.45, 1], [-0.45, 1], [-1, 0.45], [-1, -0.45], [-0.45, -1], [0.45, -1], [1, -0.45]],
+	"hex": [[1, 0], [0.5, 0.87], [-0.5, 0.87], [-1, 0], [-0.5, -0.87], [0.5, -0.87]],
+	"lens": [[1, 0], [0.7, 0.62], [0, 1], [-0.7, 0.62], [-1, 0], [-0.7, -0.62], [0, -1], [0.7, -0.62]],
+	"blade": [[1, 0], [0.35, 1], [-0.35, 1], [-1, 0], [-0.35, -1], [0.35, -1]],
+	"tri": [[0, 1], [-0.87, -0.5], [0.87, -0.5]],
+	"keel": [[1, 0.55], [0.45, 1], [-0.45, 1], [-1, 0.55], [-0.35, -0.45], [0, -1], [0.35, -0.45]],
+	"wedge": [[1, 1], [-1, 1], [-0.55, -0.6], [0, -1], [0.55, -0.6]],
+}
+
+
+static func _shape(spec: Variant) -> Array[Vector2]:
+	var pts: Array = []
+	if spec is Array:
+		pts = spec
+	elif str(spec) == "round":
+		for i in 12:
+			pts.append([cos(TAU * i / 12.0), sin(TAU * i / 12.0)])
+	else:
+		pts = SHAPES.get(str(spec), SHAPES["oct"])
+	var out: Array[Vector2] = []
+	for p: Array in pts:
+		out.append(Vector2(float(p[0]), float(p[1])))
+	return out
+
+
+static func _sweep_part(st: SurfaceTool, xf: Transform3D, part: Dictionary) -> void:
+	var pts: Array[Vector3] = []
+	var sizes: Array[Vector2] = []
+	for p: Array in part.get("path", []):
+		pts.append(Vector3(float(p[0]), float(p[1]), float(p[2])))
+		var w := float(p[3]) if p.size() > 3 else 0.05
+		var h := float(p[4]) if p.size() > 4 else w
+		sizes.append(Vector2(w, h))
+	var closed := bool(part.get("closed", false))
+	var subdiv := int(part.get("subdiv", 0))
+	if subdiv > 1 and pts.size() > 2:
+		var sp: Array[Vector3] = []
+		var ss: Array[Vector2] = []
+		var n := pts.size()
+		var segs := n if closed else n - 1
+		for i in segs:
+			var p0 := pts[(i - 1 + n) % n] if closed or i > 0 else pts[0]
+			var p1 := pts[i]
+			var p2 := pts[(i + 1) % n]
+			var p3 := pts[(i + 2) % n] if closed or i + 2 < n else pts[n - 1]
+			for k in subdiv:
+				var t := float(k) / subdiv
+				sp.append(_catmull_rom(p0, p1, p2, p3, t))
+				ss.append(sizes[i].lerp(sizes[(i + 1) % n], t))
+		if not closed:
+			sp.append(pts[n - 1])
+			ss.append(sizes[n - 1])
+		pts = sp
+		sizes = ss
+	var ref := Vector3.UP
+	match str(part.get("ref", "up")):
+		"x":
+			ref = Vector3.RIGHT
+		"z":
+			ref = Vector3.BACK
+	_sweep(st, xf, pts, sizes, _shape(part.get("shape", "oct")), closed, bool(part.get("smooth", false)), ref)
+
+
+static func _ring(st: SurfaceTool, xf: Transform3D, part: Dictionary) -> void:
+	var r := float(part.get("radius", 0.4))
+	var tube: Array = part.get("tube", [0.04, 0.04])
+	var size := Vector2(float(tube[0]), float(tube[1]))
+	var arc := float(part.get("arc", 360.0))
+	var start := deg_to_rad(float(part.get("start", 0.0)))
+	var segs := int(part.get("segments", 16))
+	var closed := arc >= 359.9
+	var taper := bool(part.get("taper", false))
+	var axis: String = part.get("axis", "y")
+	var ref := Vector3.UP
+	if axis == "x":
+		ref = Vector3.RIGHT
+	elif axis == "z":
+		ref = Vector3.BACK
+	var pts: Array[Vector3] = []
+	var sizes: Array[Vector2] = []
+	var count := segs if closed else segs + 1
+	for k in count:
+		var f := float(k) / segs
+		var a := start + deg_to_rad(arc) * f
+		# Angle 0 is +x (+y for rings around x), counter-clockwise seen from +axis.
+		match axis:
+			"x":
+				pts.append(Vector3(0, r * cos(a), -r * sin(a)))
+			"z":
+				pts.append(Vector3(r * cos(a), r * sin(a), 0))
+			_:
+				pts.append(Vector3(r * cos(a), 0, -r * sin(a)))
+		var s := size
+		if taper and not closed:
+			s = size * maxf(pow(sin(PI * f), 0.7), 0.0)
+		sizes.append(s)
+	_sweep(st, xf, pts, sizes, _shape(part.get("shape", "box")), closed, bool(part.get("smooth", false)), ref)
+
+
+## Sweeps a cross section along pts. Section frame: side = ref x tangent,
+## up = tangent x side; sizes are (side, up) half extents per point.
+static func _sweep(st: SurfaceTool, xf: Transform3D, pts: Array[Vector3], sizes: Array[Vector2], shape: Array[Vector2],
+		closed: bool, smooth: bool, ref: Vector3) -> void:
+	var n := pts.size()
+	if n < 2:
+		return
+	var rings: Array = []
+	var normals: Array = []
+	for i in n:
+		var t: Vector3
+		if closed:
+			t = pts[(i + 1) % n] - pts[(i - 1 + n) % n]
+		else:
+			t = pts[mini(i + 1, n - 1)] - pts[maxi(i - 1, 0)]
+		t = t.normalized()
+		var r := ref
+		if absf(t.dot(r)) > 0.98:
+			r = Vector3.RIGHT if absf(t.dot(Vector3.RIGHT)) < 0.9 else Vector3.BACK
+		var side := r.cross(t).normalized()
+		var up := t.cross(side).normalized()
+		var w := sizes[i].x
+		var h := sizes[i].y
+		var ring: Array[Vector3] = []
+		var nrm: Array[Vector3] = []
+		for q in shape:
+			ring.append(pts[i] + side * q.x * w + up * q.y * h)
+			if w > 0.0005 and h > 0.0005:
+				nrm.append((side * q.x * h + up * q.y * w).normalized())
+			else:
+				nrm.append((side * q.x + up * q.y).normalized())
+		rings.append(ring)
+		normals.append(nrm)
+	var m := shape.size()
+	var segs := n if closed else n - 1
+	for i in segs:
+		var j := (i + 1) % n
+		_center = (pts[i] + pts[j]) / 2.0
+		var ra: Array[Vector3] = rings[i]
+		var rb: Array[Vector3] = rings[j]
+		var na: Array[Vector3] = normals[i]
+		var nb: Array[Vector3] = normals[j]
+		for k in m:
+			var l := (k + 1) % m
+			if smooth:
+				_tri_n(st, xf, ra[k], ra[l], rb[l], na[k], na[l], nb[l])
+				_tri_n(st, xf, ra[k], rb[l], rb[k], na[k], nb[l], nb[k])
+			else:
+				_quad(st, xf, ra[k], ra[l], rb[l], rb[k], false)
+	if closed:
+		return
+	for end: int in [0, n - 1]:
+		if sizes[end].x < 0.0005 or sizes[end].y < 0.0005:
+			continue
+		var inward := (pts[1] - pts[0]) if end == 0 else (pts[n - 2] - pts[n - 1])
+		_center = pts[end] + inward.normalized() * 0.05
+		var ring: Array[Vector3] = rings[end]
+		for k in m:
+			_tri(st, xf, pts[end], ring[k], ring[(k + 1) % m], false)
+
+
+## A smooth-shaded triangle with explicit (model space) vertex normals.
+static func _tri_n(st: SurfaceTool, xf: Transform3D, a: Vector3, b: Vector3, c: Vector3,
+		na: Vector3, nb: Vector3, nc: Vector3) -> void:
+	var wa := xf * a
+	var wb := xf * b
+	var wc := xf * c
+	if (wb - wa).cross(wc - wa).length_squared() < 1e-12:
+		return
+	var nbasis := xf.basis.inverse().transposed()
+	var n1 := (nbasis * na).normalized()
+	var n2 := (nbasis * nb).normalized()
+	var n3 := (nbasis * nc).normalized()
+	if (wb - wa).cross(wc - wa).dot(n1 + n2 + n3) > 0.0:
+		# Clockwise seen from outside (see _tri).
+		var tw := wb
+		wb = wc
+		wc = tw
+		var tn := n2
+		n2 = n3
+		n3 = tn
+	st.set_normal(n1)
+	st.add_vertex(wa)
+	st.set_normal(n2)
+	st.add_vertex(wb)
+	st.set_normal(n3)
+	st.add_vertex(wc)
+
+
+static func _catmull_rom(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: float) -> Vector3:
+	return 0.5 * ((2.0 * p1) + (-p0 + p2) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t
+			+ (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t * t * t)
 
 
 ## Unit icosphere as a flat triangle list (outward winding).

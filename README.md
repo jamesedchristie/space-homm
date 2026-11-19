@@ -97,10 +97,10 @@ are deliberately subtle:
 
 | Species | Empire | Bonus | Ships | Squad ability |
 | --- | --- | --- | --- | --- |
-| Human | Terran Alliance | +10% credits, +1 sensor range | standard | Mark Target (enemy takes +25% damage) |
-| Vel'tari | Vel'tari Concord | +20% research | +15% shields; pearl hulls, crystal fins | Mind Ward (you and adjacent allies: shields and -25% damage) |
-| Kesh | Kesh Dominion | +15% alloys | +10% damage; bronze hulls, rams | Blood Oath (heal and +20% damage) |
-| Sorn | Sorn Directorate | +1 fleet speed | 8% less damage; slate hulls, dorsal ridges | Shadow Veil (-50% damage for a turn) |
+| Human | Terran Alliance | +10% credits, +1 sensor range | standard; gunmetal naval ships: long spines, engine blocks, rotating rings | Mark Target (enemy takes +25% damage) |
+| Vel'tari | Vel'tari Concord | +20% research | +15% shields; pearl blades and crescents, crystal veins | Mind Ward (you and adjacent allies: shields and -25% damage) |
+| Kesh | Kesh Dominion | +15% alloys | +10% damage; bronze birds of prey, crimson armour, weapon pods | Blood Oath (heal and +20% damage) |
+| Sorn | Sorn Directorate | +1 fleet speed | 8% less damage; slate monoliths in level rings, teal light | Shadow Veil (-50% damage for a turn) |
 
 Each species also has its own names (`names` in `data/strategic/species.json`): your home
 system, starting fleets, ships and heroes are renamed to match the species you pick, and the AI
@@ -273,9 +273,12 @@ Squad missions play like XCOM with story beats like a tabletop RPG:
 - Planets (2D and 3D), atmospheres, the fog of unexplored space and the space backdrop are
   procedural shaders (`src/presentation/shaders/`).
 - 3D models are procedural: each is a recipe of parts (bevelled hulls, boxes, cylinders, cones,
-  spheres, rocks) in `data/models/models.json`, built at load time by
-  `src/presentation/models/model_factory.gd`. Units pick one with `visual.model`; the `accent`
-  material takes the team color. Engine parts get team-tinted exhaust plumes automatically;
+  spheres, rocks, swept tubes and blades, rings and crescents) in `data/models/models.json`, built
+  at load time by `src/presentation/models/model_factory.gd`. Units pick one with `visual.model`;
+  every species flies its own design of each ship class (`frigate_kesh`, ...) and raiders fly
+  salvaged ones; the `accent` material takes the team color. In 3D battles small warships fly as
+  squadrons (interceptors 5, frigates 3, destroyers 2; fewer craft as the hull drops, like a
+  Heroes stack) and cruisers and stations as one big ship. Engine parts get team-tinted exhaust plumes automatically;
   `light_red` / `light_green` / `beacon` parts blink and `stripe` parts glow. A model can name a `base` whose parts come first: the
   trooper, hero and boarder all build on `humanoid`. Add or reshape a model by editing JSON.
 - The UI theme is built in code (`src/presentation/shared/game_theme.gd`); colors live in `palette.gd`.
