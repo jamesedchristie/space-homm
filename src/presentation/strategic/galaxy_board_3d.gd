@@ -219,7 +219,8 @@ func sync(visible_now: Dictionary, explored: Dictionary, selected_fleet: String)
 			view = Fleet3D.new()
 			_world.add_child(view)
 			var faction := engine.state.faction(fleet.owner)
-			view.setup(fleet, faction["team"], data, fleet.owner == player_faction, faction.get("species", ""))
+			view.setup(fleet, faction["team"], data, fleet.owner == player_faction, faction.get("species", ""),
+					"raider" if faction.get("role", "") == "barbarian" else "")
 			fleet_views[fleet.id] = view
 		view.refresh(fleet, data, engine.fleet_speed(fleet))
 		view.position = world(fleet.cell) + FLEET_OFFSET
