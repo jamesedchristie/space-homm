@@ -71,6 +71,10 @@ var _rng := RandomNumberGenerator.new()
 var _shake := 0.0
 
 
+## Head and shoulders only (small portraits such as hero cards). Set before setup().
+var close_up := false
+
+
 func _init() -> void:
 	custom_minimum_size = Vector2(240, 300)
 	clip_contents = true
@@ -140,9 +144,9 @@ func setup(def: Dictionary, empire_color: Color = Color("3fb8d8")) -> void:
 	_build_head(p, look, shape)
 	PortraitCostume.build(_torso, _head, look, p, team_color)
 	_camera = Camera3D.new()
-	_camera.fov = 22.0
+	_camera.fov = 13.0 if close_up else 22.0
 	_world.add_child(_camera)
-	_camera.position = Vector3(0, -0.085, 2.05)
+	_camera.position = Vector3(0, -0.02 if close_up else -0.085, 2.05)
 	_camera.rotation = Vector3.ZERO
 	_set_mood("neutral", true)
 	_blink_in = _rng.randf_range(1.5, 3.5)

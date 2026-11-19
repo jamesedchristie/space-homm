@@ -59,8 +59,21 @@ func _hero_card(engine: GalaxyEngine, hero: Hero, inv: Array, interactive: bool)
 	var data := engine.data
 	var cls: Dictionary = data.hero_classes[hero.class_id]
 	var card := UiKit.panel(Color(0.08, 0.1, 0.16, 0.95))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	card.add_child(row)
+	# A face for the hero, in the owner's colours.
+	var face := LeaderPortrait.new()
+	face.custom_minimum_size = Vector2(112, 140)
+	face.close_up = true
+	face.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var owner_faction := s.faction(hero.owner)
+	face.setup(HeroFaces.definition(data, owner_faction.get("species", "human"), hero.id,
+			Palette.team_color(owner_faction["team"])), Palette.team_color(owner_faction["team"]))
+	row.add_child(face)
 	var box := VBoxContainer.new()
-	card.add_child(box)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(box)
 
 	var next_xp := HeroProgression.xp_for_level(data, hero.level + 1)
 	var xp_text := "XP %d / %d" % [hero.xp, next_xp] if next_xp > 0 else "XP %d (max level)" % hero.xp
