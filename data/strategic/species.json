@@ -10,7 +10,11 @@
     ],
     "names": {"home": "Haven", "home_description": "Patrol Group headquarters. Fleets here repair.", "fleets": ["1st Patrol", "Scout Wing"], "heroes": ["Cmdr. Ana Reyes", "Lt. Tomas Okafor", "Kael Varga"], "ship_names": ["Vigilant", "Resolute", "Kestrel", "Swift", "Wren", "Sentinel", "Meridian", "Larkspur", "Bulwark", "Corvid"]},
     "squad_ability": "mark_target",
-    "style": {}
+    "style": {
+      "hull": "#8a93a0", "dark": "#3a4048", "trim": "#d5d8dc", "glow": "#bfe2ff",
+      "finish": {"hull": [0.3, 0.45], "dark": [0.3, 0.5]},
+      "extra": {}
+    }
   },
   "veltari": {
     "name": "Vel'tari",
@@ -24,11 +28,9 @@
     "names": {"home": "Lumen", "home_description": "Seat of the Concord. Its crystal spires hum with quiet light.", "fleets": ["Concord Vanguard", "Concord Scouts"], "heroes": ["Sael Ithrenne", "Ilyen Vaor", "Maelis Thessa"], "ship_names": ["Serene Light", "Patient Dawn", "Whisper", "Far Sight", "Quiet Step", "Gentle Tide", "Still Water", "Silver Hymn", "Long Memory", "Evening Song"]},
     "squad_ability": "mind_ward",
     "style": {
-      "hull": "#d9d3e6", "dark": "#3c3054", "glass": "#b48cff",
+      "hull": "#9a8fbc", "dark": "#5e5080", "glass": "#b48cff", "trim": "#8f78c4", "glow": "#c49cff", "engine": "#d7b4ff",
+      "finish": {"hull": [0.1, 0.5], "trim": [0.1, 0.55], "dark": [0.2, 0.5]},
       "extra": {
-        "frigate": [{"type": "hull", "outline": [[0.1, 0.2], [-0.35, 0.62], [-0.55, 0.6], [-0.3, 0.22]], "height": 0.03, "bevel": 0.2, "at": [0, 0.26, 0], "material": "glass", "mirror": true}],
-        "interceptor": [{"type": "cone", "radius": 0.04, "length": 0.35, "axis": "x", "at": [0.6, 0.08, 0.15], "material": "glass", "mirror": true}],
-        "destroyer": [{"type": "hull", "outline": [[0.3, 0.1], [-0.4, 0.75], [-0.7, 0.7], [-0.3, 0.12]], "height": 0.03, "bevel": 0.2, "at": [0, 0.3, 0], "material": "glass", "mirror": true}],
         "humanoid": [{"type": "cone", "radius": 0.05, "length": 0.22, "axis": "y", "at": [-0.04, 1.0, 0], "material": "accent"}, {"type": "box", "size": [0.04, 0.42, 0.34], "at": [-0.2, 0.44, 0], "material": "glass"}]
       }
     }
@@ -45,11 +47,9 @@
     "names": {"home": "Khorrak", "home_description": "Fortress-world of the clans. The forges never cool.", "fleets": ["Dominion Warband", "Dominion Hunters"], "heroes": ["Warlord Drakh", "Gorash Skullsplitter", "Ulka the Unbroken"], "ship_names": ["Skullbreaker", "Iron Oath", "Bloodhound", "Fang", "Talon", "Gutripper", "Black Hammer", "Grimfang", "Warcry", "Ashmaw"]},
     "squad_ability": "blood_oath",
     "style": {
-      "hull": "#8f6a48", "dark": "#2e2420", "glass": "#ff6a4a",
+      "hull": "#a87446", "dark": "#33251e", "glass": "#ff6a4a", "trim": "#c4342b", "glow": "#ff5a24", "engine": "#ff5a2a",
+      "finish": {"hull": [0.42, 0.38], "trim": [0.25, 0.45], "dark": [0.3, 0.5]},
       "extra": {
-        "frigate": [{"type": "cone", "radius": 0.06, "length": 0.3, "axis": "x", "at": [0.9, 0.1, 0], "material": "dark"}, {"type": "box", "size": [0.5, 0.06, 0.08], "at": [-0.1, 0.25, 0.22], "material": "dark", "mirror": true}],
-        "interceptor": [{"type": "cone", "radius": 0.04, "length": 0.22, "axis": "x", "at": [0.8, 0.07, 0], "material": "dark"}],
-        "destroyer": [{"type": "cone", "radius": 0.08, "length": 0.36, "axis": "x", "at": [1.12, 0.12, 0], "material": "dark"}, {"type": "box", "size": [0.8, 0.08, 0.1], "at": [-0.05, 0.3, 0.3], "material": "dark", "mirror": true}],
         "humanoid": [{"type": "box", "size": [0.16, 0.05, 0.26], "at": [0.06, 0.93, 0], "material": "dark"}, {"type": "box", "size": [0.12, 0.1, 0.36], "at": [0, 0.68, 0], "material": "dark"}]
       }
     }
@@ -66,11 +66,9 @@
     "names": {"home": "Registry Prime", "home_description": "Administrative core of the Directorate. Every ledger ends here.", "fleets": ["Audit Fleet", "Compliance Wing"], "heroes": ["Auditor Vess", "Overseer Tal-9", "Clerk-Marshal Orun"], "ship_names": ["Ledger", "Tariff", "Courier", "Quorum", "Writ", "Docket", "Mandate", "Census", "Tithe", "Warrant"]},
     "squad_ability": "shadow_veil",
     "style": {
-      "hull": "#5c6c64", "dark": "#1c2622", "glass": "#4affd0",
+      "hull": "#56636a", "dark": "#1f2829", "glass": "#4affd0", "trim": "#38474e", "glow": "#40f0d0", "engine": "#40f0d0",
+      "finish": {"hull": [0.2, 0.6], "trim": [0.2, 0.6], "dark": [0.2, 0.6]},
       "extra": {
-        "frigate": [{"type": "box", "size": [0.06, 0.12, 0.04], "at": [-0.35, 0.3, 0], "material": "dark"}, {"type": "box", "size": [0.06, 0.1, 0.04], "at": [-0.2, 0.3, 0], "material": "dark"}, {"type": "box", "size": [0.06, 0.08, 0.04], "at": [-0.05, 0.29, 0], "material": "dark"}],
-        "interceptor": [{"type": "box", "size": [0.2, 0.06, 0.02], "at": [-0.2, 0.2, 0], "material": "dark"}],
-        "destroyer": [{"type": "box", "size": [0.08, 0.16, 0.05], "at": [-0.55, 0.42, 0], "material": "dark"}, {"type": "box", "size": [0.08, 0.13, 0.05], "at": [-0.35, 0.42, 0], "material": "dark"}],
         "humanoid": [{"type": "box", "size": [0.05, 0.12, 0.2], "at": [-0.1, 0.78, 0], "material": "dark"}, {"type": "sphere", "radius": 0.14, "detail": 1, "squash": [1.1, 0.5, 1.1], "at": [-0.03, 0.9, 0], "material": "dark"}]
       }
     }
