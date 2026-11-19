@@ -84,6 +84,9 @@ func _ready() -> void:
 	hud.system_view.command_requested.connect(_on_system_command)
 	hud.system_view.closed.connect(_refresh)
 	hud.research_pressed.connect(_toggle_tech_tree)
+	hud.minimap.jump_requested.connect(func(pixel: Vector2) -> void:
+		if board != null:
+			board.center_on_pixel(pixel))
 	hud.tech_tree.command_requested.connect(_on_tech_command)
 	hud.tech_tree.closed.connect(_refresh)
 	hud.empire.tech_tree_requested.connect(_toggle_tech_tree)
@@ -181,6 +184,7 @@ func _build_board() -> void:
 			else GalaxyBoard2D.new(map_view, planets_layer, fleets_layer, anomalies_layer, fx)
 	add_child(board)
 	board.setup(engine, data, player_faction)
+	hud.minimap.setup(engine, board, player_faction)
 	_sync_views()
 	_fit_map()
 
@@ -727,6 +731,7 @@ func _game_over() -> void:
 func _sync_views() -> void:
 	_visible = engine.visible_cells(player_faction)
 	board.sync(_visible, engine.explored_cells(player_faction), selected_fleet)
+	hud.minimap.sync(engine.explored_cells(player_faction), _visible)
 
 
 ## Recomputes highlights, info panel and hints.

@@ -428,6 +428,31 @@ func focus_cell(cell: Vector2i) -> void:
 		_rig.pivot = p
 		_rig.update(), _rig.pivot, Vector3(at.x, 0.0, at.z), 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
+func center_on_pixel(pixel: Vector2) -> void:
+	if _rig == null:
+		return
+	_rig.pivot = Vector3(pixel.x * SCALE, 0.0, pixel.y * SCALE)
+	_rig.update()
+
+
+func view_polygon() -> PackedVector2Array:
+	var out := PackedVector2Array()
+	if _rig == null or not _rig.camera.is_inside_tree():
+		return out
+	var area := _rig.get_area()
+	if area.size == Vector2.ZERO:
+		return out
+	for corner in [area.position, Vector2(area.end.x, area.position.y), area.end, Vector2(area.position.x, area.end.y)]:
+		var origin := _rig.camera.project_ray_origin(corner)
+		var dir := _rig.camera.project_ray_normal(corner)
+		if dir.y > -0.02:
+			dir.y = -0.02  # a corner above the horizon: clamp to far away
+		var t := -origin.y / dir.y
+		var hit := origin + dir * minf(t, 400.0)
+		out.append(Vector2(hit.x, hit.z) / SCALE)
+	return out
+
+
 func cell_at_mouse() -> Variant:
 	if _rig == null:
 		return null

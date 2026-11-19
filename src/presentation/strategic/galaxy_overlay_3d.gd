@@ -97,6 +97,15 @@ func _draw_banner(pv: Planet3D, p: Vector2) -> void:
 			draw_circle(Vector2(x + 2.5, cy), 2.8, c.lightened(0.35))
 		x += 7.0
 	x += 3.0
+	if not planet.blockade.is_empty():
+		# Blockaded: a red tag under the banner, with who holds it.
+		var who: String = board.engine.state.faction(planet.blockade).get("name", "")
+		var tag := "BLOCKADED" if who.is_empty() else "BLOCKADED by %s" % who
+		var tw := font.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x + 10.0
+		var tr := Rect2(Vector2(rect.position.x + (rect.size.x - tw) / 2.0, rect.end.y + 2.0), Vector2(tw, 14))
+		draw_rect(tr, Color(0.45, 0.04, 0.03, 0.92))
+		draw_rect(tr, Palette.BAD, false, 1.0)
+		draw_string(font, tr.position + Vector2(5, 11), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 0.85, 0.8))
 	# Shipyards and defenses only for systems you've scouted (or your own).
 	if planet.owner != board.player_faction and not board._explored.has(planet.cell):
 		return

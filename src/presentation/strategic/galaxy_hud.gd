@@ -17,6 +17,7 @@ const TOP_H := 44.0
 const BOTTOM_H := 36.0
 const RIGHT_W := 300.0
 const INFO_H := 250.0
+const MINIMAP_H := 170.0
 
 var _turn_label: Label
 var _faction_label: Label
@@ -40,6 +41,8 @@ var empire: EmpirePanel
 var system_view: SystemView
 ## Technology tree overlay.
 var tech_tree: TechTreeView
+## Whole-sector overview, bottom right.
+var minimap: GalaxyMinimap
 ## Full-screen conversation with another faction's leader.
 var diplomacy: DiplomacyScreen
 
@@ -264,8 +267,11 @@ func _build() -> void:
 	info_panel.add_child(_info)
 
 	var log_panel := UiKit.panel()
-	UiKit.anchor(log_panel, 1, 0, 1, 1, -RIGHT_W, TOP_H + INFO_H, 0, 0)
+	UiKit.anchor(log_panel, 1, 0, 1, 1, -RIGHT_W, TOP_H + INFO_H, 0, -MINIMAP_H)
 	add_child(log_panel)
+	minimap = GalaxyMinimap.new()
+	UiKit.anchor(minimap, 1, 1, 1, 1, -RIGHT_W + 4, -MINIMAP_H + 4, -4, -4)
+	add_child(minimap)
 	_log = UiKit.rich_text(12)
 	log_panel.add_child(_log)
 

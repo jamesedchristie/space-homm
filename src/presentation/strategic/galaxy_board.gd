@@ -80,6 +80,16 @@ func focus_cell(_cell: Vector2i) -> void:
 	pass
 
 
+## Moves the view so `pixel` (grid pixel coordinates) is in the middle (minimap jumps).
+func center_on_pixel(_pixel: Vector2) -> void:
+	pass
+
+
+## What the camera sees, as a polygon in grid pixel coordinates (minimap); empty if unknown.
+func view_polygon() -> PackedVector2Array:
+	return PackedVector2Array()
+
+
 ## Grid cell under the mouse, or null.
 func cell_at_mouse() -> Variant:
 	return null
