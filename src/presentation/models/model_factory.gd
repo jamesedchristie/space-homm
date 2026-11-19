@@ -64,7 +64,8 @@ static var _center := Vector3.ZERO
 ## style: a species id (data/strategic/species.json "style"): its colours
 ## repaint hull / dark / glass, and its "extra" parts are added to the model
 ## (and to every model built on the same base, e.g. "humanoid").
-static func build(data: DataRegistry, model_id: String, team_color: Color, style: String = "") -> Node3D:
+## lite: small craft (squadrons, escorts) skip engine halos and nav lights: fewer draw calls.
+static func build(data: DataRegistry, model_id: String, team_color: Color, style: String = "", lite: bool = false) -> Node3D:
 	var root := Node3D.new()
 	root.name = model_id
 	var style_def: Dictionary = data.species.get(style, {}).get("style", {})
@@ -82,6 +83,8 @@ static func build(data: DataRegistry, model_id: String, team_color: Color, style
 			parent = spinner
 		var meshes: Dictionary = entry["meshes"]
 		for material_name: String in meshes:
+			if lite and material_name in LIGHTS:
+				continue  # blinking nav lights are lost at this size anyway
 			var mi := MeshInstance3D.new()
 			mi.mesh = meshes[material_name]
 			var mat := _styled_material(material_name, team_color, style_def)
@@ -90,7 +93,7 @@ static func build(data: DataRegistry, model_id: String, team_color: Color, style
 				mat = _plated(mat as StandardMaterial3D, windows, float(def.get("panels", 1.0)))
 			mi.material_override = mat
 			parent.add_child(mi)
-	_add_plumes(root, data, model_id, team_color, style_def)
+	_add_plumes(root, data, model_id, team_color, style_def, lite)
 	return root
 
 
@@ -118,7 +121,8 @@ static func bounds(model: Node3D) -> AABB:
 
 
 ## Exhaust cones behind every engine part that points along x.
-static func _add_plumes(root: Node3D, data: DataRegistry, model_id: String, team_color: Color, style_def: Dictionary = {}) -> void:
+static func _add_plumes(root: Node3D, data: DataRegistry, model_id: String, team_color: Color, style_def: Dictionary = {},
+		lite: bool = false) -> void:
 	var tint := team_color.lerp(Color(1.0, 0.6, 0.25), 0.35)
 	if style_def.has("engine"):
 		tint = team_color.lerp(Color(style_def["engine"]), 0.8)
@@ -142,6 +146,8 @@ static func _add_plumes(root: Node3D, data: DataRegistry, model_id: String, team
 			plume.position = Vector3(nozzle - length / 2.0, at.y, at.z * zsign)
 			plume.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			root.add_child(plume)
+			if lite:
+				continue
 			var halo := MeshInstance3D.new()
 			halo.mesh = _halo_mesh(r)
 			halo.material_override = _halo_material(tint)

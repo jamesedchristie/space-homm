@@ -122,7 +122,7 @@ func _build_models(fleet: Fleet) -> void:
 		return a["stats"]["max_hull"] > b["stats"]["max_hull"])
 	for i in mini(defs.size(), ESCORT_SLOTS.size() + 1):
 		var visual: Dictionary = defs[i].get("visual", {})
-		var model := ModelFactory.build(_data, Unit3D.model_id_for(_data, defs[i], _style, _variant), color, _style)
+		var model := ModelFactory.build(_data, Unit3D.model_id_for(_data, defs[i], _style, _variant), color, _style, i > 0)
 		var s := float(visual.get("size", 1.0)) * (0.55 if i == 0 else 0.34)
 		model.scale = Vector3(s, s, s)
 		model.position = Vector3(0.12, 0, 0) if i == 0 else ESCORT_SLOTS[i - 1]

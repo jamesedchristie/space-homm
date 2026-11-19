@@ -92,7 +92,7 @@ func setup(u: BattleUnit, data: DataRegistry, color: Color, style: String = "", 
 	var box := AABB()
 	for i in squadron:
 		var holder := Node3D.new()
-		var body := ModelFactory.build(data, model_id, color, style)
+		var body := ModelFactory.build(data, model_id, color, style, squadron > 1)
 		body.scale = Vector3.ONE * _craft_scale
 		holder.add_child(body)
 		holder.position = _slots[i]
