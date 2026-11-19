@@ -333,7 +333,7 @@ static func space_scenery(parent: Node3D, center: Vector3, extent: Vector2, rng_
 	if not backdrop_planet:
 		return  # system battles bring their own planets and star
 	# A big planet far below and beyond the board, catching the sun.
-	var radius := span * rng.randf_range(0.7, 0.95)
+	var radius := span * rng.randf_range(0.35, 0.5)
 	var body := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = radius
@@ -361,7 +361,7 @@ static func space_scenery(parent: Node3D, center: Vector3, extent: Vector2, rng_
 	var side := -1.0 if rng.randf() < 0.5 else 1.0
 	# Low and far beyond the board's back edge, off to one side: it rises
 	# behind the board at the top of the view rather than under the ships.
-	body.position = center + Vector3(side * (extent.x * 0.9 + radius * 0.6), -(radius * 0.9 + 9.0), -(extent.y + radius * 2.4 + 32.0))
+	body.position = center + Vector3(side * (extent.x * 0.9 + radius * 0.6), -(radius * 0.6 + 6.0), -(extent.y + radius * 3.0 + 45.0))
 	body.rotation = Vector3(0.3, rng.randf() * TAU, 0.2)
 	parent.add_child(body)
 	var shell := MeshInstance3D.new()

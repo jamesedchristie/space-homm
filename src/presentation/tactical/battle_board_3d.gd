@@ -149,7 +149,7 @@ func _build_board() -> void:
 				fill.a = 0.16
 			BoardGeometry.prism(glass, _cell_poly(c, 0.95), -0.02, 0.0, fill.darkened(0.3), fill)
 			if deco == "rocks":
-				BoardGeometry.rocks(_world, world(c), hash(c), 1.0, true)
+				BoardGeometry.rocks(_world, world(c), hash(c), 0.6, true)
 			elif deco == "debris":
 				BoardGeometry.rocks(_world, world(c), hash(c), 0.5, true)
 			if terrain.get("blocks_sight", false) and terrain.get("passable", true):
@@ -594,6 +594,9 @@ func fit(area: Rect2) -> void:
 		lo = Vector3(minf(lo.x, w.x), 0, minf(lo.z, w.z))
 		hi = Vector3(maxf(hi.x, w.x), 0, maxf(hi.z, w.z))
 	_rig.fit(lo, hi, area)
+	if _floor != "deck":
+		# Space boards are wide and flat: frame them a little tighter so the squadrons read.
+		_rig.fit(lo, hi, area, Vector2(1.0, 0.6))
 	# Big maps (missions especially) would be framed from far away: zoom in on
 	# the player's units instead; the wheel zooms out to see everything.
 	var limit := 17.0 if _floor == "deck" else 45.0
