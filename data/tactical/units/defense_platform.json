@@ -27,6 +27,7 @@
       "Green",
       "Yellow"
     ],
-    "model": "station"
+    "model": "station",
+    "craft_size": 1.0
   }
 }

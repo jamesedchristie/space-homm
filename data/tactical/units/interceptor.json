@@ -33,6 +33,8 @@
     "sprite": "res://assets/kenney_space_shooter/ships/playerShip1_{team}.png",
     "size": 0.8,
     "model": "interceptor",
-    "attack_style": "run"
+    "attack_style": "run",
+    "squadron": 5,
+    "craft_size": 0.38
   }
 }

@@ -36,6 +36,7 @@
     "sprite": "res://assets/kenney_space_shooter/ships/playerShip3_{team}.png",
     "size": 1.0,
     "model": "colony_ship",
-    "attack_style": "broadside"
+    "attack_style": "broadside",
+    "craft_size": 0.75
   }
 }

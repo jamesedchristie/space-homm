@@ -183,7 +183,9 @@ func _crates(st: SurfaceTool, c: Vector2i) -> void:
 func add_unit(u: BattleUnit) -> void:
 	var view := Unit3D.new()
 	_world.add_child(view)
-	view.setup(u, data, Palette.team_color(u.team), engine.state.team_info(u.team).get("species", ""), _ship_altitude(u))
+	var team := engine.state.team_info(u.team)
+	view.setup(u, data, Palette.team_color(u.team), team.get("species", ""), _ship_altitude(u),
+			"raider" if team.get("role", "") == "barbarian" else "")
 	view.position = _unit_ground(u)
 	view.face_angle(0.0 if u.team == 0 else PI)
 	views[u.id] = view
@@ -222,11 +224,20 @@ func refresh_unit(u: BattleUnit, is_visible: bool) -> void:
 		return  # e.g. reinforcements whose spawn event hasn't been played yet
 	views[u.id].refresh(u)
 	views[u.id].visible = is_visible
+	_sync_craft(views[u.id])
 
 
 func set_unit_values(unit_id: String, hull: int, shields: int) -> void:
 	views[unit_id].hull = hull
 	views[unit_id].shields = shields
+	_sync_craft(views[unit_id])
+
+
+## Squadron craft lost to damage break up in small explosions.
+func _sync_craft(view: Unit3D) -> void:
+	for p in view.sync_craft():
+		if view.visible:
+			_fx.explode(p, 0.45)
 
 
 func set_unit_visible(unit_id: String, is_visible: bool) -> void:
@@ -247,8 +258,16 @@ func unit_hit(unit_id: String, source_id: String, shield_hit: bool) -> void:
 
 func destroy_unit(unit_id: String, big: bool) -> void:
 	var view: Unit3D = views[unit_id]
-	_fx.explode(view.aim_point(), 1.4 if big else 0.8)
 	_fx2d.play_sound("explosion")
+	if view.squadron > 1:
+		# The last craft of the wing go up one after another.
+		var pts := view.craft_points()
+		for i in pts.size():
+			_fx.explode(pts[i], 0.6)
+			if i < pts.size() - 1:
+				await get_tree().create_timer(0.08).timeout
+	else:
+		_fx.explode(view.aim_point(), clampf(view.radius() * 1.2, 0.8, 1.8) if big else 0.8)
 	if big:
 		shake(0.35)
 	await view.play_destroyed()
@@ -267,7 +286,7 @@ func play_ability(kind: String, source_id: String, target: Vector2i, color: Colo
 	if kind != "self":
 		face_unit(source_id, target)
 	var target_unit := engine.state.unit_at(target)
-	var to: Vector3 = views[target_unit.id].aim_point() if target_unit != null and views.has(target_unit.id) \
+	var to: Vector3 = views[target_unit.id].hit_point() if target_unit != null and views.has(target_unit.id) \
 			else world(target, _floor_y + 0.3)
 	if kind == "melee":
 		# Lunge at the target; the blow lands (flash, sparks, thud, flinch) mid-animation.
@@ -346,7 +365,8 @@ func _strafing_run(view: Unit3D, target: Vector2i, to: Vector3, color: Color) ->
 		if t >= float(state["next_shot"]) and t <= 0.5:
 			state["next_shot"] = t + 0.035
 			var jitter := Vector3(randf_range(-0.08, 0.08), randf_range(-0.05, 0.05), randf_range(-0.08, 0.08))
-			_fx.play("projectile", view.nose_point(0.3), to + jitter, color, 0.0)
+			var noses := view.craft_noses(0.5)
+			_fx.play("projectile", noses[randi() % noses.size()], to + jitter, color, 0.0)
 	var tw := create_tween()
 	tw.tween_method(step, 0.0, 1.0, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await tw.finished
@@ -370,23 +390,46 @@ func _broadside(view: Unit3D, to: Vector3, color: Color) -> void:
 			.set_trans(Tween.TRANS_SINE)
 	await tw.finished
 	var fwd := Vector3(cos(goal), 0, sin(goal))
-	var ports := [-0.32, 0.0, 0.32]
-	for i in ports.size():
-		var from := view.aim_point() + fwd * float(ports[i]) + (to - view.aim_point()).normalized() * 0.18
+	var guns: Array[Vector3] = []
+	if view.squadron > 1:
+		# Each craft of the squadron fires in turn, a rolling broadside down the line.
+		await get_tree().create_timer(0.12).timeout  # let the wing finish wheeling
+		for p in view.craft_points():
+			guns.append(p + (to - p).normalized() * 0.08)
+		if guns.size() < 3:
+			guns.append_array(guns.duplicate())
+	else:
+		var span := view.craft_length() * 0.32
+		for port in [-span, 0.0, span]:
+			guns.append(view.aim_point() + fwd * port + (to - view.aim_point()).normalized() * 0.18)
+	for i in guns.size():
+		var from := guns[i]
 		_fx.flash_small(from, color)
-		if i == ports.size() - 1:
+		if i == guns.size() - 1:
 			await _fx.play("projectile", from, to, color, 0.0)
 		else:
-			_fx.play("projectile", from, to + Vector3(0, 0.04 * i, 0), color, 0.0)
+			_fx.play("projectile", from, to + Vector3(0, 0.04 * (i % 3), 0), color, 0.0)
 			await get_tree().create_timer(0.09).timeout
 
 
 func _spinal_shot(view: Unit3D, to: Vector3, color: Color) -> void:
-	var nose := view.nose_point(0.55)
-	await _fx.charge(nose, color, 0.28)
-	view.play_recoil(0.14)
+	# Each ship (one capital ship, or every ship of a squadron) charges its
+	# spinal gun at the bow, then they fire in turn.
+	var noses := view.craft_noses(0.55)
+	for i in noses.size():
+		if i < noses.size() - 1:
+			_fx.charge(noses[i], color, 0.28)
+		else:
+			await _fx.charge(noses[i], color, 0.28)
+	view.play_recoil(0.14 if noses.size() == 1 else 0.1)
 	shake(0.08)
-	await _fx.play("slug", nose, to, color, 0.0)
+	noses = view.craft_noses(0.55)
+	for i in noses.size():
+		if i < noses.size() - 1:
+			_fx.play("slug", noses[i], to + Vector3(0, 0.05 * i, 0), color, 0.0)
+			await get_tree().create_timer(0.1).timeout
+		else:
+			await _fx.play("slug", noses[i], to, color, 0.0)
 
 
 ## Catmull-Rom spline through pts, t in 0..1 over the whole path.
