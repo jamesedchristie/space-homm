@@ -289,10 +289,10 @@ func _add_star(color: Color, r: float) -> void:
 	for k in 2:
 		var halo := MeshInstance3D.new()
 		var hs := SphereMesh.new()
-		hs.radius = r * (1.8 + k * 1.4)
+		hs.radius = r * (1.45 + k * 0.9)
 		hs.height = hs.radius * 2.0
 		halo.mesh = hs
-		halo.material_override = BoardGeometry.additive_material(color * (0.22 if k == 0 else 0.08))
+		halo.material_override = BoardGeometry.additive_material(color * (0.2 if k == 0 else 0.06))
 		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_system.add_child(halo)
 	var light := OmniLight3D.new()
@@ -316,7 +316,8 @@ func _add_orbit_line(radius: float) -> void:
 
 
 static func _body_radius(b: Dictionary, data: DataRegistry) -> float:
-	return 0.05 + 0.08 * float(data.body_types.get(b["type"], {}).get("size", 0.6))
+	# Worlds are small next to their star (stylised, but no longer star-sized).
+	return 0.028 + 0.036 * float(data.body_types.get(b["type"], {}).get("size", 0.6))
 
 
 func _add_body(b: Dictionary, data: DataRegistry, seed_value: int) -> Node3D:

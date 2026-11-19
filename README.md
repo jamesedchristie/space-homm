@@ -159,8 +159,8 @@ stays with its owner).
 Friendly fleets in your systems repair 25% hull per turn. Nebulae and asteroid fields cost 2 moves, ion storms
 3, and rifts are impassable walls; battles in open terrain are fought on matching battle maps. A battle at a star system (an assault on its defenses, or two fleets meeting
 in its hex) is fought **inside the system**: the star blazes beyond the far edge, worlds and moons
-are impassable discs that block line of sight (bigger bodies, bigger discs; gas giants carry a
-broken ring of debris), belts are drifting bands of rock (impassable) and rubble (2 AP, half
+are impassable discs that block line of sight (one hex, three for gas giants and the largest worlds;
+gas giants carry a broken ring of debris), belts are drifting bands of rock (impassable) and rubble (2 AP, half
 cover). The attacker enters from the open west side; a defender that owns a colony deploys in a
 crescent around it, with its defense platforms. The layout is fixed per system. In the 3D view
 the bodies are real planet spheres (colonies glow with city lights) lit by their star.

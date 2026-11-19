@@ -178,8 +178,9 @@ static func _finish(map: Dictionary, data: DataRegistry, system_id: String, syst
 		rng: RandomNumberGenerator) -> void:
 	var star_def: Dictionary = data.star_types.get(star, {})
 	var star_color := Color(star_def.get("color", "#ffd88a"))
-	# The star lies beyond the far (north) edge, somewhere between north-west and north-east.
-	var angle := rng.randf_range(-1.0, 1.0)
+	# The star lies beyond the far (north) edge, roughly north: off to the sides it would sit
+	# behind a deployment zone.
+	var angle := rng.randf_range(-0.45, 0.45)
 	var dir := Vector2(sin(angle), -cos(angle))
 	map["id"] = "system_%s" % system_id
 	map["name"] = "%s System" % system_name
@@ -188,19 +189,16 @@ static func _finish(map: Dictionary, data: DataRegistry, system_id: String, syst
 	map["backdrop"] = {"a": "#14224f", "b": star_color.darkened(0.78).to_html(false), "density": 0.45}
 
 
-## Hexes covered by a body: 1 (moons, rocks), 3 (small worlds) or 7 (large worlds, giants).
+## Hexes covered by a body: 1 (moons, rocks, small and mid worlds) or 3 (the largest worlds
+## and gas giants). Worlds are small next to their star (which burns far beyond the board).
 static func _cell_count(data: DataRegistry, type: String) -> int:
 	var size := float(data.body_types.get(type, {}).get("size", 0.6))
-	if size < 0.65:
-		return 1
-	if size < 1.0:
-		return 3
-	return 7
+	return 3 if size >= 1.0 else 1
 
 
 ## Sphere radius (in hex sizes: 1.0 = a hex's corner radius) that fits inside the disc.
 static func _radius(count: int) -> float:
-	return 2.3 if count == 7 else (1.45 if count == 3 else 0.78)
+	return 1.15 if count >= 3 else 0.62
 
 
 static func _shape(anchor: Vector2i, count: int) -> Array[Vector2i]:

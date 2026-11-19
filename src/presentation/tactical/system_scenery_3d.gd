@@ -120,10 +120,12 @@ static func _planet(parent: Node3D, body: Dictionary, def: Dictionary, center: V
 static func _star(parent: Node3D, color: Color, size: float, lo: Vector3, hi: Vector3, dir2: Vector2) -> void:
 	var mid := (lo + hi) / 2.0
 	var half := Vector2(hi.x - lo.x, hi.z - lo.z) / 2.0
-	var r := 2.0 * size
-	# Out along dir2 from the board's middle, past the edge.
-	var reach := minf(half.x / maxf(absf(dir2.x), 0.01), half.y / maxf(absf(dir2.y), 0.01)) + r * 2.6 + 7.0
-	var pos := mid + Vector3(dir2.x, 0, dir2.y) * reach + Vector3(0, 1.0, 0)
+	# The sun burns far beyond the board: several times a giant planet's size,
+	# but distant, low over the horizon, so the battle is clearly out among its
+	# worlds rather than next to it.
+	var r := 5.0 * size
+	var reach := minf(half.x / maxf(absf(dir2.x), 0.01), half.y / maxf(absf(dir2.y), 0.01)) + r + 40.0
+	var pos := mid + Vector3(dir2.x, 0, dir2.y) * reach + Vector3(0, -14.0, 0)
 	var root := Node3D.new()
 	root.position = pos
 	parent.add_child(root)
@@ -143,7 +145,7 @@ static func _star(parent: Node3D, color: Color, size: float, lo: Vector3, hi: Ve
 	for k in 3:
 		var halo := MeshInstance3D.new()
 		var hs := SphereMesh.new()
-		hs.radius = r * (1.2 + k * 0.55)
+		hs.radius = r * (1.15 + k * 0.5)
 		hs.height = hs.radius * 2.0
 		hs.radial_segments = 32
 		hs.rings = 16

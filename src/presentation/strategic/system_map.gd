@@ -10,7 +10,7 @@ signal ship_clicked(ship_uid: String)
 
 const SYSTEM_SCALE := 2.4
 ## The bodies are drawn bigger than on the galaxy map so they read at a glance.
-const BODY_SCALE := 1.45
+const BODY_SCALE := 1.15
 const BODY_PICK_MIN := 24.0
 
 ## Per body id: {"name": String, "info": String, "color": Color}: the label under the body.
