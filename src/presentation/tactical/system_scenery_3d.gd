@@ -142,6 +142,26 @@ static func _star(parent: Node3D, color: Color, size: float, lo: Vector3, hi: Ve
 	core.material_override = m
 	core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(core)
+	if BoardGeometry.high_quality():
+		# A churning surface in HDR with a soft billboard corona (no stepped halo shells).
+		var sm := ShaderMaterial.new()
+		sm.shader = Planet3D.STAR_SHADER
+		sm.set_shader_parameter("star_color", color)
+		sm.set_shader_parameter("energy", 2.2)
+		core.material_override = sm
+		var corona := MeshInstance3D.new()
+		var quad := QuadMesh.new()
+		quad.size = Vector2.ONE * r * 5.0
+		corona.mesh = quad
+		var cm := ShaderMaterial.new()
+		cm.shader = Planet3D.CORONA_SHADER
+		cm.set_shader_parameter("corona_color", color.lightened(0.2))
+		cm.set_shader_parameter("intensity", 0.9)
+		cm.set_shader_parameter("core", 1.0 / 2.5)
+		corona.material_override = cm
+		corona.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(corona)
+		return
 	for k in 3:
 		var halo := MeshInstance3D.new()
 		var hs := SphereMesh.new()

@@ -78,6 +78,9 @@ func _build_scene(planet: Planet, engine: GalaxyEngine) -> void:
 		_scene_root.queue_free()
 	_scene_root = Node3D.new()
 	_viewport.add_child(_scene_root)
+	if BoardGeometry.high_quality():
+		_build_hq_scene(planet, engine)
+		return
 	var env_node := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
@@ -102,6 +105,34 @@ func _build_scene(planet: Planet, engine: GalaxyEngine) -> void:
 	for i in mini(nodes.size(), planet.bodies.size()):
 		if planet.bodies[i]["type"] != "asteroid_belt":
 			(nodes[i] as Node3D).scale = Vector3.ONE * BODY_SCALE
+	_camera = Camera3D.new()
+	_camera.fov = 34
+	_scene_root.add_child(_camera)
+	_camera.look_at_from_position(Vector3(0, 3.4, 3.4), Vector3(0, 0.2, -0.45), Vector3.UP)
+
+
+## Forward+ look: a real sky, the star blazing with bloom and lighting its worlds
+## (a strong point light with shadows), so each body has a lit day side.
+func _build_hq_scene(planet: Planet, engine: GalaxyEngine) -> void:
+	BoardGeometry.build_environment(_scene_root, true, "system")
+	_system = Planet3D.new()
+	_scene_root.add_child(_system)
+	_system.setup(planet, engine.data)
+	_system.scale = Vector3.ONE * SYSTEM_SCALE
+	_system.show_floor(false)
+	var nodes: Array = _system.get("_body_nodes")
+	for i in mini(nodes.size(), planet.bodies.size()):
+		if planet.bodies[i]["type"] != "asteroid_belt":
+			(nodes[i] as Node3D).scale = Vector3.ONE * BODY_SCALE
+	var star_def: Dictionary = engine.data.star_types.get(planet.star, {})
+	var light := OmniLight3D.new()
+	light.light_color = Color(star_def.get("color", "#ffd88a")).lerp(Color.WHITE, 0.35)
+	light.light_energy = 4.0
+	light.omni_range = 9.0
+	light.omni_attenuation = 0.8
+	light.shadow_enabled = true
+	light.position = Vector3(0, 0.32 * SYSTEM_SCALE, 0)
+	_scene_root.add_child(light)
 	_camera = Camera3D.new()
 	_camera.fov = 34
 	_scene_root.add_child(_camera)

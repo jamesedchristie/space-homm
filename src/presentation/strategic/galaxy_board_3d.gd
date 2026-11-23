@@ -16,6 +16,10 @@ const PLANET_OFFSET := Vector3(-0.12, 0, -0.1)
 const FLEET_OFFSET := Vector3(0.44, 0, 0.4)
 const FOG_HEIGHT := 0.32
 const FOG_SHADER := preload("res://src/presentation/shaders/fog_3d.gdshader")
+const CLOUD_SHADER := preload("res://src/presentation/shaders/galaxy_cloud_cover.gdshader")
+const NEBULA_SHADER := preload("res://src/presentation/shaders/galaxy_nebula_layer.gdshader")
+## Mask resolution (pixels per world unit) for the high-quality cloud cover and nebulae.
+const MASK_PPU := 5.0
 
 var camera: Camera3D
 var fleet_views: Dictionary = {}    # fleet id -> Fleet3D
@@ -32,6 +36,11 @@ var _overlay_mesh: MeshInstance3D
 var _fog_mesh: MeshInstance3D
 var _fog_edge_mesh: MeshInstance3D
 var _territory_mesh: MeshInstance3D
+## High-quality (Forward+) look: sky, cloud cover over unexplored space, volumetric nebulae.
+var _hq := false
+var _mask_rect := Rect2()  # world x/z covered by the masks
+var _explored_tex: ImageTexture
+var _cloud_mat: ShaderMaterial
 var _territory_key := ""
 
 var _move: Array[Vector2i] = []
@@ -51,7 +60,8 @@ func setup(p_engine: GalaxyEngine, p_data: DataRegistry, p_player_faction: Strin
 	_world = Node3D.new()
 	_world.name = "Galaxy3D"
 	add_child(_world)
-	BoardGeometry.build_environment(_world)
+	_hq = BoardGeometry.high_quality()
+	BoardGeometry.build_environment(_world, true, "galaxy")
 	_rig = BoardCamera3D.new()
 	_rig.pitch = deg_to_rad(55.0)
 	_rig.rotate_right_key = KEY_R
@@ -66,6 +76,8 @@ func setup(p_engine: GalaxyEngine, p_data: DataRegistry, p_player_faction: Strin
 		lo = Vector3(minf(lo.x, w.x), 0, minf(lo.z, w.z))
 		hi = Vector3(maxf(hi.x, w.x), 0, maxf(hi.z, w.z))
 	BoardGeometry.space_scenery(_world, (lo + hi) / 2.0, Vector2(hi.x - lo.x, hi.z - lo.z) / 2.0, engine.state.seed_value)
+	if _hq:
+		_build_hq_layers(lo, hi)
 	_overlay_mesh = BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material())
 	var fog_mat := ShaderMaterial.new()
 	fog_mat.shader = FOG_SHADER
@@ -139,15 +151,24 @@ func _build_board() -> void:
 			BoardGeometry.outline(rift, _cell_poly(c, 0.92), -0.02, 0.05, Color(0.45, 0.25, 0.7, 0.45))
 			continue
 		# Open space stays open: only terrain gets a tint; borders show who owns what.
-		if terrain.has("color"):
+		# (High quality: nebulae and storms are volumetric clouds instead.)
+		if terrain.has("color") and not _hq:
 			var fill := Color(terrain["color"])
 			fill.a = 0.16
 			BoardGeometry.prism(glass, _cell_poly(c, 0.95), -0.02, 0.0, fill.darkened(0.3), fill)
 		polys.append(_cell_poly(c, 0.95))
 		var decor := Node3D.new()
 		if terrain.get("decoration", "") == "rocks":
-			BoardGeometry.rocks(decor, world(c), hash(c), 0.6)
-		elif terrain.has("color") and terrain.get("move_cost", 1) > 1:
+			if _hq:
+				# A real field: clusters of small tumbling rocks (the dust is in the fog volume).
+				var rng := RandomNumberGenerator.new()
+				rng.seed = hash(c)
+				for k in 4:
+					var off := Vector3(rng.randf_range(-0.55, 0.55), rng.randf_range(-0.1, 0.25), rng.randf_range(-0.5, 0.5))
+					BoardGeometry.rocks(decor, world(c) + off, hash(c) + k * 31, 0.28, true)
+			else:
+				BoardGeometry.rocks(decor, world(c), hash(c), 0.6)
+		elif terrain.has("color") and terrain.get("move_cost", 1) > 1 and not _hq:
 			BoardGeometry.nebula_puffs(decor, world(c), Color(terrain["color"]).lightened(0.1), hash(c) + 7)
 		if decor.get_child_count() > 0:
 			_world.add_child(decor)
@@ -155,7 +176,7 @@ func _build_board() -> void:
 		else:
 			decor.free()
 	BoardGeometry.mesh_node(_world, BoardGeometry.tile_material(true)).mesh = glass.commit()
-	BoardGeometry.mesh_node(_world, BoardGeometry.line_material(0.05)).mesh = BoardGeometry.grid_lines(polys, 0.005)
+	BoardGeometry.mesh_node(_world, BoardGeometry.line_material(0.025 if _hq else 0.05)).mesh = BoardGeometry.grid_lines(polys, 0.005)
 	BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material()).mesh = BoardGeometry.commit(rift)
 	_territory_mesh = BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material())
 
@@ -188,7 +209,7 @@ func _draw_territory() -> void:
 	for c: Vector2i in claim:
 		var owner: String = claim[c][0]
 		var color := Palette.team_color(engine.state.faction(owner)["team"])
-		BoardGeometry.fill_poly(buf, _cell_poly(c, 1.0), Color(color, 0.07), 0.004)
+		BoardGeometry.fill_poly(buf, _cell_poly(c, 1.0), Color(color, 0.035 if _hq else 0.07), 0.004)
 		var poly := _cell_poly(c, 1.0)
 		for i in poly.size():
 			var a := poly[i]
@@ -202,6 +223,74 @@ func _draw_territory() -> void:
 			var ib := b + (world(c) - b) * 0.04
 			BoardGeometry.ribbon(buf, Vector3(ia.x, 0.008, ia.z), Vector3(ib.x, 0.008, ib.z), 0.035, Color(color.lightened(0.15), 0.75))
 	_territory_mesh.mesh = BoardGeometry.commit(buf)
+
+
+# --- High-quality layers (Forward+) -------------------------------------------
+
+## A cloud-cover quad over the whole map (unexplored space) and one FogVolume
+## for nebulae and ion storms, both driven by world-space masks.
+func _build_hq_layers(lo: Vector3, hi: Vector3) -> void:
+	_mask_rect = Rect2(Vector2(lo.x, lo.z), Vector2(hi.x - lo.x, hi.z - lo.z)).grow(2.0)
+	var terrain := _paint_mask(func(c: Vector2i) -> Color:
+		var id := engine.state.grid.terrain_at(c)
+		return Color(1.0 if id == "nebula" else 0.0, 1.0 if id == "ion_storm" else 0.0,
+				1.0 if id == "asteroid_belt" else 0.0, 1.0))
+	var terrain_tex := ImageTexture.create_from_image(terrain)
+	_explored_tex = ImageTexture.create_from_image(_paint_mask(func(_c: Vector2i) -> Color: return Color(0, 0, 0, 1)))
+	var bounds := Vector4(_mask_rect.position.x, _mask_rect.position.y, _mask_rect.size.x, _mask_rect.size.y)
+
+	var quad := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = _mask_rect.size + Vector2(60, 60)  # past the edges: the uncharted beyond the map
+	quad.mesh = plane
+	quad.position = Vector3(_mask_rect.get_center().x, FOG_HEIGHT, _mask_rect.get_center().y)
+	_cloud_mat = ShaderMaterial.new()
+	_cloud_mat.shader = CLOUD_SHADER
+	_cloud_mat.set_shader_parameter("mask", _explored_tex)
+	_cloud_mat.set_shader_parameter("bounds", bounds)
+	quad.material_override = _cloud_mat
+	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_world.add_child(quad)
+
+	# Nebulae, ion storms and asteroid dust: three stacked slices (depth, parallax).
+	for k in 3:
+		var slice := MeshInstance3D.new()
+		var sp := PlaneMesh.new()
+		sp.size = _mask_rect.size
+		slice.mesh = sp
+		slice.position = Vector3(_mask_rect.get_center().x, 0.08 + k * 0.32, _mask_rect.get_center().y)
+		var mat := ShaderMaterial.new()
+		mat.shader = NEBULA_SHADER
+		mat.set_shader_parameter("terrain_mask", terrain_tex)
+		mat.set_shader_parameter("explored_mask", _explored_tex)
+		mat.set_shader_parameter("bounds", bounds)
+		mat.set_shader_parameter("layer", k / 2.0)
+		slice.material_override = mat
+		slice.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_world.add_child(slice)
+
+
+## An image over _mask_rect: each pixel gets fn(cell under it), or black off the map.
+func _paint_mask(fn: Callable) -> Image:
+	var grid := engine.state.grid
+	var w := maxi(8, int(_mask_rect.size.x * MASK_PPU))
+	var h := maxi(8, int(_mask_rect.size.y * MASK_PPU))
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 1))
+	for y in h:
+		for x in w:
+			var p := _mask_rect.position + Vector2(x + 0.5, y + 0.5) / MASK_PPU
+			var c := grid.from_pixel(p / SCALE, GridMapView.CELL_SIZE)
+			if grid.has_cell(c):
+				img.set_pixel(x, y, fn.call(c))
+	return img
+
+
+func _update_explored_mask(explored: Dictionary, visible_now: Dictionary) -> void:
+	if _explored_tex == null:
+		return
+	_explored_tex.update(_paint_mask(func(c: Vector2i) -> Color:
+		return Color(1.0 if explored.has(c) else 0.0, 1.0 if visible_now.has(c) else 0.0, 0.0, 1.0)))
 
 
 # --- Sync ---------------------------------------------------------------------
@@ -268,6 +357,9 @@ func _set_fog(explored: Dictionary, visible_now: Dictionary) -> void:
 	_explored = explored
 	for c: Vector2i in _decor:
 		_decor[c].visible = explored.has(c)
+	if _hq:
+		_update_explored_mask(explored, visible_now)
+		return
 	var grid := engine.state.grid
 	var solid := BoardGeometry.buffer()
 	var edges := BoardGeometry.buffer()
@@ -389,7 +481,7 @@ func _redraw_overlays() -> void:
 	if _active != null:
 		in_range[_active] = true
 	for c in _move:
-		BoardGeometry.fill_poly(buf, _cell_poly(c, 1.0), Color(Palette.REACHABLE, 0.06), y)
+		BoardGeometry.fill_poly(buf, _cell_poly(c, 1.0), Color(Palette.REACHABLE, 0.025 if _hq else 0.06), y)
 	for c: Vector2i in in_range:
 		var poly := _cell_poly(c, 1.0)
 		for i in poly.size():

@@ -98,7 +98,8 @@ func _ready() -> void:
 	hud.menu_pressed.connect(_open_menu)
 	hud.settings_closed.connect(func() -> void:
 		# Apply a changed map view right away.
-		if engine != null and (board is GalaxyBoard3D) != (GameSettings.galaxy_view == "3d"):
+		var look_changed: bool = board is GalaxyBoard3D and board._hq != BoardGeometry.high_quality()
+		if engine != null and ((board is GalaxyBoard3D) != (GameSettings.galaxy_view == "3d") or look_changed):
 			_build_board()
 		_refresh())
 	get_viewport().size_changed.connect(_fit_map)
@@ -184,6 +185,8 @@ func _build_board() -> void:
 			else GalaxyBoard2D.new(map_view, planets_layer, fleets_layer, anomalies_layer, fx)
 	add_child(board)
 	board.setup(engine, data, player_faction)
+	# The 3D map on Forward+ draws its own sky; the 2D nebula backdrop would cover it.
+	$Background.visible = not (board is GalaxyBoard3D and BoardGeometry.high_quality())
 	hud.minimap.setup(engine, board, player_faction)
 	_sync_views()
 	_fit_map()

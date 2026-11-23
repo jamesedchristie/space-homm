@@ -906,3 +906,14 @@ faction `"ai": {"war_ratio": n}`, and a body's `"pop": n` for starting colonies.
   plumes work unchanged.
 - A battle team may name `"model_variant"`: its ships use `<model>_<variant>` (e.g. `frigate_qt`)
   where that exists. The showcase scenarios (`data/scenarios/showcase_*.json`) use `qt` / `qtr`.
+
+- Galaxy map (high quality): `GalaxyBoard3D._build_hq_layers` paints world-space masks over the map
+  (terrain: R nebula, G ion storm, B asteroid dust; explored: R explored, G visible now, repainted on
+  fog changes) at `MASK_PPU` pixels per unit. `galaxy_cloud_cover.gdshader` (one quad at fog height)
+  draws uncharted space as cloud banks and a dark veil over charted space out of sensor range;
+  `galaxy_nebula_layer.gdshader` draws three stacked additive slices of nebula / storm / dust. Terrain
+  tiles, the old fog slab and nebula puffs are skipped. Stars use `star_surface.gdshader` plus a
+  billboard `star_corona.gdshader` (also in system battles); the system view uses
+  `build_environment(..., "system")` and a shadowed point light at the star.
+- Desktop builds pick Forward+ (`rendering_method.pc`); the base setting stays Compatibility for the
+  web. Station decks keep the classic environment, dimmed on Forward+ to match.

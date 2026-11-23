@@ -136,7 +136,7 @@ func show_showcase() -> void:
 	var hq := BoardGeometry.supports_high_quality()
 	box.add_child(_note("A practice battle to compare looks: artist-made ships (CC0 models by Quaternius) or the game's procedural ships. "
 			+ ("Running on the high-quality Forward+ renderer: switch Settings > Battle graphics to compare with the classic look. "
-				if hq else "The high-quality look needs the Forward+ renderer: on desktop, these buttons restart the game in it. ")
+				if hq else "The high-quality look needs the Forward+ renderer (the desktop default): these buttons restart the game in it. ")
 			+ "In battle, Esc > Back to the main menu returns here."))
 	for entry: Array in [["Artist ships", "showcase_hq"], ["Procedural ships", "showcase_classic"]]:
 		var id: String = entry[1]

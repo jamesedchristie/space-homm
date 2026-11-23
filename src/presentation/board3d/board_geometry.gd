@@ -24,10 +24,11 @@ static func supports_high_quality() -> bool:
 
 ## WorldEnvironment (nebula canvas behind the 3D scene) plus key and rim lights.
 ## hq: the high-quality look (see high_quality()); only honoured on Forward+.
-static func build_environment(parent: Node3D, hq: bool = false) -> void:
+## kind: "battle" or "galaxy" (no global dust, a long fog range for the zoomed-out map:
+## only FogVolumes such as nebulae add fog there).
+static func build_environment(parent: Node3D, hq: bool = false, kind: String = "battle") -> Environment:
 	if hq and high_quality():
-		_build_hq_environment(parent)
-		return
+		return _build_hq_environment(parent, kind)
 	var env_node := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CANVAS
@@ -46,18 +47,25 @@ static func build_environment(parent: Node3D, hq: bool = false) -> void:
 	sun.light_energy = 1.25
 	sun.light_color = Color(1.0, 0.96, 0.9)
 	sun.shadow_enabled = true
+	if kind == "deck" and supports_high_quality():
+		# Forward+ lights the same scene much brighter than the compatibility renderer the
+		# deck was tuned on: dim it to match (room lights and the glow strips carry it).
+		env.ambient_light_energy = 0.4
+		env.tonemap_exposure = 0.8
+		sun.light_energy = 0.6
 	parent.add_child(sun)
 	var rim := DirectionalLight3D.new()
 	rim.rotation_degrees = Vector3(-25, 150, 0)
 	rim.light_energy = 0.35
 	rim.light_color = Color(0.5, 0.7, 1.0)
 	parent.add_child(rim)
+	return env
 
 
 ## Forward+ look: a real space sky that also lights and reflects off the hulls,
 ## AgX tone mapping, ambient occlusion, HDR bloom, a whisper of volumetric dust,
 ## and a sun with soft shadows.
-static func _build_hq_environment(parent: Node3D) -> void:
+static func _build_hq_environment(parent: Node3D, kind: String = "battle") -> Environment:
 	var env_node := WorldEnvironment.new()
 	var env := Environment.new()
 	var sky := Sky.new()
@@ -93,6 +101,21 @@ static func _build_hq_environment(parent: Node3D) -> void:
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.12
 	env.adjustment_contrast = 1.05
+	if kind == "system":
+		# A star system up close: the star does the lighting (worlds get a real night side).
+		env.volumetric_fog_enabled = false
+		env.ambient_light_energy = 0.55
+		env.ssao_radius = 0.25
+		env.glow_intensity = 0.8
+		env.glow_hdr_threshold = 1.2
+	if kind == "galaxy":
+		env.volumetric_fog_density = 0.0
+		env.volumetric_fog_length = 160.0
+		env.volumetric_fog_detail_spread = 1.5
+		env.volumetric_fog_ambient_inject = 0.4
+		env.ssao_radius = 0.35
+		env.glow_intensity = 0.9
+		env.glow_bloom = 0.1
 	env_node.environment = env
 	parent.add_child(env_node)
 	var sun := DirectionalLight3D.new()
@@ -104,12 +127,16 @@ static func _build_hq_environment(parent: Node3D) -> void:
 	sun.shadow_blur = 1.5
 	sun.directional_shadow_max_distance = 60.0
 	sun.light_volumetric_fog_energy = 1.5
+	if kind == "system":
+		sun.light_energy = 0.25  # the star's own light does the work
+		sun.shadow_enabled = false
 	parent.add_child(sun)
 	var rim := DirectionalLight3D.new()
 	rim.rotation_degrees = Vector3(-20, 150, 0)
 	rim.light_energy = 0.6
 	rim.light_color = Color(0.45, 0.65, 1.0)
 	parent.add_child(rim)
+	return env
 
 
 static func mesh_node(parent: Node3D, material: Material) -> MeshInstance3D:

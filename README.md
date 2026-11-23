@@ -267,6 +267,16 @@ Squad missions play like XCOM with story beats like a tabletop RPG:
   the systems around enemy planets on the galaxy map.
 
 
+### Graphics quality
+
+On desktop the game runs on Godot's **Forward+** renderer (Metal on Apple Silicon) with a high-quality
+look: on the **galaxy map**, a real starfield sky, uncharted space under drifting cloud banks,
+nebulae, ion storms and asteroid dust as layered glowing clouds, and stars with churning surfaces and
+coronas that light their worlds; the **system view** is lit by its star (worlds get a real night side);
+**battles** get the sky, soft shadows and ambient occlusion. **Settings > Graphics** switches to the
+classic look. The web build uses the Compatibility renderer and always has the classic look. **F3**
+shows the frame rate.
+
 ### Graphics showcase (proof of concept)
 
 Main menu > **Graphics showcase** plays one practice battle two ways, to judge how far the look can go:

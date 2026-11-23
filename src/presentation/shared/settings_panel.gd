@@ -68,7 +68,7 @@ func _ready() -> void:
 	add_child(_view_row("Battles", GameSettings.battle_view, func(v: String) -> void: GameSettings.battle_view = v))
 	var look_row := HBoxContainer.new()
 	look_row.add_theme_constant_override("separation", 10)
-	var look_label := UiKit.label("Battle graphics", 14, Palette.TEXT)
+	var look_label := UiKit.label("Graphics", 14, Palette.TEXT)
 	look_label.custom_minimum_size = Vector2(110, 0)
 	look_row.add_child(look_label)
 	var look := OptionButton.new()
@@ -76,7 +76,7 @@ func _ready() -> void:
 	look.add_item("Classic")
 	look.selected = 1 if GameSettings.battle_look == "classic" else 0
 	look.disabled = not BoardGeometry.supports_high_quality()
-	look.tooltip_text = "Sky, soft shadows, ambient occlusion and fog in 3D battles (desktop renderer only)." \
+	look.tooltip_text = "Galaxy map, system view and battles: real sky, cloud cover over unexplored space, nebulae, lit stars, soft shadows and ambient occlusion (desktop renderer only)." \
 			if BoardGeometry.supports_high_quality() else "Needs the desktop (Forward+) renderer; this build uses the compatibility renderer."
 	look.item_selected.connect(func(i: int) -> void:
 		GameSettings.battle_look = "classic" if i == 1 else "high"

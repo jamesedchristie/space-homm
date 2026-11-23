@@ -118,7 +118,8 @@ func _unit_ground(u: BattleUnit) -> Vector3:
 # --- Scene construction -------------------------------------------------------
 
 func _build_environment() -> void:
-	BoardGeometry.build_environment(_world, true)
+	# Station interiors keep their own lighting (tuned for the classic look) for now.
+	BoardGeometry.build_environment(_world, _floor != "deck", "deck" if _floor == "deck" else "battle")
 	_rig = BoardCamera3D.new()
 	if _floor != "deck":
 		# Space: a lower view so ships at different heights read as a 3D formation.

@@ -7,6 +7,8 @@ extends Node3D
 
 const SURFACE_SHADER := preload("res://src/presentation/shaders/planet_3d.gdshader")
 const ATMOSPHERE_SHADER := preload("res://src/presentation/shaders/atmosphere.gdshader")
+const STAR_SHADER := preload("res://src/presentation/shaders/star_surface.gdshader")
+const CORONA_SHADER := preload("res://src/presentation/shaders/star_corona.gdshader")
 const ORBIT_MIN := 0.22
 const ORBIT_MAX := 0.58
 const TILT := 0.22
@@ -115,7 +117,7 @@ func refresh(planet: Planet, state: GalaxyState) -> void:
 	owned = not planet.owner.is_empty()
 	owner_color = Palette.team_color(state.faction(planet.owner)["team"]) if owned else Palette.NEUTRAL
 	_owner_ring.albedo_color = Color(owner_color, 0.85) if owned else Color(owner_color, 0.22)
-	_glow.albedo_color = Color(owner_color, 0.1) if owned else Color(0, 0, 0, 0)
+	_glow.albedo_color = Color(owner_color, 0.04 if BoardGeometry.high_quality() else 0.1) if owned else Color(0, 0, 0, 0)
 	for i in mini(_markers.size(), planet.bodies.size()):
 		if _markers[i] == null:
 			continue
@@ -286,7 +288,30 @@ func _add_star(color: Color, r: float) -> void:
 	star.material_override = m
 	star.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_system.add_child(star)
-	for k in 2:
+	var hq := BoardGeometry.high_quality()
+	if hq:
+		# A churning surface with a darker limb, in HDR so the glow gives it a corona.
+		var sm := ShaderMaterial.new()
+		sm.shader = STAR_SHADER
+		sm.set_shader_parameter("star_color", color)
+		sm.set_shader_parameter("energy", 2.0)
+		sm.set_shader_parameter("seed", float(absi(hash(planet_id)) % 97) * 0.1)
+		star.material_override = sm
+		sphere.radial_segments = 48
+		sphere.rings = 24
+		var corona := MeshInstance3D.new()
+		var quad := QuadMesh.new()
+		quad.size = Vector2.ONE * r * 4.6
+		corona.mesh = quad
+		var cm := ShaderMaterial.new()
+		cm.shader = CORONA_SHADER
+		cm.set_shader_parameter("corona_color", color.lightened(0.2))
+		cm.set_shader_parameter("intensity", 0.85)
+		cm.set_shader_parameter("core", 1.0 / 2.3)
+		corona.material_override = cm
+		corona.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_system.add_child(corona)
+	for k in (0 if hq else 2):
 		var halo := MeshInstance3D.new()
 		var hs := SphereMesh.new()
 		hs.radius = r * (1.45 + k * 0.9)
@@ -299,6 +324,11 @@ func _add_star(color: Color, r: float) -> void:
 	light.light_color = color
 	light.light_energy = 0.6
 	light.omni_range = ORBIT_MAX + 0.4
+	if hq:
+		# The star lights its worlds and the fleets parked around it.
+		light.light_energy = 1.6
+		light.omni_range = ORBIT_MAX + 1.4
+		light.omni_attenuation = 1.6
 	_system.add_child(light)
 
 

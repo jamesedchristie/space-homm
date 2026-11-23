@@ -11,7 +11,8 @@ static var fullscreen := false
 static var volume := 0.8
 static var galaxy_view := "3d"
 static var battle_view := "3d"
-## "high": sky, ambient occlusion, soft shadows and fog in 3D battles (Forward+ only); "classic".
+## "high": the Forward+ look on the galaxy map, system view and battles (sky, nebulae, cloud
+## cover, lit stars, soft shadows, ambient occlusion); "classic". Only on the Forward+ renderer.
 static var battle_look := "high"
 static var _loaded := false
 

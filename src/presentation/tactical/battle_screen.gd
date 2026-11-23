@@ -137,7 +137,7 @@ func _build_board() -> void:
 	board.setup(engine, data, map_def.get("floor", ""))
 	_built_look = BoardGeometry.high_quality()
 	# The 3D board on Forward+ draws its own sky; the 2D nebula backdrop would cover it.
-	$Background.visible = not (board is BattleBoard3D and BoardGeometry.high_quality())
+	$Background.visible = not (board is BattleBoard3D and BoardGeometry.high_quality() and map_def.get("floor", "") != "deck")
 	for u: BattleUnit in engine.state.units.values():
 		if u.alive:
 			board.add_unit(u)
