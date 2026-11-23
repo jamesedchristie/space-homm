@@ -6,8 +6,28 @@ extends RefCounted
 ## mesh only when non-empty.
 
 
+const SPACE_SKY := preload("res://src/presentation/shaders/space_sky.gdshader")
+
+
+## True when the game runs on the Forward+ renderer (desktop): boards then use
+## the high-quality look (sky, ambient occlusion, soft shadows, volumetric fog).
+## The Compatibility renderer (web, older GPUs) keeps the classic look.
+static func high_quality() -> bool:
+	GameSettings.ensure_loaded()
+	return supports_high_quality() and GameSettings.battle_look == "high"
+
+
+## Whether this build runs the Forward+ renderer at all (desktop; not the web build).
+static func supports_high_quality() -> bool:
+	return RenderingServer.get_current_rendering_method() == "forward_plus"
+
+
 ## WorldEnvironment (nebula canvas behind the 3D scene) plus key and rim lights.
-static func build_environment(parent: Node3D) -> void:
+## hq: the high-quality look (see high_quality()); only honoured on Forward+.
+static func build_environment(parent: Node3D, hq: bool = false) -> void:
+	if hq and high_quality():
+		_build_hq_environment(parent)
+		return
 	var env_node := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CANVAS
@@ -31,6 +51,64 @@ static func build_environment(parent: Node3D) -> void:
 	rim.rotation_degrees = Vector3(-25, 150, 0)
 	rim.light_energy = 0.35
 	rim.light_color = Color(0.5, 0.7, 1.0)
+	parent.add_child(rim)
+
+
+## Forward+ look: a real space sky that also lights and reflects off the hulls,
+## AgX tone mapping, ambient occlusion, HDR bloom, a whisper of volumetric dust,
+## and a sun with soft shadows.
+static func _build_hq_environment(parent: Node3D) -> void:
+	var env_node := WorldEnvironment.new()
+	var env := Environment.new()
+	var sky := Sky.new()
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = SPACE_SKY
+	sky_mat.set_shader_parameter("seed", float(absi(parent.get_instance_id()) % 97) * 0.13)
+	sky.sky_material = sky_mat
+	sky.radiance_size = Sky.RADIANCE_SIZE_256
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_sky_contribution = 1.0
+	env.ambient_light_energy = 2.2
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	env.tonemap_exposure = 1.15
+	env.ssao_enabled = true
+	env.ssao_radius = 0.6
+	env.ssao_intensity = 1.6
+	env.ssil_enabled = false  # indirect light: costly, little gain on a mostly dark board
+	env.ssil_radius = 1.5
+	env.ssil_intensity = 0.6
+	env.glow_enabled = true
+	env.glow_intensity = 0.7
+	env.glow_bloom = 0.06
+	env.glow_hdr_threshold = 1.1
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+	env.volumetric_fog_enabled = true
+	env.volumetric_fog_density = 0.004
+	env.volumetric_fog_albedo = Color(0.4, 0.5, 0.8)
+	env.volumetric_fog_anisotropy = 0.6
+	env.volumetric_fog_sky_affect = 0.0
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 1.12
+	env.adjustment_contrast = 1.05
+	env_node.environment = env
+	parent.add_child(env_node)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-50, -35, 0)
+	sun.light_energy = 2.4
+	sun.light_color = Color(1.0, 0.95, 0.86)
+	sun.light_angular_distance = 1.2  # soft shadow edges
+	sun.shadow_enabled = true
+	sun.shadow_blur = 1.5
+	sun.directional_shadow_max_distance = 60.0
+	sun.light_volumetric_fog_energy = 1.5
+	parent.add_child(sun)
+	var rim := DirectionalLight3D.new()
+	rim.rotation_degrees = Vector3(-20, 150, 0)
+	rim.light_energy = 0.6
+	rim.light_color = Color(0.45, 0.65, 1.0)
 	parent.add_child(rim)
 
 
@@ -75,6 +153,11 @@ static func tile_material(transparent: bool) -> StandardMaterial3D:
 	m.vertex_color_use_as_albedo = true
 	m.roughness = 0.25 if transparent else 0.6
 	m.metallic = 0.5 if transparent else 0.35
+	if transparent and high_quality():
+		# With a real sky the glass would mirror it: keep tiles a matte tint.
+		m.metallic = 0.0
+		m.roughness = 1.0
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	if transparent:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	return m

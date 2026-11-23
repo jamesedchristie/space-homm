@@ -67,7 +67,9 @@ func _ready() -> void:
 	hud.menu_pressed.connect(_open_menu)
 	hud.settings_closed.connect(func() -> void:
 		# Apply a changed battle view now if nothing is animating.
-		if engine != null and not _busy and (board is BattleBoard3D) != (GameSettings.battle_view == "3d"):
+		# Also rebuild the 3D board when the battle look (high quality / classic) changed.
+		var look_changed := board is BattleBoard3D and _built_look != BoardGeometry.high_quality()
+		if engine != null and not _busy and ((board is BattleBoard3D) != (GameSettings.battle_view == "3d") or look_changed):
 			_build_board()
 		_refresh())
 	get_viewport().size_changed.connect(_fit_map)
@@ -75,6 +77,10 @@ func _ready() -> void:
 
 
 ## Use a generated scenario (e.g. from GalaxyEngine.pending_battle_scenario()).
+## The battle look the 3D board was built with (see settings_closed).
+var _built_look := false
+
+
 func configure(scenario: Dictionary, battle_seed: int) -> void:
 	_embedded_scenario = scenario
 	rng_seed = battle_seed
@@ -129,6 +135,9 @@ func _build_board() -> void:
 	add_child(board)
 	var map_def := BattleEngine.map_def_for(data, _embedded_scenario if is_embedded() else data.scenarios[scenario_id])
 	board.setup(engine, data, map_def.get("floor", ""))
+	_built_look = BoardGeometry.high_quality()
+	# The 3D board on Forward+ draws its own sky; the 2D nebula backdrop would cover it.
+	$Background.visible = not (board is BattleBoard3D and BoardGeometry.high_quality())
 	for u: BattleUnit in engine.state.units.values():
 		if u.alive:
 			board.add_unit(u)
@@ -633,6 +642,8 @@ func _open_menu() -> void:
 		choices.append({"id": "autoplay", "label": "Let the AI finish"})
 	if not is_embedded():
 		choices.append({"id": "restart", "label": "Restart"})
+	if String(_embedded_scenario.get("id", "")).begins_with("showcase"):
+		choices.append({"id": "leave", "label": "Back to the main menu"})
 	if OS.get_name() != "Web":
 		choices.append({"id": "quit", "label": "Quit game"})
 	var body := UiKit.color_tag("Battles can't be saved: the campaign autosaves at the start of your next turn. "
@@ -649,6 +660,8 @@ func _open_menu() -> void:
 			_toggle_autoplay()
 		"restart":
 			start_battle()
+		"leave":
+			battle_finished.emit(engine)
 		"quit":
 			get_tree().quit()
 

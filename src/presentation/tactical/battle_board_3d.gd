@@ -118,7 +118,7 @@ func _unit_ground(u: BattleUnit) -> Vector3:
 # --- Scene construction -------------------------------------------------------
 
 func _build_environment() -> void:
-	BoardGeometry.build_environment(_world)
+	BoardGeometry.build_environment(_world, true)
 	_rig = BoardCamera3D.new()
 	if _floor != "deck":
 		# Space: a lower view so ships at different heights read as a 3D formation.
@@ -147,7 +147,11 @@ func _build_board() -> void:
 			if terrain.has("color"):
 				fill = Color(terrain["color"])
 				fill.a = 0.16
-			BoardGeometry.prism(glass, _cell_poly(c, 0.95), -0.02, 0.0, fill.darkened(0.3), fill)
+			# High quality: open space is open (just the grid lines); terrain a faint tint.
+			if not BoardGeometry.high_quality() or terrain.has("color"):
+				if BoardGeometry.high_quality():
+					fill.a = 0.07
+				BoardGeometry.prism(glass, _cell_poly(c, 0.95), -0.02, 0.0, fill.darkened(0.3), fill)
 			if deco == "rocks":
 				BoardGeometry.rocks(_world, world(c), hash(c), 0.6, true)
 			elif deco == "debris":
@@ -185,7 +189,8 @@ func add_unit(u: BattleUnit) -> void:
 	_world.add_child(view)
 	var team := engine.state.team_info(u.team)
 	view.setup(u, data, Palette.team_color(u.team), team.get("species", ""), _ship_altitude(u),
-			"raider" if team.get("role", "") == "barbarian" else "")
+			String(team.get("model_variant", "")) if not String(team.get("model_variant", "")).is_empty() \
+					else ("raider" if team.get("role", "") == "barbarian" else ""))
 	view.position = _unit_ground(u)
 	view.face_angle(0.0 if u.team == 0 else PI)
 	views[u.id] = view
@@ -480,7 +485,7 @@ func _redraw_overlays() -> void:
 	var im := {"v": [], "c": []}  # geometry buffer, committed below
 	var y := _floor_y + 0.02
 	for c in _reach:
-		BoardGeometry.fill_poly(im, _cell_poly(c, 1.0), Color(Palette.REACHABLE, 0.15), y)
+		BoardGeometry.fill_poly(im, _cell_poly(c, 1.0), Color(Palette.REACHABLE, 0.07 if BoardGeometry.high_quality() else 0.15), y)
 	for c in _targets:
 		_fill_cell(im, c, y + 0.002, Color(Palette.TARGET, 0.32))
 	for c in _area:

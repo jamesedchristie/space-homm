@@ -11,6 +11,8 @@ static var fullscreen := false
 static var volume := 0.8
 static var galaxy_view := "3d"
 static var battle_view := "3d"
+## "high": sky, ambient occlusion, soft shadows and fog in 3D battles (Forward+ only); "classic".
+static var battle_look := "high"
 static var _loaded := false
 
 
@@ -25,6 +27,7 @@ static func ensure_loaded() -> void:
 	volume = clampf(float(cfg.get_value("audio", "volume", volume)), 0.0, 1.0)
 	galaxy_view = _view(cfg.get_value("display", "galaxy_view", galaxy_view))
 	battle_view = _view(cfg.get_value("display", "battle_view", battle_view))
+	battle_look = "classic" if str(cfg.get_value("display", "battle_look", battle_look)) == "classic" else "high"
 
 
 static func save() -> void:
@@ -32,6 +35,7 @@ static func save() -> void:
 	cfg.set_value("display", "fullscreen", fullscreen)
 	cfg.set_value("display", "galaxy_view", galaxy_view)
 	cfg.set_value("display", "battle_view", battle_view)
+	cfg.set_value("display", "battle_look", battle_look)
 	cfg.set_value("audio", "volume", volume)
 	cfg.save(PATH)
 

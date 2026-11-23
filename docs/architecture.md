@@ -888,3 +888,21 @@ faction `"ai": {"war_ratio": n}`, and a body's `"pop": n` for starting colonies.
 - Engine code never references nodes, scenes or `Input`. Presentation code never changes `BattleState`.
 - Events are dictionaries with a `type` from `BattleEvents`. Add new fields freely; renderers ignore what they don't know.
 - Tests use the fixed-number units in `tests/fixtures.gd`, so rebalancing real content doesn't break rules tests.
+
+
+## Rendering tiers and imported models (graphics proof of concept)
+
+- `BoardGeometry.build_environment(parent, hq)`: with `hq` and when `high_quality()` (Forward+ renderer
+  and `GameSettings.battle_look == "high"`), boards get `_build_hq_environment`: a procedural sky
+  (`shaders/space_sky.gdshader`, used for background, ambient light and reflections), AgX tone
+  mapping, SSAO, glow, light volumetric fog and a soft-shadowed sun. The battle board uses it; the
+  2D canvas backdrop is hidden then (a background canvas layer would draw over a sky). On the
+  Compatibility renderer nothing changes. Board tiles are matte and open space has no tile fill in
+  this mode.
+- Imported models: a `data/models/models.json` entry with `"mesh"` (OBJ/glTF resource), `"texture"`,
+  `"forward"` (the nose axis in the source: `+z`/`-z`/`+x`/`-x`), `"length"` (model units) and
+  `"engines"` (`[[x, y, z, radius]]`, normalised space: +X forward) is turned, centred and scaled
+  into recipe model space by `ModelFactory._build_imported`, so squadrons, banking, attack styles and
+  plumes work unchanged.
+- A battle team may name `"model_variant"`: its ships use `<model>_<variant>` (e.g. `frigate_qt`)
+  where that exists. The showcase scenarios (`data/scenarios/showcase_*.json`) use `qt` / `qtr`.

@@ -15,13 +15,43 @@ var battle: Node
 
 func _ready() -> void:
 	GameSettings.apply()
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--showcase="):
+			_show_showcase.call_deferred(arg.trim_prefix("--showcase="))
+			return
 	if skip_menu or "--new-campaign" in OS.get_cmdline_user_args():
 		new_campaign({})
 	else:
 		show_menu()
 
 
+var _fps: Label
+
+
+func _process(_delta: float) -> void:
+	if _fps != null and _fps.visible:
+		_fps.text = "%d fps  ·  %s  ·  %d draw calls" % [Engine.get_frames_per_second(), RenderingServer.get_current_rendering_method(),
+				RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)]
+
+
+## F3: a frame-rate readout (for judging the graphics settings on your machine).
+func _toggle_fps() -> void:
+	if _fps == null:
+		var layer := CanvasLayer.new()
+		layer.layer = 100
+		add_child(layer)
+		_fps = UiKit.label("", 13, Palette.ACTIVE)
+		_fps.position = Vector2(8, 52)
+		layer.add_child(_fps)
+		_fps.visible = false
+	_fps.visible = not _fps.visible
+
+
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F3:
+		_toggle_fps()
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_F11
 			or (event.keycode == KEY_ENTER and event.alt_pressed)):
 		GameSettings.toggle_fullscreen()
@@ -34,6 +64,7 @@ func show_menu(error: String = "") -> void:
 	menu.new_campaign_requested.connect(func(options: Dictionary) -> void: new_campaign.call_deferred(options))
 	menu.load_requested.connect(func(slot: String) -> void: load_game.call_deferred(slot))
 	menu.quit_requested.connect(func() -> void: get_tree().quit())
+	menu.showcase_requested.connect(func(id: String) -> void: _show_showcase.call_deferred(id))
 	add_child(menu)
 	if not error.is_empty():
 		menu.show_error(error)
@@ -84,6 +115,14 @@ func _clear() -> void:
 	menu = null
 	galaxy = null
 	battle = null
+
+
+func _show_showcase(scenario_id: String) -> void:
+	_clear()
+	battle = BATTLE_SCENE.instantiate()
+	battle.configure(DataRegistry.get_default().scenarios[scenario_id], 0)
+	battle.battle_finished.connect(func(_engine: BattleEngine) -> void: show_menu.call_deferred(), CONNECT_ONE_SHOT)
+	add_child(battle)
 
 
 func _show_battle(scenario: Dictionary, battle_seed: int) -> void:

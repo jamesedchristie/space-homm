@@ -66,6 +66,23 @@ func _ready() -> void:
 
 	add_child(_view_row("Galaxy map", GameSettings.galaxy_view, func(v: String) -> void: GameSettings.galaxy_view = v))
 	add_child(_view_row("Battles", GameSettings.battle_view, func(v: String) -> void: GameSettings.battle_view = v))
+	var look_row := HBoxContainer.new()
+	look_row.add_theme_constant_override("separation", 10)
+	var look_label := UiKit.label("Battle graphics", 14, Palette.TEXT)
+	look_label.custom_minimum_size = Vector2(110, 0)
+	look_row.add_child(look_label)
+	var look := OptionButton.new()
+	look.add_item("High quality")
+	look.add_item("Classic")
+	look.selected = 1 if GameSettings.battle_look == "classic" else 0
+	look.disabled = not BoardGeometry.supports_high_quality()
+	look.tooltip_text = "Sky, soft shadows, ambient occlusion and fog in 3D battles (desktop renderer only)." \
+			if BoardGeometry.supports_high_quality() else "Needs the desktop (Forward+) renderer; this build uses the compatibility renderer."
+	look.item_selected.connect(func(i: int) -> void:
+		GameSettings.battle_look = "classic" if i == 1 else "high"
+		GameSettings.save())
+	look_row.add_child(look)
+	add_child(look_row)
 	var note := UiKit.label("V switches views in game; the last choice is remembered.", 12, Palette.TEXT_DIM)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(note)

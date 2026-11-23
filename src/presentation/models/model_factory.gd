@@ -66,6 +66,8 @@ static var _center := Vector3.ZERO
 ## (and to every model built on the same base, e.g. "humanoid").
 ## lite: small craft (squadrons, escorts) skip engine halos and nav lights: fewer draw calls.
 static func build(data: DataRegistry, model_id: String, team_color: Color, style: String = "", lite: bool = false) -> Node3D:
+	if data.models.get(model_id, {}).has("mesh"):
+		return _build_imported(data.models[model_id], model_id, team_color, lite)
 	var root := Node3D.new()
 	root.name = model_id
 	var style_def: Dictionary = data.species.get(style, {}).get("style", {})
@@ -94,6 +96,68 @@ static func build(data: DataRegistry, model_id: String, team_color: Color, style
 			mi.material_override = mat
 			parent.add_child(mi)
 	_add_plumes(root, data, model_id, team_color, style_def, lite)
+	return root
+
+
+## An artist-made model (e.g. a CC0 asset pack) instead of a recipe:
+## {"mesh": "res://...obj", "texture": "res://...png", "forward": "+z"|"-z"|"+x"|"-x" (the nose
+##  in the source file), "length": model units nose to tail, "metallic", "roughness",
+##  "engines": [[x, y, z, radius], ...] (in the normalised model: +X forward, centred)}.
+## It is turned and scaled into the same model space as recipes, so squadrons, banking and
+## attack styles work unchanged.
+static func _build_imported(def: Dictionary, model_id: String, team_color: Color, lite: bool) -> Node3D:
+	var root := Node3D.new()
+	root.name = model_id
+	var mesh := load(def["mesh"]) as Mesh
+	if mesh == null:
+		push_warning("ModelFactory: can't load mesh '%s'" % def["mesh"])
+		return root
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var key := "imported:%s" % def.get("texture", "")
+	if not _material_cache.has(key):
+		var mat := StandardMaterial3D.new()
+		if def.has("texture"):
+			mat.albedo_texture = load(def["texture"])
+		mat.metallic = float(def.get("metallic", 0.45))
+		mat.roughness = float(def.get("roughness", 0.5))
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		_material_cache[key] = mat
+	mi.material_override = _material_cache[key]
+	# Turn the source's nose onto +X, centre it and scale it to "length".
+	var yaw := 0.0
+	match String(def.get("forward", "-z")):
+		"-z":
+			yaw = -PI / 2.0
+		"+z":
+			yaw = PI / 2.0
+		"-x":
+			yaw = PI
+	var box := mesh.get_aabb()
+	var turned := Basis(Vector3.UP, yaw)
+	var long_side := box.size.z if String(def.get("forward", "-z")).ends_with("z") else box.size.x
+	var s := float(def.get("length", 1.0)) / maxf(long_side, 0.001)
+	var center := box.get_center()
+	mi.transform = Transform3D(turned * Basis.from_scale(Vector3.ONE * s), turned * (-center * s))
+	root.add_child(mi)
+	var tint := team_color.lerp(Color(1.0, 0.6, 0.25), 0.35)
+	var slot := 0
+	for e: Array in def.get("engines", []):
+		var r := float(e[3])
+		var plume := MeshInstance3D.new()
+		plume.mesh = _plume_mesh(r)
+		plume.material_override = _plume_material(tint, slot % 3)
+		slot += 1
+		plume.rotation_degrees = Vector3(0, 0, 90)
+		plume.position = Vector3(float(e[0]) - r * 3.0, float(e[1]), float(e[2]))
+		plume.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(plume)
+		if not lite:
+			var halo := MeshInstance3D.new()
+			halo.mesh = _halo_mesh(r)
+			halo.material_override = _halo_material(tint)
+			halo.position = Vector3(float(e[0]) - r * 0.3, float(e[1]), float(e[2]))
+			root.add_child(halo)
 	return root
 
 

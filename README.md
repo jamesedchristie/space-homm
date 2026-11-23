@@ -266,6 +266,24 @@ Squad missions play like XCOM with story beats like a tabletop RPG:
   research data, gear or raider intel. Completing a mission also rolls a bonus. Intel charts
   the systems around enemy planets on the galaxy map.
 
+
+### Graphics showcase (proof of concept)
+
+Main menu > **Graphics showcase** plays one practice battle two ways, to judge how far the look can go:
+
+- **Artist ships**: textured, artist-made models (the CC0 *Ultimate Spaceships* pack by
+  [Quaternius](https://quaternius.com), see `assets/ships/quaternius/CREDITS.md`) instead of the
+  game's procedural ones.
+- **High-quality battle look** on Godot's **Forward+** renderer (Metal on Apple Silicon, Vulkan or
+  D3D12 elsewhere): a real space sky that also lights and reflects off the hulls, soft shadows,
+  ambient occlusion, HDR bloom and a little volumetric dust. **Settings > Battle graphics** switches
+  between it and the classic look mid-battle.
+
+The game normally runs on the Compatibility renderer (so the web build matches the desktop one), and
+Godot picks its renderer at startup, so on desktop the showcase buttons restart the game in Forward+
+(command line: `--rendering-method forward_plus -- --showcase=showcase_hq`). In battle, Esc > Back to
+the main menu returns. Press **F3** anywhere for a frame-rate readout.
+
 ## Art and credits
 
 - Ships, lasers, meteors, effect sprites, the Kenvector fonts and sound effects:

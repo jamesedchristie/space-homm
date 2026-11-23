@@ -138,7 +138,7 @@ func setup(u: BattleUnit, data: DataRegistry, color: Color, style: String = "", 
 	disc.height = 0.01
 	disc.radial_segments = 32
 	disc_node.mesh = disc
-	disc_node.material_override = _flat_material(Color(color, 0.1))
+	disc_node.material_override = _flat_material(Color(color, 0.035 if BoardGeometry.high_quality() else 0.1))
 	disc_node.position.y = 0.012
 	add_child(disc_node)
 	var ring := MeshInstance3D.new()
@@ -147,7 +147,7 @@ func setup(u: BattleUnit, data: DataRegistry, color: Color, style: String = "", 
 	ring_mesh.outer_radius = 0.7
 	ring_mesh.rings = 32
 	ring.mesh = ring_mesh
-	ring.material_override = _flat_material(Color(color, 0.75))
+	ring.material_override = _flat_material(Color(color, 0.5 if BoardGeometry.high_quality() else 0.75))
 	ring.position.y = 0.02
 	ring.scale = Vector3(1, 0.1, 1)
 	add_child(ring)

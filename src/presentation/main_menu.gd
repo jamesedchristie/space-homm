@@ -7,6 +7,8 @@ extends Control
 signal new_campaign_requested(options: Dictionary)
 signal load_requested(slot: String)
 signal quit_requested
+## A standalone showcase battle (graphics comparison): scenario id.
+signal showcase_requested(scenario_id: String)
 
 var data: DataRegistry
 var _pages: Control
@@ -69,6 +71,7 @@ func show_main() -> void:
 	load_button.disabled = saves.is_empty()
 	box.add_child(load_button)
 	box.add_child(_big_button("Settings", show_settings))
+	box.add_child(_big_button("Graphics showcase", show_showcase))
 	if OS.get_name() != "Web":
 		box.add_child(_big_button("Quit", func() -> void: quit_requested.emit()))
 
@@ -123,6 +126,43 @@ func show_new_campaign() -> void:
 				"seed": int(seed_edit.text) if seed_edit.text.strip_edges().is_valid_int() else 0})))
 	row.add_child(UiKit.button("Back", show_main))
 	box.add_child(row)
+
+
+## The graphics proof of concept: the same battle with artist-made ships or the
+## procedural ones. The look (high quality / classic) is in Settings.
+func show_showcase() -> void:
+	var box := _page()
+	box.add_child(UiKit.header("Graphics showcase", 18, Palette.ACTIVE))
+	var hq := BoardGeometry.supports_high_quality()
+	box.add_child(_note("A practice battle to compare looks: artist-made ships (CC0 models by Quaternius) or the game's procedural ships. "
+			+ ("Running on the high-quality Forward+ renderer: switch Settings > Battle graphics to compare with the classic look. "
+				if hq else "The high-quality look needs the Forward+ renderer: on desktop, these buttons restart the game in it. ")
+			+ "In battle, Esc > Back to the main menu returns here."))
+	for entry: Array in [["Artist ships", "showcase_hq"], ["Procedural ships", "showcase_classic"]]:
+		var id: String = entry[1]
+		box.add_child(_big_button(String(entry[0]) + ("" if hq or OS.get_name() == "Web" else "  (restarts)"), func() -> void:
+			if hq or OS.get_name() == "Web":
+				showcase_requested.emit(id)
+			else:
+				_restart_in_forward_plus(id)))
+	box.add_child(UiKit.button("Back", show_main))
+
+
+## Relaunches the game on the Forward+ renderer, straight into a showcase battle.
+## (Godot picks the renderer at startup; normal play keeps the compatibility renderer.)
+func _restart_in_forward_plus(scenario_id: String) -> void:
+	var args := OS.get_cmdline_args()
+	var user_args := OS.get_cmdline_user_args()
+	var engine_args: PackedStringArray = []
+	for a in args:
+		if a in user_args or a == "--":
+			continue
+		if a.begins_with("--rendering-method") or a.begins_with("--rendering-driver"):
+			continue
+		engine_args.append(a)
+	engine_args.append_array(["--rendering-method", "forward_plus", "--", "--showcase=" + scenario_id])
+	OS.set_restart_on_exit(true, engine_args)
+	get_tree().quit()
 
 
 func show_settings() -> void:

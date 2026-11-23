@@ -1,0 +1,127 @@
+{
+  "id": "showcase_classic",
+  "name": "Showcase: Classic Ships",
+  "description": "The same battle with the procedural ships, for comparison.",
+  "map": "nebula_cloud",
+  "max_rounds": 40,
+  "teams": [
+    {
+      "team": 0,
+      "name": "Terran Alliance",
+      "controller": "player",
+      "species": "human",
+      "units": [
+        {
+          "unit": "cruiser",
+          "name": "Sovereign",
+          "at": [
+            1,
+            3
+          ]
+        },
+        {
+          "unit": "destroyer",
+          "name": "Lance",
+          "at": [
+            1,
+            5
+          ]
+        },
+        {
+          "unit": "frigate",
+          "name": "Bulwark",
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "unit": "frigate",
+          "name": "Aegis",
+          "at": [
+            1,
+            7
+          ]
+        },
+        {
+          "unit": "interceptor",
+          "name": "Talon",
+          "at": [
+            0,
+            4
+          ]
+        },
+        {
+          "unit": "interceptor",
+          "name": "Kite",
+          "at": [
+            0,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "team": 1,
+      "name": "Kesh Dominion",
+      "controller": "ai",
+      "species": "kesh",
+      "units": [
+        {
+          "unit": "cruiser",
+          "name": "Dreadmaw",
+          "at": [
+            12,
+            3
+          ]
+        },
+        {
+          "unit": "destroyer",
+          "name": "Ravager",
+          "at": [
+            12,
+            5
+          ]
+        },
+        {
+          "unit": "frigate",
+          "name": "Ironclaw",
+          "at": [
+            12,
+            1
+          ]
+        },
+        {
+          "unit": "frigate",
+          "name": "Scorch",
+          "at": [
+            12,
+            7
+          ]
+        },
+        {
+          "unit": "interceptor",
+          "name": "Viper",
+          "at": [
+            13,
+            4
+          ]
+        },
+        {
+          "unit": "interceptor",
+          "name": "Wasp",
+          "at": [
+            13,
+            6
+          ]
+        }
+      ]
+    }
+  ],
+  "objectives": [
+    {
+      "type": "eliminate_all",
+      "description": "Destroy all enemy ships"
+    }
+  ]
+}
