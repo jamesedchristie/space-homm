@@ -129,7 +129,8 @@ with a habitable world and rich rocks is worth fighting over.
 3D view of the star and its bodies. Click a body to select it (or `Tab` / arrow keys / `1`-`9`); the
 side panel shows its type, traits, buildings and yield, and what your ships can do there. Your
 civilian ships are drawn beside the bodies they are at (a hex for a Colony Ship, a diamond for a
-Constructor, with a progress arc while they work).
+Constructor, with a progress arc while they work). Your civilian ships fly between the bodies as you give orders; each system has a **jump gate**:
+ships arrive through it, wait beside it, and fly out through it when they join a fleet in orbit.
 
 - **Colony Ship** (a colony of 2+ pop builds it and gives up 1 pop): *Found a colony here* (`F`) on an
   unclaimed or your own habitable world. The ship is used up; the colony starts at 1 pop and, if the

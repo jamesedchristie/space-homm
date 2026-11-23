@@ -249,13 +249,15 @@ func _body_labels(planet: Planet) -> Dictionary:
 func _ship_markers(planet: Planet, ships: Array[Dictionary]) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var color := Palette.team_color(_engine.state.faction(_viewer)["team"])
+	var species: String = _engine.state.faction(_viewer).get("species", "")
 	for e in ships:
 		var s: Dictionary = e["ship"]
 		var job: Dictionary = s.get("job", {})
 		var at: String = job.get("body", s.get("loc", "")) if e["deployed"] else ""
 		out.append({"uid": s["uid"], "body": at, "role": e["role"], "name": s["name"],
 				"progress": (1.0 - float(job["turns_left"]) / maxf(float(job["turns"]), 1.0)) if not job.is_empty() else -1.0,
-				"color": color, "selected": s["uid"] == _ship})
+				"color": color, "selected": s["uid"] == _ship, "unit": s.get("unit", ""), "style": species,
+				"deployed": e["deployed"]})
 	return out
 
 

@@ -33,6 +33,8 @@ var _body_nodes: Array[Node3D] = []
 var _body_radii: Array[float] = []
 var _surface_materials: Array[ShaderMaterial] = []
 var _structures_key := ""
+## The star's meshes (core, corona or halos): scaled by set_star_scale().
+var _star_nodes: Array[Node3D] = []
 
 
 func setup(planet: Planet, data: DataRegistry) -> void:
@@ -288,6 +290,7 @@ func _add_star(color: Color, r: float) -> void:
 	star.material_override = m
 	star.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_system.add_child(star)
+	_star_nodes.append(star)
 	var hq := BoardGeometry.high_quality()
 	if hq:
 		# A churning surface with a darker limb, in HDR so the glow gives it a corona.
@@ -311,6 +314,7 @@ func _add_star(color: Color, r: float) -> void:
 		corona.material_override = cm
 		corona.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_system.add_child(corona)
+		_star_nodes.append(corona)
 	for k in (0 if hq else 2):
 		var halo := MeshInstance3D.new()
 		var hs := SphereMesh.new()
@@ -320,6 +324,7 @@ func _add_star(color: Color, r: float) -> void:
 		halo.material_override = BoardGeometry.additive_material(color * (0.2 if k == 0 else 0.06))
 		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_system.add_child(halo)
+		_star_nodes.append(halo)
 	var light := OmniLight3D.new()
 	light.light_color = color
 	light.light_energy = 0.6
@@ -330,6 +335,13 @@ func _add_star(color: Color, r: float) -> void:
 		light.omni_range = ORBIT_MAX + 1.4
 		light.omni_attenuation = 1.6
 	_system.add_child(light)
+
+
+## Shrinks (or grows) the star without touching the orbits (the system view
+## keeps the sun small so the worlds get the space).
+func set_star_scale(f: float) -> void:
+	for n in _star_nodes:
+		n.scale = Vector3.ONE * f
 
 
 func _add_orbit_line(radius: float) -> void:
