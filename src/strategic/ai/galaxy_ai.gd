@@ -1102,8 +1102,10 @@ func _civilian_goal(engine: GalaxyEngine, faction_id: String, role: String, from
 func _civilian_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 	var s := engine.state
 	var data := engine.data
+	# Forget targets of fleets that are gone or have joined a warfleet (else a target stays
+	# "taken" forever and no constructor goes there).
 	for id: String in _targets.keys():
-		if not s.fleets.has(id):
+		if not s.fleets.has(id) or not (s.fleets[id] as Fleet).is_civilian_only(data):
 			_targets.erase(id)
 	if s.faction(fleet.owner).get("role", "major") != "major":
 		return fleet.cell

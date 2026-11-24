@@ -6,7 +6,7 @@
   "max_turns": 150,
   "events": true,
   "survey": true,
-  "research_cost_mul": 0.7,
+  "research_cost_mul": 0.45,
   "victory": {
     "tech": "hyperdrive",
     "tech_reason": "act1",
