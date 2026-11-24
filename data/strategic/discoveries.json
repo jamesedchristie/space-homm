@@ -58,7 +58,7 @@
     "color": "#d8f4ff",
     "listed_only": true,
     "outcomes": [
-      {"weight": 3, "text": "Your crews tap the comet's ices: fuel and water worth a fortune to the colonies.", "rewards": {"credits": 50}},
+      {"weight": 3, "text": "Your crews tap the comet's ices: fuel and water worth a fortune to the colonies.", "rewards": {"credits": 30, "volatiles": 8}},
       {"weight": 2, "text": "Pristine material from the birth of the system. A research bonanza.", "rewards": {"research": 35}},
       {"weight": 1, "text": "An outgassing jet slams into your ships before they can pull away.", "rewards": {"damage": 0.15, "credits": 20}}
     ]
@@ -69,7 +69,7 @@
     "color": "#ffd38a",
     "listed_only": true,
     "outcomes": [
-      {"weight": 3, "text": "The station's stores were never emptied: machine parts and refined metals.", "rewards": {"alloys": 40}},
+      {"weight": 3, "text": "The station's stores were never emptied: machine parts, refined metals and a crate of rare-earth ingots.", "rewards": {"alloys": 30, "rare_elements": 5}},
       {"weight": 2, "text": "Its automated tender still answers to old command codes. A skeleton crew brings it home.", "rewards": {"ship": "interceptor"}},
       {"weight": 1, "text": "The station's logs say where the separatists hid their first caches.", "rewards": {"credits": 35, "intel": 4}}
     ]

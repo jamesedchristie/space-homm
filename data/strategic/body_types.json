@@ -7,6 +7,7 @@
     "colony_slots": 3,
     "pop_cap": 8,
     "bonus": {"credits": 2},
+    "deposits": {"chance": [0.15], "table": {"rare_elements": 1, "volatiles": 1}},
     "surface": {"base": "#2c66a0", "accent": "#4f9a5a", "atmosphere": "#7fc4ff"}
   },
   "ocean": {
@@ -17,6 +18,7 @@
     "colony_slots": 3,
     "pop_cap": 8,
     "bonus": {"credits": 1, "research": 1},
+    "deposits": {"chance": [0.5], "table": {"volatiles": 1}},
     "surface": {"base": "#1c4c86", "accent": "#3f8fae", "atmosphere": "#8fd0ff"}
   },
   "desert": {
@@ -27,6 +29,7 @@
     "colony_slots": 2,
     "pop_cap": 6,
     "bonus": {"alloys": 1},
+    "deposits": {"chance": [0.3], "table": {"rare_elements": 1}},
     "surface": {"base": "#a8703a", "accent": "#e2b86e", "atmosphere": "#f0c890"}
   },
   "arctic": {
@@ -37,6 +40,7 @@
     "colony_slots": 2,
     "pop_cap": 5,
     "bonus": {"research": 1},
+    "deposits": {"chance": [0.65], "table": {"volatiles": 1}},
     "surface": {"base": "#7fa8c0", "accent": "#e6f2f8", "atmosphere": "#bfe6ff", "ice_caps": 1.0}
   },
   "barren": {
@@ -45,6 +49,7 @@
     "category": "rock",
     "size": 0.6,
     "bonus": {},
+    "deposits": {"chance": [0.35, 0.05], "table": {"rare_elements": 4, "volatiles": 1, "exotic_matter": 0.25}},
     "surface": {"base": "#4c4844", "accent": "#8a8580", "atmosphere": "#9aa0aa44"}
   },
   "volcanic": {
@@ -53,6 +58,7 @@
     "category": "rock",
     "size": 0.7,
     "bonus": {"alloys": 2},
+    "deposits": {"chance": [0.8, 0.05], "table": {"rare_elements": 5, "exotic_matter": 0.15}},
     "surface": {"base": "#3a1e18", "accent": "#e2582a", "atmosphere": "#ff8a4a66"}
   },
   "asteroid_belt": {
@@ -61,6 +67,7 @@
     "category": "belt",
     "size": 0.0,
     "bonus": {"alloys": 1},
+    "deposits": {"chance": [0.6, 0.2], "table": {"rare_elements": 4, "volatiles": 2, "exotic_matter": 0.3}},
     "surface": {"base": "#6e6258", "accent": "#9a8e82", "atmosphere": "#00000000"}
   },
   "gas_giant": {
@@ -69,6 +76,7 @@
     "category": "gas",
     "size": 1.4,
     "bonus": {},
+    "deposits": {"chance": [0.85, 0.1], "table": {"volatiles": 6, "exotic_matter": 0.3}},
     "surface": {"base": "#a8643a", "accent": "#ecc89c", "atmosphere": "#ffcf9a", "bands": 1.0}
   },
   "ice_moon": {
@@ -77,6 +85,7 @@
     "category": "ice",
     "size": 0.5,
     "bonus": {"research": 1},
+    "deposits": {"chance": [0.75, 0.05], "table": {"volatiles": 6, "exotic_matter": 0.35}},
     "surface": {"base": "#9ab8c8", "accent": "#f0f8ff", "atmosphere": "#cfefff66", "ice_caps": 0.6}
   }
 }

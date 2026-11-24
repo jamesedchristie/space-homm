@@ -61,7 +61,13 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 		})
 		s.explored[f["id"]] = {}
 		var stock: Dictionary = def.get("resources", {}).get(f["id"], {})
-		s.resources[f["id"]] = {"credits": int(stock.get("credits", 0)), "alloys": int(stock.get("alloys", 0))}
+		# Strategic resources: major powers start with a little (economy.json deposits.start_stock).
+		var start: Dictionary = p_data.economy.get("deposits", {}).get("start_stock", {}) \
+				if f.get("role", "major") == "major" else {}
+		var pile := {}
+		for k in DepositRules.stockpiled(p_data):
+			pile[k] = int(stock.get(k, start.get(k, 0)))
+		s.resources[f["id"]] = pile
 		var known: Array[String] = []
 		for tech_id: String in def.get("techs", {}).get(f["id"], []):
 			known.append(tech_id)
@@ -136,6 +142,7 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 	for d_def: Dictionary in def.get("discoveries", []):
 		var d_id: String = d_def.get("id", s.make_uid("discovery"))
 		s.discoveries[d_id] = {"id": d_id, "kind": d_def["kind"], "cell": s.grid.cell_from_layout(_layout(d_def.get("at", [0, 0])))}
+	engine._roll_deposits()
 	engine._roll_random_features(def.get("random", {}))
 	if engine.is_system_scale():
 		# Everyone can see their own sun: the star and its corona are charted from the start.
@@ -206,6 +213,37 @@ func _roll_random_features(random: Dictionary) -> void:
 		free = free.filter(func(c: Vector2i) -> bool: return s.grid.distance(c, cell) >= 2)
 		var d_id := s.make_uid("discovery")
 		s.discoveries[d_id] = {"id": d_id, "kind": kinds[s.rng.randi() % kinds.size()], "cell": cell}
+
+
+## Strategic deposits for every body the campaign didn't place them on (system-scale layouts and
+## hand-placed bodies with "deposits" keep theirs). Rolled from the body type's table with an RNG of
+## their own (seeded from the campaign seed), so they don't change the rest of the campaign's dice.
+## Home systems stay fair: a power's starting system (owned, or its capital-to-be) gets no rolls,
+## only a modest deposit of rare elements on its first rock or belt and of volatiles on its first
+## ice moon or gas giant.
+func _roll_deposits() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = state.seed_value * 7741 + 101
+	var ids := state.planets.keys()
+	ids.sort()
+	for id: String in ids:
+		var p: Planet = state.planets[id]
+		var home := not p.owner.is_empty() or not p.capital.is_empty()
+		var gave := {}
+		for b: Dictionary in p.bodies:
+			if b.has("deposits"):
+				continue
+			if not home:
+				b["deposits"] = DepositRules.roll(data, b["type"], rng)
+				continue
+			b["deposits"] = {}
+			var category := EmpireRules.body_category(self, b)
+			if category in ["rock", "belt"] and not gave.has("rare_elements"):
+				b["deposits"]["rare_elements"] = 1
+				gave["rare_elements"] = true
+			elif category in ["ice", "gas"] and not gave.has("volatiles"):
+				b["deposits"]["volatiles"] = 1
+				gave["volatiles"] = true
 
 
 static func _layout(at: Array) -> Vector2i:
@@ -410,6 +448,11 @@ func is_surveyed(faction_id: String, planet: Planet) -> bool:
 	if planet == null or not campaign.get("survey", false):
 		return true
 	return planet.owner == faction_id or state.surveyed.get(faction_id, {}).has(planet.id)
+
+
+## A body's strategic deposits as the faction knows them ({resource: richness}): none until surveyed.
+func known_deposits(faction_id: String, planet: Planet, b: Dictionary) -> Dictionary:
+	return DepositRules.of(b) if is_surveyed(faction_id, planet) else {}
 
 
 ## A body's traits as the faction knows them: none until the body is surveyed.
@@ -1125,9 +1168,9 @@ func _claim_discovery(fleet: Fleet, find: Dictionary) -> void:
 	var rewards: Dictionary = outcome.get("rewards", {}).duplicate()
 	var faction := fleet.owner
 	var stock: Dictionary = state.resources[faction]
-	for k in ["credits", "alloys"]:
+	for k in DepositRules.stockpiled(data):
 		if rewards.has(k):
-			stock[k] = int(stock[k]) + int(rewards[k])
+			stock[k] = int(stock.get(k, 0)) + int(rewards[k])
 	if rewards.has("research"):
 		var r: Dictionary = state.research[faction]
 		r["progress"] = int(r["progress"]) + int(rewards["research"])
@@ -1243,8 +1286,9 @@ func _capture_planet(planet: Planet, fleet: Fleet) -> void:
 	var loot: Dictionary = state.faction(previous).get("barbarian", {}).get("den_loot", {}) if not previous.is_empty() else {}
 	if not loot.is_empty():
 		var stock: Dictionary = state.resources[fleet.owner]
-		for k in ["credits", "alloys"]:
-			stock[k] = int(stock.get(k, 0)) + int(loot.get(k, 0))
+		for k in DepositRules.stockpiled(data):
+			if loot.has(k):
+				stock[k] = int(stock.get(k, 0)) + int(loot[k])
 		emit({"type": GalaxyEvents.DEN_CLEARED, "planet": planet.id, "faction": fleet.owner, "loot": loot})
 	planet.owner = fleet.owner
 	planet.queue = {}
@@ -1362,8 +1406,8 @@ func _end_faction_turn() -> void:
 func _run_economy(faction_id: String) -> void:
 	var gained := EmpireRules.income(self, faction_id)
 	var stock: Dictionary = state.resources[faction_id]
-	stock["credits"] = int(stock.get("credits", 0)) + int(gained["credits"])
-	stock["alloys"] = int(stock.get("alloys", 0)) + int(gained["alloys"])
+	for k in DepositRules.stockpiled(data):
+		stock[k] = int(stock.get(k, 0)) + int(gained.get(k, 0))
 	emit({"type": GalaxyEvents.INCOME, "faction": faction_id, "income": gained})
 	if int(stock["credits"]) < 0:
 		_budget_crisis(faction_id)
@@ -1372,7 +1416,16 @@ func _run_economy(faction_id: String) -> void:
 	var r: Dictionary = state.research[faction_id]
 	r["progress"] = int(r["progress"]) + int(gained["research"])
 	var current: String = r["current"]
-	if not current.is_empty() and r["progress"] >= ResearchRules.cost(self, current):
+	var needs := ResearchRules.resource_cost(self, current) if not current.is_empty() else {}
+	if not current.is_empty() and r["progress"] >= ResearchRules.cost(self, current) \
+			and not EmpireRules.can_afford(self, faction_id, needs):
+		# A tech with "cost_resources" (Hyperdrive burns exotic matter) completes only once they are in
+		# store; points keep banking meanwhile. Reported the turn it first stalls.
+		if int(r["progress"]) - int(gained["research"]) < ResearchRules.cost(self, current):
+			emit({"type": GalaxyEvents.RESEARCH_WAITING, "faction": faction_id, "tech": current,
+					"reason": EmpireRules.afford_error(self, faction_id, needs)})
+	elif not current.is_empty() and r["progress"] >= ResearchRules.cost(self, current):
+		EmpireRules.pay(self, faction_id, needs)
 		r["progress"] = int(r["progress"]) - ResearchRules.cost(self, current)
 		r["known"].append(current)
 		r["current"] = ""
@@ -1585,7 +1638,7 @@ func _do_queue(cmd: QueueBuildCommand) -> void:
 			source = data.megaprojects[cmd.item_id]
 		_:
 			source = data.units[cmd.item_id].get("strategic", {})
-	var cost: Dictionary = source.get("cost", {})
+	var cost := EmpireRules.cost_of(self, source.get("cost", {}))
 	EmpireRules.pay(self, cmd.faction_id, cost)
 	if cmd.kind == "unit" and int(source.get("pop_cost", 0)) > 0:
 		# Settlers come from the people: the biggest colony gives them up.
@@ -1633,7 +1686,7 @@ func _do_civilian(cmd: CivilianCommand) -> void:
 			if not entry["deployed"]:
 				ship = _deploy(planet, entry["fleet"], ship)
 			var def: Dictionary = data.buildings[cmd.item_id]
-			EmpireRules.pay(self, cmd.faction_id, def.get("cost", {}))
+			EmpireRules.pay(self, cmd.faction_id, EmpireRules.cost_of(self, def.get("cost", {})))
 			var turns := int(def.get("turns", 1))
 			ship["loc"] = cmd.body_id
 			ship["job"] = {"body": cmd.body_id, "building": cmd.item_id, "turns_left": turns, "turns": turns}
@@ -1649,7 +1702,7 @@ func _do_civilian(cmd: CivilianCommand) -> void:
 			_depart(planet, ship)
 		CivilianCommand.CANCEL:
 			var job: Dictionary = ship["job"]
-			var refund := _refund(cmd.faction_id, data.buildings[job["building"]].get("cost", {}))
+			var refund := _refund(cmd.faction_id, EmpireRules.cost_of(self, data.buildings[job["building"]].get("cost", {})))
 			ship["job"] = {}
 			emit({"type": GalaxyEvents.JOB_CANCELLED, "planet": planet.id, "ship": ship["uid"], "building": job["building"],
 					"refund": refund, "reason": "cancelled"})
@@ -1690,7 +1743,7 @@ func _do_order(cmd: OrderShipCommand) -> void:
 	var target: Planet = state.planets[cmd.planet_id]
 	var item := cmd.item_id
 	if cmd.action == OrderShipCommand.JOB and item.is_empty():
-		item = SystemRules.default_job(self, cmd.faction_id, target.body(cmd.body_id))
+		item = SystemRules.default_job(self, cmd.faction_id, target.body(cmd.body_id), target)
 	var order := {"ship": cmd.ship_uid, "planet": cmd.planet_id, "body": cmd.body_id, "action": cmd.action, "item": item}
 	var fleet: Fleet = null
 	if where.has("planet"):
@@ -1812,7 +1865,7 @@ func _execute_order(fleet: Fleet, order: Dictionary) -> void:
 		if fleet != null:
 			fleet.order = {}
 		_do_civilian(cmd)
-	elif error == "Can't afford it" and fleet != null:
+	elif EmpireRules.lacks_resources(error) and fleet != null:
 		pass  # waits at the site until the treasury allows
 	elif fleet != null:
 		_fail_order(fleet, error.to_lower())
@@ -1903,7 +1956,7 @@ func _tick_jobs(faction_id: String) -> void:
 
 func _cancel_job(planet: Planet, c: Dictionary, reason: String) -> void:
 	var job: Dictionary = c["job"]
-	var refund := _refund(c["owner"], data.buildings[job["building"]].get("cost", {}))
+	var refund := _refund(c["owner"], EmpireRules.cost_of(self, data.buildings[job["building"]].get("cost", {})))
 	c["job"] = {}
 	emit({"type": GalaxyEvents.JOB_CANCELLED, "planet": planet.id, "ship": c["uid"], "building": job["building"],
 			"refund": refund, "reason": reason})
@@ -1916,7 +1969,9 @@ func _finish_job(planet: Planet, c: Dictionary) -> void:
 	c["job"] = {}
 	if b.is_empty():
 		return
-	b["buildings"].erase("outpost")  # a real development replaces the placeholder
+	# A real development replaces the placeholder outpost (or whatever else it may replace).
+	for replaced: String in data.buildings.get(job["building"], {}).get("replaces", []) + ["outpost"]:
+		b["buildings"].erase(replaced)
 	planet.add_building(b["id"], job["building"])
 	var claimed := planet.owner.is_empty()
 	if claimed:

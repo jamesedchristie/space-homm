@@ -3,6 +3,7 @@
   "name": "The Drift (scenario)",
   "description": "A short scenario: clear the raider dens out of the Drift. The Free Traders are a neutral minor power: keep them sweet for trade income.",
   "max_turns": 150,
+  "strategic_cost_mul": 0.5,
   "events": true,
   "random": {
     "planet_traits": 0.7,

@@ -23,7 +23,8 @@
     "sensor": 2,
     "cost": {
       "alloys": 130,
-      "credits": 110
+      "credits": 110,
+      "rare_elements": 16
     },
     "build_turns": 5,
     "requires_tech": "capital_ships",

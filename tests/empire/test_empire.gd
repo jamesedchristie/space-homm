@@ -76,7 +76,7 @@ func test_building_costs_and_completes() -> void:
 
 func test_cannot_afford_or_build_ships_without_shipyard() -> void:
 	var e := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 8, 2]])
-	assert_eq(e.submit(QueueBuildCommand.new("a", "home_a", "building", "trade_hub")).error, "Can't afford it")
+	assert_eq(e.submit(QueueBuildCommand.new("a", "home_a", "building", "trade_hub")).error, "Not enough alloys (30 needed, 0 in store)", "the reason names the missing resource")
 	var rich := Fixtures.galaxy([["a", "test_dummy", 1, 2], ["b", "test_dummy", 8, 2]], _rich())
 	assert_false(rich.submit(QueueBuildCommand.new("a", "home_a", "unit", "frigate")).ok, "needs a shipyard")
 

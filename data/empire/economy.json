@@ -19,6 +19,12 @@
     "pop_per_extra": 4,
     "max": 3
   },
+  "deposits": {
+    "_doc": "Strategic deposits on bodies: richness 1-3 is rolled with these weights; a development that extracts a deposit yields per_richness x richness of it per turn. Major powers start with start_stock unless their campaign gives an amount.",
+    "richness_weights": [6, 3, 1],
+    "per_richness": 1,
+    "start_stock": {"volatiles": 6, "rare_elements": 6}
+  },
   "jobs": {
     "_doc": "Cancelling a constructor job refunds this fraction of its cost.",
     "refund": 0.5

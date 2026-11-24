@@ -406,6 +406,19 @@
       }
     ]
   },
+  "exotic_physics": {
+    "name": "Exotic Physics",
+    "description": "Containment fields for matter with negative energy: unlocks the Exotic Containment, which extracts a body's exotic matter.",
+    "era": 2,
+    "cost": 100,
+    "requires": ["scientific_method"],
+    "effects": [
+      {
+        "type": "unlock_building",
+        "building": "exotic_containment"
+      }
+    ]
+  },
   "capital_ships": {
     "name": "Capital Ships",
     "description": "Unlocks the Cruiser.",
@@ -527,11 +540,12 @@
   },
   "hyperdrive": {
     "name": "Hyperdrive",
-    "description": "Act 1 complete: your ships can leave the system (the galaxy opens in a later update).",
+    "description": "Act 1 complete: your ships can leave the system (the galaxy opens in a later update). The first jump burns exotic matter and a tankful of volatiles.",
     "era": 3,
     "cost": 260,
     "scale": "system",
-    "requires": ["quantum_computing", "improved_drives"],
+    "requires": ["quantum_computing", "improved_drives", "exotic_physics"],
+    "cost_resources": {"exotic_matter": 16, "volatiles": 30},
     "effects": [
       {
         "type": "empire_modifier",

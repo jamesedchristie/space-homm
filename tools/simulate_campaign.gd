@@ -41,6 +41,10 @@ func _initialize() -> void:
 	var credits_net := 0
 	var upkeep := 0
 	var wonders := 0
+	## Strategic resources of the majors at the end: resource -> [stock, income, deposits tapped], summed.
+	var strategic := {}
+	for k in DepositRules.strategic(data):
+		strategic[k] = [0, 0, 0]
 	## turn -> systems owned by all majors, summed (and how many majors were counted)
 	var sample_sum := {30: 0, 60: 0}
 	var sample_n := {30: 0, 60: 0}
@@ -76,8 +80,18 @@ func _initialize() -> void:
 			credits_net += int(income["credits"])
 			upkeep += int(income["upkeep"])
 			wonders += EmpireRules.megaprojects_of(engine, id).size()
-			line.append("%s t%d p%d s%d c%+d" % [id, engine.state.known_techs(id).size(), EmpireRules.total_population(engine, id),
-					engine.state.planets_of(id).size(), int(income["credits"])])
+			var strat := PackedStringArray()
+			for k: String in strategic:
+				var stock := int(engine.state.resources[id].get(k, 0))
+				strategic[k][0] += stock
+				strategic[k][1] += int(income.get(k, 0))
+				for p in engine.state.planets_of(id):
+					for b in p.bodies:
+						if DepositRules.is_tapped(data, b, k):
+							strategic[k][2] += 1
+				strat.append("%s%d%+d" % [k.substr(0, 1), stock, int(income.get(k, 0))])
+			line.append("%s t%d p%d s%d c%+d %s" % [id, engine.state.known_techs(id).size(), EmpireRules.total_population(engine, id),
+					engine.state.planets_of(id).size(), int(income["credits"]), " ".join(strat)])
 		if verbose:
 			print("  seed %2d: %-8s %-11s turn %3d | %s" % [first_seed + i, key, result["reason"], result["turns"], " | ".join(line)])
 
@@ -91,6 +105,12 @@ func _initialize() -> void:
 		print("  per major at the end: %.1f techs, %.1f pop in %.1f colonies, net credits %+.1f (upkeep %.1f), %.2f megaprojects" % [
 				float(techs) / majors, float(pop) / majors, float(colonies) / majors, float(credits_net) / majors,
 				float(upkeep) / majors, float(wonders) / majors])
+		var parts := PackedStringArray()
+		for k: String in strategic:
+			parts.append("%s %.1f (%+.1f/turn from %.1f deposits)" % [k, float(strategic[k][0]) / majors,
+					float(strategic[k][1]) / majors, float(strategic[k][2]) / majors])
+		print("  strategic per major at the end: %s; %.1f research waits per run" % [", ".join(parts),
+				float(totals.get(GalaxyEvents.RESEARCH_WAITING, 0)) / runs])
 	print("  systems owned per major: turn 30 %.2f, turn 60 %.2f" % [float(sample_sum[30]) / maxf(sample_n[30], 1), float(sample_sum[60]) / maxf(sample_n[60], 1)])
 	print("  system layer per run: %.1f colonies founded, %.1f systems claimed, %.1f developments built, %.1f blockades, %.1f invasions, %.1f systems captured, %.1f civilian fleets destroyed" % [
 			float(totals.get(GalaxyEvents.COLONY_FOUNDED, 0)) / runs, float(totals.get(GalaxyEvents.SYSTEM_CLAIMED, 0)) / runs,

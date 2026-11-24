@@ -48,7 +48,7 @@ const MEGAPROJECT_PRIORITY := ["ascension_gate", "grand_archive", "stellar_forge
 const RESEARCH_PRIORITY := ["hydroponics", "automated_mining", "trade_protocols", "deep_space_sensors", "reinforced_hulls",
 		"improved_drives", "colonial_medicine", "shield_harmonics", "terraforming", "orbital_defenses", "cryogenic_labs",
 		"scientific_method", "arcology_planning", "heavy_hulls", "galactic_commerce", "asteroid_refining", "logistics_corps",
-		"archival_science", "orbital_habitats", "targeting_computers", "stellar_engineering", "deflector_grids",
+		"archival_science", "orbital_habitats", "targeting_computers", "stellar_engineering", "deflector_grids", "exotic_physics",
 		"fleet_doctrine", "field_repairs", "deep_core_taps", "quantum_computing", "nanofabrication", "genetic_uplift",
 		"interstellar_banking", "ascension_theory", "capital_ships", "command_doctrine"]
 ## In a campaign won by a tech (Solar Age: Hyperdrive), the research economy comes first, then the
@@ -85,7 +85,13 @@ const CIVILIAN_DANGER := 3
 const CONSTRUCTORS_PER_SYSTEMS := 3
 const MAX_CONSTRUCTORS := 4
 ## What a development is worth to the AI, per resource (research counts most).
-const YIELD_WEIGHTS := {"credits": 1.0, "alloys": 1.2, "research": 1.5}
+const YIELD_WEIGHTS := {"credits": 1.0, "alloys": 1.2, "research": 1.5,
+		"volatiles": 1.5, "rare_elements": 2.0, "exotic_matter": 3.0}
+## A strategic resource the faction needs for its goal (Hyperdrive's exotic matter, a wanted wonder)
+## and lacks counts this many times more when choosing jobs.
+const NEED_WEIGHT := 4.0
+## Below this many rare elements in store, mines that dig them count a bit more (warships need them).
+const RARE_LOW := 12
 ## System-scale campaigns (the whole map is one star system, every body its own Planet): every body
 ## is in reach, any marginal world is worth a colony, and idle warfleets chart the system.
 const SYSTEM_CIVILIAN_RANGE := 99
@@ -101,6 +107,8 @@ var _done := {}
 var _tried := {}
 var _planned := {}  # planet ids given a build order this turn
 var _diplomacy_done := false
+## strategic_need per faction, worked out once a turn.
+var _needs := {}
 
 
 func decide(engine: GalaxyEngine) -> GalaxyCommand:
@@ -111,6 +119,7 @@ func decide(engine: GalaxyEngine) -> GalaxyCommand:
 		_done.clear()
 		_planned.clear()
 		_diplomacy_done = false
+		_needs.clear()
 	if not engine.state.pending_event.is_empty() and engine.state.pending_event["faction"] == faction_id:
 		return ResolveEventCommand.new(faction_id, choose_event_choice(engine))
 	var empire_cmd := _empire_command(engine, faction_id)
@@ -442,10 +451,11 @@ func choose_build(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 		if option["kind"] == "megaproject":
 			if option["ok"]:
 				megaprojects[option["id"]] = option
-			elif option["reason"] == "Can't afford it" or option["reason"] == "Already building something":
+			elif (EmpireRules.lacks_resources(option["reason"]) and not _hopeless(engine, faction_id, option["cost"])) \
+					or option["reason"] == "Already building something":
 				saving = true
 			continue
-		if not option["ok"]:
+		if not option["ok"] or _spends_reserve(engine, faction_id, option["cost"]):
 			continue
 		if option["kind"] == "unit":
 			if not Fleet.is_civilian_unit(engine.data, option["id"]):
@@ -564,8 +574,76 @@ func _megaproject_reserve(engine: GalaxyEngine, faction_id: String) -> Dictionar
 		if engine.data.megaprojects[mp_id].get("scope", "empire") == "galaxy" \
 				and (EmpireRules.megaproject_site(engine, mp_id) != null or EmpireRules.megaproject_under_construction(engine, mp_id) != null):
 			continue
-		return engine.data.megaprojects[mp_id].get("cost", {})
+		var cost := EmpireRules.cost_of(engine, engine.data.megaprojects[mp_id].get("cost", {}))
+		if _hopeless(engine, faction_id, cost):
+			continue  # it needs a strategic resource we don't produce: don't hoard for it (yet)
+		return cost
 	return {}
+
+
+## Whether a cost needs a strategic resource the faction is short of and has no income of.
+static func _hopeless(engine: GalaxyEngine, faction_id: String, cost: Dictionary) -> bool:
+	var stock: Dictionary = engine.state.resources.get(faction_id, {})
+	var income := {}
+	for k: String in cost:
+		if DepositRules.is_strategic(engine.data, k) and int(stock.get(k, 0)) < int(cost[k]):
+			if income.is_empty():
+				income = EmpireRules.income(engine, faction_id)
+			if int(income.get(k, 0)) <= 0:
+				return true
+	return false
+
+
+## Strategic resources the faction keeps back for its goal: the goal tech's "cost_resources" (Hyperdrive)
+## once it's in sight (its era is open). {resource: amount}
+static func strategic_reserve(engine: GalaxyEngine, faction_id: String) -> Dictionary:
+	var goal := VictoryRules.tech_goal(engine)
+	if goal.is_empty() or goal in engine.state.known_techs(faction_id) \
+			or not ResearchRules.era_open(engine, faction_id, ResearchRules.era_of(engine, goal)):
+		return {}
+	return ResearchRules.resource_cost(engine, goal)
+
+
+## Whether paying `cost` would eat into the strategic reserve.
+static func _spends_reserve(engine: GalaxyEngine, faction_id: String, cost: Dictionary) -> bool:
+	var reserve := strategic_reserve(engine, faction_id)
+	if reserve.is_empty():
+		return false
+	var stock: Dictionary = engine.state.resources.get(faction_id, {})
+	for k: String in cost:
+		if reserve.has(k) and int(stock.get(k, 0)) - int(cost[k]) < int(reserve[k]):
+			return true
+	return false
+
+
+## How much more the faction wants each strategic resource ({resource: multiplier}): what its goal tech
+## or its wanted wonder needs and it hasn't got counts NEED_WEIGHT times; rare elements a little more
+## while the store is low.
+static func strategic_need(engine: GalaxyEngine, faction_id: String) -> Dictionary:
+	var out := {}
+	var stock: Dictionary = engine.state.resources.get(faction_id, {})
+	var goal := VictoryRules.tech_goal(engine)
+	var wants := {}
+	if not goal.is_empty() and goal not in engine.state.known_techs(faction_id):
+		wants = ResearchRules.resource_cost(engine, goal)
+	for mp_id in MEGAPROJECT_PRIORITY:
+		var def: Dictionary = engine.data.megaprojects.get(mp_id, {})
+		if def.is_empty() or EmpireRules.megaproject_hidden(engine, mp_id) \
+				or EmpireRules.megaproject_site(engine, mp_id, faction_id) != null:
+			continue
+		if not EmpireRules.megaproject_unlocked(engine, faction_id, mp_id) \
+				and def.get("requires_tech", "") not in ResearchRules.available(engine, faction_id):
+			continue
+		for k: String in EmpireRules.cost_of(engine, def.get("cost", {})):
+			if DepositRules.is_strategic(engine.data, k):
+				wants[k] = maxi(int(wants.get(k, 0)), int(EmpireRules.cost_of(engine, def["cost"])[k]))
+		break
+	for k: String in wants:
+		if int(stock.get(k, 0)) < int(wants[k]):
+			out[k] = NEED_WEIGHT
+	if int(stock.get("rare_elements", 0)) < RARE_LOW:
+		out["rare_elements"] = maxf(float(out.get("rare_elements", 1.0)), 1.5)
+	return out
 
 
 static func _ship_count(engine: GalaxyEngine, faction_id: String) -> int:
@@ -718,6 +796,8 @@ func _best_colony_body(engine: GalaxyEngine, planet: Planet, faction_id: String)
 			var def: Dictionary = engine.data.planet_traits.get(t, {})
 			score += float(def.get("pop_cap", 0)) + float(def.get("slots", 0)) + 2.0 * _yield_value(def.get("yields", {}))
 		score += _yield_value(engine.data.body_types.get(b["type"], {}).get("bonus", {}))
+		score += _yield_value(_extraction_of(engine, "colony", engine.known_deposits(faction_id, planet, b)),
+				_need_of(engine, faction_id))
 		if best.is_empty() or score > float(best["score"]):
 			best = {"body": b, "score": score}
 	return best
@@ -743,6 +823,7 @@ func _scarcity(engine: GalaxyEngine, faction_id: String) -> Dictionary:
 ## The best development a constructor could start in this system: {"body", "building", "value"} or {}.
 func _best_job(engine: GalaxyEngine, planet: Planet, faction_id: String) -> Dictionary:
 	var best: Dictionary = {}
+	var need := _need_of(engine, faction_id)
 	for target in SystemRules.development_targets(engine, planet, faction_id):
 		var b: Dictionary = target["body"]
 		for o: Dictionary in target["options"]:
@@ -750,8 +831,17 @@ func _best_job(engine: GalaxyEngine, planet: Planet, faction_id: String) -> Dict
 				continue
 			var def: Dictionary = engine.data.buildings[o["id"]]
 			var scarcity := _scarcity(engine, faction_id)
+			var deposits := engine.known_deposits(faction_id, planet, b)
 			var value := _yield_value(def.get("yields", {}), scarcity) + _yield_value(engine.data.body_types.get(b["type"], {}).get("bonus", {}), scarcity) \
-					+ _yield_value_traits(engine, engine.known_traits(faction_id, planet, b))
+					+ _yield_value_traits(engine, engine.known_traits(faction_id, planet, b)) \
+					+ _yield_value(_extraction_of(engine, o["id"], deposits), need)
+			var replaced: Array = b["buildings"].filter(func(x: String) -> bool: return x != "outpost")
+			if not replaced.is_empty():
+				# Building over a working development: only the gain counts.
+				value = _yield_value(def.get("yields", {}), scarcity) + _yield_value(_extraction_of(engine, o["id"], deposits), need)
+				for old: String in replaced:
+					value -= _yield_value(engine.data.buildings[old].get("yields", {}), scarcity) \
+							+ _yield_value(_extraction_of(engine, old, deposits), need)
 			if o["id"] == "outpost":
 				value = 0.5 if planet.owner.is_empty() else 0.0  # only worth it to claim an empty system
 			if value <= 0.0:
@@ -759,6 +849,17 @@ func _best_job(engine: GalaxyEngine, planet: Planet, faction_id: String) -> Dict
 			if best.is_empty() or value > float(best["value"]):
 				best = {"body": b["id"], "building": o["id"], "value": value}
 	return best
+
+
+func _need_of(engine: GalaxyEngine, faction_id: String) -> Dictionary:
+	if not _needs.has(faction_id):
+		_needs[faction_id] = strategic_need(engine, faction_id)
+	return _needs[faction_id]
+
+
+## What a development would extract from these deposits per turn ({resource: amount}).
+static func _extraction_of(engine: GalaxyEngine, building_id: String, deposits: Dictionary) -> Dictionary:
+	return DepositRules.extraction(engine.data, {"buildings": [building_id], "deposits": deposits})
 
 
 func _yield_value_traits(engine: GalaxyEngine, traits: Array[String]) -> float:

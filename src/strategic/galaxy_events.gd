@@ -34,6 +34,7 @@ const ANOMALY_REMOVED := "anomaly_removed"      # {anomaly}
 const INCOME := "income"                        # {faction, income: {credits, alloys, research}}
 const RESEARCH_SET := "research_set"            # {faction, tech}
 const TECH_RESEARCHED := "tech_researched"      # {faction, tech}
+const RESEARCH_WAITING := "research_waiting"    # {faction, tech, reason}: researched, but its cost_resources (exotic matter...) aren't in store yet
 const BUILD_QUEUED := "build_queued"            # {planet, kind, item, turns}
 const BUILDING_COMPLETED := "building_completed"  # {planet, building}
 const SHIP_COMPLETED := "ship_completed"        # {planet, unit, fleet, ship}

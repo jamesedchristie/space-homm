@@ -184,11 +184,25 @@ func test_hyperdrive_wins_act_one() -> void:
 	e.start()
 	var r: Dictionary = e.state.research["patrol"]
 	r["current"] = "hyperdrive"
-	r["progress"] = ResearchRules.cost(e, "hyperdrive")
+	r["progress"] = ResearchRules.cost(e, "hyperdrive") - 1  # crosses the line this turn
+	var stock: Dictionary = e.state.resources["patrol"]
+	stock["exotic_matter"] = 0
 	var events := e._flush()
 	events.clear()
+	# The first jump burns exotic matter: without it in store, the research waits (points bank).
 	e._run_economy("patrol")
 	events = e._flush()
+	assert_false(e.state.is_over, "no exotic matter, no hyperdrive")
+	assert_true("hyperdrive" not in e.state.known_techs("patrol"))
+	assert_true(events.any(func(ev: Dictionary) -> bool:
+		return ev["type"] == GalaxyEvents.RESEARCH_WAITING and ev["reason"].contains("exotic matter")))
+	var needs := ResearchRules.resource_cost(e, "hyperdrive")
+	assert_true(int(needs.get("exotic_matter", 0)) > 0)
+	stock["exotic_matter"] = int(needs["exotic_matter"]) + 1
+	stock["volatiles"] = int(needs.get("volatiles", 0)) + 2
+	e._run_economy("patrol")
+	events = e._flush()
+	assert_eq(int(stock["exotic_matter"]), 1, "paid on completion")
 	assert_true(e.state.is_over)
 	assert_eq(e.state.winner, "patrol")
 	assert_eq(e.state.victory_reason, "act1")

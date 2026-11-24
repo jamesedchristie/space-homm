@@ -5,7 +5,8 @@ extends RefCounted
 ##
 ## Campaign system entry:
 ##   {"id", "name", "at": [c, r], "owner"?, "star"?, "sensor"?, "description"?,
-##    "bodies": [{"type", "name"?, "buildings"?: [ids], "traits"?: [ids], "pop"?: starting population of a colony}]
+##    "bodies": [{"type", "name"?, "buildings"?: [ids], "traits"?: [ids], "pop"?: starting population of a colony,
+##                "deposits"?: {resource: richness} (else rolled by GalaxyEngine._roll_deposits)}]
 ##              or omitted / "random": rolled from the seed,
 ##    "home": true  (random bodies always include a terran world)}
 
@@ -32,6 +33,8 @@ static func bodies_from_def(data: DataRegistry, def: Dictionary, system_name: St
 			if "colony" in buildings:
 				body["pop"] = int(b.get("pop", Planet.START_POP))
 				body["growth"] = 0.0
+			if b.has("deposits"):  # placed by hand or by SystemLayout; otherwise rolled by the engine
+				body["deposits"] = (b["deposits"] as Dictionary).duplicate()
 			out.append(body)
 		return out
 	return random_bodies(data, rng, def.get("id", system_name), system_name, def.get("home", false))

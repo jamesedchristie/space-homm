@@ -4,9 +4,10 @@ extends RefCounted
 ## build and what it costs, and the bonuses a faction's techs give.
 ## Static helpers over GalaxyEngine state, so UI, AI and the engine agree.
 
-const RESOURCES := ["credits", "alloys", "research"]
 ## Ships per fleet (the battle maps have 6 deployment slots per side).
 const MAX_FLEET_SIZE := 6
+## Every "can't pay for it" reason starts with this (see afford_error / lacks_resources).
+const NOT_ENOUGH := "Not enough "
 
 
 # --- Technology effects -------------------------------------------------------
@@ -114,6 +115,7 @@ static func body_yields(engine: GalaxyEngine, b: Dictionary, faction_id: String 
 		for e in tech_effects(engine, faction_id, "body_bonus"):
 			if body_bonus_applies(engine, b, e):
 				_add(out, e.get("yields", {}))
+	_add(out, DepositRules.extraction(engine.data, b))  # strategic deposits its developments tap
 	return out
 
 
@@ -152,6 +154,8 @@ static func trade_income(engine: GalaxyEngine, faction_id: String) -> int:
 ## show the two halves.
 static func income(engine: GalaxyEngine, faction_id: String) -> Dictionary:
 	var out := {"credits": trade_income(engine, faction_id), "alloys": 0, "research": 0}
+	for k in DepositRules.strategic(engine.data):
+		out[k] = 0
 	for p in engine.state.planets_of(faction_id):
 		_add(out, planet_yields(engine, p))
 	var cost := upkeep(engine, faction_id)
@@ -162,11 +166,37 @@ static func income(engine: GalaxyEngine, faction_id: String) -> Dictionary:
 
 
 static func can_afford(engine: GalaxyEngine, faction_id: String, cost: Dictionary) -> bool:
+	return afford_error(engine, faction_id, cost).is_empty()
+
+
+## Why the faction can't pay `cost` now, naming the first missing resource
+## ("Not enough rare elements (6 needed, 2 in store)"), or "" if it can.
+static func afford_error(engine: GalaxyEngine, faction_id: String, cost: Dictionary) -> String:
 	var stock: Dictionary = engine.state.resources.get(faction_id, {})
 	for k: String in cost:
 		if int(stock.get(k, 0)) < int(cost[k]):
-			return false
-	return true
+			return "%s%s (%d needed, %d in store)" % [NOT_ENOUGH, engine.data.resources.get(k, {}).get("name", k).to_lower(),
+					int(cost[k]), int(stock.get(k, 0))]
+	return ""
+
+
+## Whether a build reason only says the faction is short of resources (it could save up for it).
+static func lacks_resources(reason: String) -> bool:
+	return reason.begins_with(NOT_ENOUGH)
+
+
+## A cost as the campaign charges it: strategic resources scaled by the campaign's
+## "strategic_cost_mul" (galaxy-scale campaigns ask less), zeros dropped.
+static func cost_of(engine: GalaxyEngine, cost: Dictionary) -> Dictionary:
+	var mul := float(engine.campaign.get("strategic_cost_mul", 1.0))
+	var out := {}
+	for k: String in cost:
+		var n := int(cost[k])
+		if mul != 1.0 and DepositRules.is_strategic(engine.data, k):
+			n = maxi(roundi(float(n) * mul), 1) if n > 0 else 0
+		if n != 0:
+			out[k] = n
+	return out
 
 
 static func pay(engine: GalaxyEngine, faction_id: String, cost: Dictionary) -> void:
@@ -225,10 +255,19 @@ static func body_build_error(engine: GalaxyEngine, b: Dictionary, building_id: S
 			return "Founded by a Colony Ship"
 		if body_category(engine, b) not in def["on"]:
 			return "Can't be built on a %s" % engine.data.body_types.get(b["type"], {}).get("name", b["type"]).to_lower()
-		# An outpost is a placeholder claim: a real development may replace it.
-		var only_outpost: bool = b["buildings"].size() == 1 and "outpost" in b["buildings"] and building_id != "outpost"
-		if not b["buildings"].is_empty() and not only_outpost:
+		# An outpost is a placeholder claim: a real development may replace it (and some, like an
+		# Exotic Containment, may replace any of the developments listed in their "replaces").
+		var replaceable: Array = def.get("replaces", [])
+		if building_id != "outpost" and not replaceable.has("outpost"):
+			replaceable = replaceable + ["outpost"]
+		var replaces_all := true
+		for existing: String in b["buildings"]:
+			replaces_all = replaces_all and existing in replaceable and existing != building_id
+		if not b["buildings"].is_empty() and not replaces_all:
 			return "This world is already developed"
+		var deposit: String = def.get("needs_deposit", "")
+		if not deposit.is_empty() and not DepositRules.of(b).has(deposit):
+			return "Needs %s here" % engine.data.resources.get(deposit, {}).get("name", deposit).to_lower()
 		return ""
 	if def.get("needs", "") == "colony":
 		if "colony" not in b["buildings"]:
@@ -242,7 +281,8 @@ static func body_build_error(engine: GalaxyEngine, b: Dictionary, building_id: S
 
 
 ## What a Constructor could start on body `b`: [{"id", "name", "cost", "turns", "ok", "reason"}].
-## Only developments that suit the body are listed; "reason" says what blocks one now.
+## Only developments that suit the body are listed (an extractor that needs a deposit only where
+## there is one); "reason" says what blocks one now.
 static func constructor_options(engine: GalaxyEngine, faction_id: String, b: Dictionary) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for b_id: String in engine.data.buildings:
@@ -251,12 +291,14 @@ static func constructor_options(engine: GalaxyEngine, faction_id: String, b: Dic
 			continue
 		if not building_unlocked(engine, faction_id, b_id):
 			continue
+		if def.has("needs_deposit") and not DepositRules.of(b).has(def["needs_deposit"]):
+			continue
 		var reason := body_build_error(engine, b, b_id, faction_id)
 		if reason.begins_with("This world is already"):
 			continue
-		var cost: Dictionary = def.get("cost", {})
-		if reason.is_empty() and not can_afford(engine, faction_id, cost):
-			reason = "Can't afford it"
+		var cost := cost_of(engine, def.get("cost", {}))
+		if reason.is_empty():
+			reason = afford_error(engine, faction_id, cost)
 		out.append({"id": b_id, "name": def.get("name", b_id), "cost": cost, "turns": int(def.get("turns", 1)),
 				"ok": reason.is_empty(), "reason": reason})
 	return out
@@ -512,7 +554,7 @@ static func build_options(engine: GalaxyEngine, planet: Planet) -> Array[Diction
 			var reason := body_build_error(engine, b, b_id, faction_id)
 			if reason == "Already built here":
 				continue
-			var option := _option(engine, planet, "building", b_id, def.get("name", b_id), def.get("cost", {}),
+			var option := _option(engine, planet, "building", b_id, def.get("name", b_id), cost_of(engine, def.get("cost", {})),
 					int(def.get("turns", 1)), reason, busy, blockaded)
 			option["body"] = b["id"]
 			out.append(option)
@@ -524,7 +566,7 @@ static func build_options(engine: GalaxyEngine, planet: Planet) -> Array[Diction
 			var reason := megaproject_error(engine, planet, mp_id)
 			if reason.begins_with("Already built") or reason.begins_with("Your empire already"):
 				continue
-			var option := _option(engine, planet, "megaproject", mp_id, mp.get("name", mp_id), mp.get("cost", {}),
+			var option := _option(engine, planet, "megaproject", mp_id, mp.get("name", mp_id), cost_of(engine, mp.get("cost", {})),
 					int(mp.get("turns", 8)), reason, busy, blockaded)
 			option["body"] = ""
 			out.append(option)
@@ -538,7 +580,7 @@ static func build_options(engine: GalaxyEngine, planet: Planet) -> Array[Diction
 		elif not has_shipyard(engine, planet):
 			continue
 		var option := _option(engine, planet, "unit", u_id, engine.data.units[u_id].get("name", u_id),
-				strat["cost"], int(strat.get("build_turns", 1)), reason, busy, blockaded)
+				cost_of(engine, strat["cost"]), int(strat.get("build_turns", 1)), reason, busy, blockaded)
 		option["body"] = ""
 		out.append(option)
 	return out
@@ -570,8 +612,8 @@ static func _option(engine: GalaxyEngine, planet: Planet, kind: String, id: Stri
 		reason = "Blockaded"
 	if reason.is_empty() and busy:
 		reason = "Already building something"
-	if reason.is_empty() and not can_afford(engine, planet.owner, cost):
-		reason = "Can't afford it"
+	if reason.is_empty():
+		reason = afford_error(engine, planet.owner, cost)
 	return {"kind": kind, "id": id, "name": item_name, "cost": cost, "turns": turns,
 			"ok": reason.is_empty(), "reason": reason}
 

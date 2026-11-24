@@ -24,7 +24,8 @@
     "sensor": 1,
     "cost": {
       "alloys": 40,
-      "credits": 60
+      "credits": 60,
+      "volatiles": 8
     },
     "build_turns": 4,
     "upkeep": 0,

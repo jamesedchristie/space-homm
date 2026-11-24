@@ -293,7 +293,7 @@ func _text(bbcode: String) -> RichTextLabel:
 
 static func _resource_text(engine: GalaxyEngine, amounts: Dictionary, signed: bool) -> String:
 	var parts := PackedStringArray()
-	for k: String in EmpireRules.RESOURCES:
+	for k: String in engine.data.resources:
 		if roundi(float(amounts.get(k, 0))) == 0:
 			continue
 		var res: Dictionary = engine.data.resources.get(k, {})

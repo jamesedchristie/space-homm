@@ -145,7 +145,7 @@ static func development_targets(engine: GalaxyEngine, planet: Planet, faction_id
 		if not job_on_body(planet, b["id"]).is_empty():
 			continue
 		var options := EmpireRules.constructor_options(engine, faction_id, b).filter(
-				func(o: Dictionary) -> bool: return o["reason"].is_empty() or o["reason"] == "Can't afford it")
+				func(o: Dictionary) -> bool: return o["reason"].is_empty() or EmpireRules.lacks_resources(o["reason"]))
 		if not options.is_empty():
 			out.append({"body": b, "options": options})
 	return out
@@ -167,20 +167,38 @@ static func locate_ship(engine: GalaxyEngine, faction_id: String, uid: String) -
 	return {}
 
 
-## The development a constructor builds on `b` by default: the first fitting option that isn't a
-## bare outpost (mining base, research station, refinery...), else an outpost. "" if none fits.
-static func default_job(engine: GalaxyEngine, faction_id: String, b: Dictionary) -> String:
+## The development a constructor builds on `b` by default: the one that taps the richest deposit the
+## faction knows of there (exotic matter first), else the first fitting option that isn't a bare outpost
+## (mining base, research station, refinery...), else an outpost. "" if none fits. `planet` (the body's
+## system) limits the deposits to what the faction has surveyed; without it every deposit counts.
+static func default_job(engine: GalaxyEngine, faction_id: String, b: Dictionary, planet: Planet = null) -> String:
 	if b.is_empty():
 		return ""
+	var deposits := engine.known_deposits(faction_id, planet, b) if planet != null else DepositRules.of(b)
+	var strategic := DepositRules.strategic(engine.data)
 	var fallback := ""
+	var first := ""
+	var best := ""
+	var best_value := 0.0
 	for o in EmpireRules.constructor_options(engine, faction_id, b):
-		if not (o["reason"].is_empty() or o["reason"] == "Can't afford it"):
+		if not (o["reason"].is_empty() or EmpireRules.lacks_resources(o["reason"])):
 			continue
 		if o["id"] == "outpost":
 			fallback = "outpost"
 			continue
-		return o["id"]
-	return fallback
+		if first.is_empty():
+			first = o["id"]
+		var value := 0.0
+		for resource: String in engine.data.buildings[o["id"]].get("extracts", []):
+			if deposits.has(resource):
+				# Rarer resources weigh more: exotic matter beats rare elements beats volatiles.
+				value += float(deposits[resource]) * (1.0 + strategic.find(resource))
+		if value > best_value:
+			best_value = value
+			best = o["id"]
+	if not best.is_empty():
+		return best
+	return first if not first.is_empty() else fallback
 
 
 ## What an order would do there, for hints: "Build Mining Base" / "Found a colony" / "" if nothing.
@@ -188,7 +206,7 @@ static func order_label(engine: GalaxyEngine, faction_id: String, role: String, 
 	if role == "colony":
 		return "Found a colony" if found_error(engine, planet, b, faction_id).is_empty() else ""
 	if role == "constructor":
-		var item := default_job(engine, faction_id, b)
+		var item := default_job(engine, faction_id, b, planet)
 		if item.is_empty() or not job_on_body(planet, b["id"]).is_empty() or not may_work_in(planet, faction_id):
 			return ""
 		return "Build %s" % engine.data.buildings[item].get("name", item)
@@ -216,9 +234,9 @@ static func order_error(engine: GalaxyEngine, cmd: OrderShipCommand) -> String:
 		OrderShipCommand.JOB:
 			if role != "constructor":
 				return "Only a Constructor can build developments"
-			var item := cmd.item_id if not cmd.item_id.is_empty() else default_job(engine, cmd.faction_id, b)
+			var item := cmd.item_id if not cmd.item_id.is_empty() else default_job(engine, cmd.faction_id, b, planet)
 			if item.is_empty():
 				return "Nothing a Constructor can build there"
 			var err := job_error(engine, planet, b, cmd.faction_id, item)
-			return "" if err == "Can't afford it" else err
+			return "" if EmpireRules.lacks_resources(err) else err
 	return "Unknown order"

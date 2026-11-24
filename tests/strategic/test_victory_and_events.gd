@@ -12,7 +12,7 @@ func _end_round(e: GalaxyEngine) -> void:
 
 
 func _rich(extra: Dictionary = {}) -> Dictionary:
-	var base := {"resources": {"a": {"credits": 3000, "alloys": 3000}, "b": {"credits": 3000, "alloys": 3000}}}
+	var base := {"resources": {"a": {"credits": 3000, "alloys": 3000, "rare_elements": 100, "volatiles": 100, "exotic_matter": 50}, "b": {"credits": 3000, "alloys": 3000, "rare_elements": 100, "volatiles": 100, "exotic_matter": 50}}}
 	base.merge(extra, true)
 	return base
 

@@ -3,6 +3,7 @@
   "name": "Random Sector",
   "description": "The main game: a new sector every time. Three powers compete for the stars: you, the Vel'tari Concord and the Kesh Dominion. Raiders prey on everyone; the Free Traders deal with anyone who treats them well.",
   "max_turns": 200,
+  "strategic_cost_mul": 0.5,
   "start": "colony_ship",
   "start_ships": [
     "colony_ship",
