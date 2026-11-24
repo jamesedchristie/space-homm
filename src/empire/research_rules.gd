@@ -106,3 +106,9 @@ static func cost(engine: GalaxyEngine, tech_id: String) -> int:
 	var mul := float(engine.data.eras.get(str(era_of(engine, tech_id)), {}).get("cost_mul", 1.0))
 	mul *= float(engine.campaign.get("research_cost_mul", 1.0))
 	return roundi(float(engine.data.techs[tech_id].get("cost", 50)) * mul)
+
+
+## Resources a tech burns when it completes ("cost_resources", e.g. Hyperdrive's exotic matter), as the
+## campaign charges them. Research finishes only once they are in store; points keep banking meanwhile.
+static func resource_cost(engine: GalaxyEngine, tech_id: String) -> Dictionary:
+	return EmpireRules.cost_of(engine, engine.data.techs.get(tech_id, {}).get("cost_resources", {}))

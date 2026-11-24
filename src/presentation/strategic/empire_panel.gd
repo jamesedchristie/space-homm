@@ -72,6 +72,11 @@ func _build_colonies(engine: GalaxyEngine, faction_id: String, interactive: bool
 	var data := engine.data
 	var income := EmpireRules.income(engine, faction_id)
 	list.add_child(_text("Income per turn: %s" % _resource_text(engine, income, true)))
+	var strategic := PackedStringArray()
+	for k in DepositRules.strategic(engine.data):
+		strategic.append(UiKit.color_tag("◆ %d %s (%+d)" % [int(engine.state.resources[faction_id].get(k, 0)),
+				DepositRules.resource_name(engine.data, k).to_lower(), int(income.get(k, 0))], DepositRules.color(engine.data, k)))
+	list.add_child(_text("Strategic resources in store: %s" % ", ".join(strategic)))
 	var upkeep := int(income["upkeep"])
 	var fleet_cost := EmpireRules.fleet_upkeep(engine, faction_id)
 	list.add_child(_text(UiKit.color_tag("Ships cost %d credits a turn to keep; your colonies support %d for free, so you pay %d (already counted in the credits above). Population: %d across %d colonies." % [
@@ -293,7 +298,7 @@ func _text(bbcode: String) -> RichTextLabel:
 
 static func _resource_text(engine: GalaxyEngine, amounts: Dictionary, signed: bool) -> String:
 	var parts := PackedStringArray()
-	for k: String in EmpireRules.RESOURCES:
+	for k: String in engine.data.resources:
 		if roundi(float(amounts.get(k, 0))) == 0:
 			continue
 		var res: Dictionary = engine.data.resources.get(k, {})

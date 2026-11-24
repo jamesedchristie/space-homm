@@ -245,7 +245,8 @@ each human turn. Bump `GalaxySave.VERSION` and migrate in `from_dict()` when the
 changes. Version 3 added colony population and growth (inside the bodies), megaprojects on
 systems, temporary modifiers, the event log and pending event, and why the game ended. Version 4
 adds the system layer: `Planet.civilians` (deployed ships with their jobs), `blockade` and `capital`;
-older saves are refused. Version 5 adds `surveyed` (system-scale campaigns).
+older saves are refused. Version 5 adds `surveyed` (system-scale campaigns). Version 6 adds strategic resources:
+`deposits` on bodies and strategic stockpiles (version 5 saves load with no deposits and empty strategic stocks).
 
 ### The system layer: civilian ships, claiming, conquest
 
@@ -370,6 +371,61 @@ one-body Planet of a system-scale map as a close-up of that world (`_build_body_
 the middle, lit from the side its sun lies on, no gate; ships hold station round it). `PlanetView` (2D)
 draws a single body. Galaxy screen strings switch "system" to "body" where cheap; the body card hides
 traits until surveyed.
+
+### Strategic resources and deposits
+
+Civ-style strategic resources make places matter: different bodies (and later, systems) have different
+advantages, which drives expansion, trade, raiding and war. Rules: `DepositRules`
+(`src/empire/deposit_rules.gd`) plus a few hooks in `EmpireRules`, `ResearchRules`, `GalaxyEngine`.
+
+- **Resources.** `data/empire/resources.json` entries have a `kind`: `basic` (credits, alloys), `flow` (research:
+  not stockpiled) or `strategic` (volatiles, rare elements, exotic matter; also `found` and `extracted_by` text
+  for tooltips). `DepositRules.strategic()` / `stockpiled()` list them; every stockpiled resource is a key in
+  `GalaxyState.resources[faction]`. Major powers start with `economy.json` `deposits.start_stock` unless the
+  campaign's `resources` give an amount.
+- **Deposits.** A body carries `"deposits": {resource: richness 1-3}`. `GalaxyEngine._roll_deposits` fills every
+  body that has none from its type's table (`body_types.json` `deposits: {"chance": [first, second], "table":
+  {resource: weight}}`, richness weighted by `deposits.richness_weights`), with its own RNG seeded from the
+  campaign seed, so the rest of the campaign's dice don't change. Home systems (owned, or a capital-to-be) get no
+  rolls, only one rare-elements 1 on their first rock or belt and one volatiles 1 on their first ice moon or giant.
+  Campaign bodies may list `deposits` (kept as given). `SystemLayout._place_deposits` rolls them for a
+  system-scale map and shapes the spread: nothing on the homeworld and no rare elements on its moons, volatiles
+  within 5 steps of home (added to the nearest ice moon, giant, belt body, cold or wet world or airless rock if
+  none rolled), rare elements on at least two rocks or belt bodies 3+ steps out, and exotic matter in exactly
+  one place: a non-habitable body 6+ steps from home, as close to a hostile den as possible (richness 2).
+- **Extraction.** A building's `"extracts": [resources]` taps those deposits on its body: `DepositRules.extraction`
+  yields richness x `deposits.per_richness` per turn, added to `EmpireRules.body_yields` (so blockades stop it,
+  and `income()` / `_run_economy` stockpile it). Extractors: colony (volatiles, rare elements of its own world),
+  mining base (rare elements, volatiles), gas refinery (volatiles), Ice Mine (volatiles; `"needs_deposit"`),
+  Exotic Containment (exotic matter; `needs_deposit`, `requires_tech: exotic_physics`, and `"replaces"`: it may
+  be built over the developments it lists, which go when it is finished). `constructor_options` lists a
+  `needs_deposit` development only where the deposit is. `SystemRules.default_job` (one-click orders, hints)
+  prefers the option that taps the richest known deposit, rarer resources first.
+- **Costs.** Any `cost` (units' `strategic.cost`, buildings, megaprojects) may name strategic resources; a tech's
+  `"cost_resources"` is paid when it completes. `EmpireRules.cost_of(engine, cost)` scales the strategic part by
+  the campaign's `"strategic_cost_mul"` (0.5 in the galaxy-scale campaigns; at least 1); build options, jobs,
+  queues, refunds and tech completion all go through it. `EmpireRules.afford_error` names the first missing
+  resource ("Not enough rare elements (8 needed, 3 in store)"); `lacks_resources(reason)` recognises those reasons
+  (the AI and standing orders wait or save on them).
+- **Techs that burn resources.** `_run_economy`: when the current tech's research is complete but its
+  `ResearchRules.resource_cost` isn't in store, it waits (points keep banking; `RESEARCH_WAITING {faction, tech,
+  reason}` the turn it stalls) and completes, paying, on the first turn they are. Hyperdrive needs exotic matter
+  and volatiles, and Exotic Physics.
+- **Surveys.** `GalaxyEngine.known_deposits(faction, planet, b)` is empty until the body is surveyed (always known in
+  campaigns without surveys). The UI shows "Deposits: ?"; the AI only values what it knows.
+- **AI.** `YIELD_WEIGHTS` value strategic output; `strategic_need` multiplies resources the goal tech (Hyperdrive) or
+  the next wanted wonder needs and the faction lacks by `NEED_WEIGHT` (rare elements a bit while the store is low).
+  Constructor jobs and colony sites count the deposits they would tap (a replacing development counts only its
+  gain over what it replaces). Once the goal tech's era is open, `strategic_reserve` keeps its `cost_resources`
+  back from other spending (`_spends_reserve`); strategic shortfalls the faction has no income for don't make it
+  hoard (`_hopeless`). Exotic Physics is on Hyperdrive's road and in `RESEARCH_PRIORITY`.
+- **Presentation.** Top bar chips with diamond pips for strategic resources the player has or produces
+  (`GalaxyHUD.set_resource_chip(..., diamond, shown)`; tooltip: stock, sources, untapped deposits, where found,
+  extractors, uses from `DepositRules.uses`). `SystemView.deposit_lines` / `deposit_tag` on the body card and in
+  the system info; constructor buttons show what they would extract; the hover hint names deposits; on a
+  system-scale map `GalaxyOverlay3D` draws a diamond per known deposit after a body's name or tag (filled =
+  tapped). Tech cards and the Victory tab show `cost_resources` against the stock; the research chip turns red
+  while a tech waits for resources.
 
 ### Local battle maps (system-scale campaigns)
 
@@ -859,10 +915,13 @@ rounds 3, 5 and 7, and `"eliminate_all_wins": false` so clearing the first wave 
 `"unit_def"`, `"statuses": [{status, duration}]`, `"dormant"`, `"group"`.
 
 **Empire data** (`data/empire/`):
-- `resources.json`: `name`, `description`, `color` per resource (`credits`, `alloys`, `research`).
-- `buildings.json`: `name`, `description`, `cost`, `turns`, and optionally `yields`, `shipyard: true`,
-  `defense_unit`, `requires_tech`.
-- `techs.json`: `name`, `description`, `cost`, `requires`, `effects` (see the table above).
+- `resources.json`: `name`, `description`, `color` and `kind` per resource: `basic` (`credits`, `alloys`), `flow`
+  (`research`) or `strategic` (`volatiles`, `rare_elements`, `exotic_matter`, with `found` / `extracted_by` text).
+- `buildings.json`: `name`, `description`, `cost` (may include strategic resources), `turns`, and optionally
+  `yields`, `shipyard: true`, `defense_unit`, `requires_tech`, `extracts: [resources]` (taps those deposits on its
+  body), `needs_deposit: resource` (only where there is one), `replaces: [building ids]` (may be built over them).
+- `techs.json`: `name`, `description`, `cost`, `requires`, `effects` (see the table above), and optionally
+  `cost_resources: {resource: n}` (paid when the research completes; it waits until they are in store).
 
 Units gain `strategic.cost`, `build_turns` and `requires_tech`. Civilian ships (`data/tactical/units/colony_ship.json`,
 `constructor.json`, `troop_transport.json`) add `civilian: true`, `role` (`colony` | `constructor` | `transport`) and,

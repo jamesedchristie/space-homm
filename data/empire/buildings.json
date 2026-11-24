@@ -20,7 +20,11 @@
       "credits": 0.5,
       "research": 0.25,
       "alloys": 0.15
-    }
+    },
+    "extracts": [
+      "volatiles",
+      "rare_elements"
+    ]
   },
   "outpost": {
     "name": "Outpost",
@@ -53,7 +57,11 @@
     "turns": 2,
     "yields": {
       "alloys": 4
-    }
+    },
+    "extracts": [
+      "rare_elements",
+      "volatiles"
+    ]
   },
   "research_station": {
     "name": "Research Station",
@@ -86,7 +94,60 @@
     "yields": {
       "credits": 3,
       "alloys": 1
-    }
+    },
+    "extracts": [
+      "volatiles"
+    ]
+  },
+  "ice_mine": {
+    "name": "Ice Mine",
+    "description": "Cracks water ice and helium-3 out of a frozen moon or an icy rock and ships it home. Needs a volatiles deposit and extracts it. Built by a Constructor.",
+    "on": [
+      "ice",
+      "rock"
+    ],
+    "needs_deposit": "volatiles",
+    "cost": {
+      "credits": 30,
+      "alloys": 10
+    },
+    "turns": 2,
+    "yields": {
+      "credits": 1
+    },
+    "extracts": [
+      "volatiles"
+    ]
+  },
+  "exotic_containment": {
+    "name": "Exotic Containment",
+    "description": "Magnetic bottles and a skeleton crew of physicists harvest exotic matter, and study it. Needs an exotic matter deposit and extracts it; can be built over another development. Built by a Constructor.",
+    "on": [
+      "rock",
+      "belt",
+      "ice",
+      "gas"
+    ],
+    "needs_deposit": "exotic_matter",
+    "replaces": [
+      "outpost",
+      "mining_base",
+      "research_station",
+      "gas_refinery",
+      "ice_mine"
+    ],
+    "requires_tech": "exotic_physics",
+    "cost": {
+      "credits": 60,
+      "alloys": 40
+    },
+    "turns": 3,
+    "yields": {
+      "research": 2
+    },
+    "extracts": [
+      "exotic_matter"
+    ]
   },
   "trade_hub": {
     "name": "Trade Hub",
@@ -117,7 +178,8 @@
     "needs": "colony",
     "cost": {
       "credits": 30,
-      "alloys": 60
+      "alloys": 60,
+      "rare_elements": 5
     },
     "turns": 3,
     "requires_tech": "orbital_defenses",
@@ -129,7 +191,8 @@
     "needs": "colony",
     "cost": {
       "credits": 40,
-      "alloys": 20
+      "alloys": 20,
+      "volatiles": 6
     },
     "turns": 2,
     "requires_tech": "hydroponics",
@@ -175,7 +238,8 @@
     "needs": "colony",
     "cost": {
       "credits": 50,
-      "alloys": 80
+      "alloys": 80,
+      "volatiles": 10
     },
     "turns": 4,
     "requires_tech": "orbital_habitats",
@@ -199,7 +263,8 @@
     "needs": "colony",
     "cost": {
       "credits": 60,
-      "alloys": 90
+      "alloys": 90,
+      "rare_elements": 8
     },
     "turns": 4,
     "requires_tech": "deflector_grids",

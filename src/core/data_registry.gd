@@ -243,6 +243,32 @@ func _validate_empire() -> void:
 		for k: String in def.get("cost", {}).keys() + def.get("yields", {}).keys():
 			if not resources.has(k):
 				_err("building '%s': unknown resource '%s'" % [id, k])
+		for k: String in def.get("extracts", []):
+			if not resources.has(k):
+				_err("building '%s': extracts unknown resource '%s'" % [id, k])
+		if def.has("needs_deposit") and resources.get(def["needs_deposit"], {}).get("kind", "") != "strategic":
+			_err("building '%s': needs_deposit '%s' is not a strategic resource" % [id, def["needs_deposit"]])
+		for r: String in def.get("replaces", []):
+			if not buildings.has(r):
+				_err("building '%s': replaces unknown building '%s'" % [id, r])
+	for id: String in resources:
+		if resources[id].get("kind", "basic") not in ["basic", "flow", "strategic"]:
+			_err("resource '%s': kind must be basic, flow or strategic" % id)
+	for id: String in body_types:
+		var spec: Dictionary = body_types[id].get("deposits", {})
+		for k: String in spec.get("table", {}):
+			if resources.get(k, {}).get("kind", "") != "strategic":
+				_err("body type '%s': deposit '%s' is not a strategic resource" % [id, k])
+		if spec.get("chance", []).size() > 2:
+			_err("body type '%s': at most two deposit chances" % id)
+	for id: String in units:
+		for k: String in units[id].get("strategic", {}).get("cost", {}):
+			if not resources.has(k) or resources[k].get("kind", "basic") == "flow":
+				_err("unit '%s': unknown or unstockpiled resource '%s' in its cost" % [id, k])
+	for id: String in techs:
+		for k: String in techs[id].get("cost_resources", {}):
+			if not resources.has(k) or resources[k].get("kind", "basic") == "flow":
+				_err("tech '%s': unknown or unstockpiled resource '%s' in cost_resources" % [id, k])
 	for id: String in techs:
 		var def: Dictionary = techs[id]
 		for req: String in def.get("requires", []):
@@ -411,6 +437,9 @@ func _validate_campaign(id: String, def: Dictionary) -> void:
 				for t: String in b.get("traits", []):
 					if not planet_traits.has(t):
 						_err("%s: system '%s' has unknown trait '%s'" % [owner, p.get("name", ""), t])
+				for k: String in b.get("deposits", {}):
+					if resources.get(k, {}).get("kind", "") != "strategic":
+						_err("%s: system '%s' has a deposit of '%s', not a strategic resource" % [owner, p.get("name", ""), k])
 		if p.get("owner", "") != "" and p["owner"] not in faction_ids:
 			_err("%s: planet '%s' has unknown owner '%s'" % [owner, p.get("name", ""), p["owner"]])
 	if def.get("start", "owned") not in ["owned", "colony_ship"]:

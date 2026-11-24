@@ -23,7 +23,8 @@
     "sensor": 2,
     "cost": {
       "alloys": 80,
-      "credits": 70
+      "credits": 70,
+      "rare_elements": 8
     },
     "build_turns": 4,
     "requires_tech": "heavy_hulls",

@@ -57,7 +57,7 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 	out.erase("system_generate")
 	out["generated"] = true
 	out["scale"] = "system"
-	_assemble(data, gen, out, grid, center_layout, layout, rng)
+	_assemble(data, gen, out, grid, center_layout, layout, rng, seed_value)
 	return out
 
 
@@ -252,7 +252,7 @@ static func _place_belt(grid: HexGrid, center: Vector2i, orbit: Dictionary, radi
 # --- Assembly -----------------------------------------------------------------
 
 static func _assemble(data: DataRegistry, gen: Dictionary, out: Dictionary, grid: HexGrid, center_layout: Vector2i,
-		layout: Dictionary, rng: RandomNumberGenerator) -> void:
+		layout: Dictionary, rng: RandomNumberGenerator, seed_value: int = 0) -> void:
 	var center := grid.cell_from_layout(center_layout)
 	var star_name: String = gen.get("star_name", "Sol")
 	var star_type: String = gen.get("star", "yellow")
@@ -332,6 +332,7 @@ static func _assemble(data: DataRegistry, gen: Dictionary, out: Dictionary, grid
 		site["description"] = den.get("description", site["description"])
 		site["bodies"][0]["buildings"] = (den.get("buildings", ["outpost"]) as Array).duplicate()
 		dens[den["faction"]] = site
+	_place_deposits(data, grid, center, planets, home_group.get("defs", []), dens, seed_value)
 	out["planets"] = planets
 
 	# Terrain: the star, its corona, the belt, the dormant jump points.
@@ -444,6 +445,97 @@ static func _assemble(data: DataRegistry, gen: Dictionary, out: Dictionary, grid
 			"orbits": orbit_radii, "belt": layout.get("belt_spec", {})}
 	if gen.has("backdrop"):
 		out["backdrop"] = gen["backdrop"]
+
+
+## Strategic deposits for every body ("deposits" on its body def), rolled from the body types' tables
+## with an RNG of their own (the layout's dice stay as they were), then shaped so the home system has a
+## sensible spread: nothing on the homeworld and no rare elements on its moons; volatiles within reach
+## of home; rare elements on at least two bodies a bit farther out; and exotic matter in exactly one
+## place, out in the contested outer system next to a hostile base (it must be fought for).
+static func _place_deposits(data: DataRegistry, grid: HexGrid, center: Vector2i, planets: Array, home_defs: Array,
+		dens: Dictionary, seed_value: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value * 104729 + 13
+	var exotic := "exotic_matter"
+	var home_world: Dictionary = home_defs[0] if not home_defs.is_empty() else {}
+	var home_cell := _def_cell(grid, home_world) if not home_world.is_empty() else center
+	var in_home := {}
+	for p: Dictionary in home_defs:
+		in_home[p["id"]] = true
+	var den_cells: Array[Vector2i] = []
+	var is_den := {}
+	for f: String in dens:
+		is_den[dens[f]["id"]] = true
+		den_cells.append(_def_cell(grid, dens[f]))
+	for p: Dictionary in planets:
+		var body: Dictionary = p["bodies"][0]
+		var d := DepositRules.roll(data, body["type"], rng)
+		d.erase(exotic)
+		if p == home_world:
+			d = {}
+		elif in_home.has(p["id"]):
+			d.erase("rare_elements")
+		body["deposits"] = d
+	# Bodies the shaping may add to: not the homeworld, not a den.
+	var open: Array = planets.filter(func(p: Dictionary) -> bool: return p != home_world and not is_den.has(p["id"]))
+	var from_home := func(p: Dictionary) -> int: return grid.distance(_def_cell(grid, p), home_cell)
+	open.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return from_home.call(a) < from_home.call(b))
+	var category := func(p: Dictionary) -> String: return str(data.body_types.get(p["bodies"][0]["type"], {}).get("category", ""))
+
+	# Volatiles within 5 steps of home: on the nearest ice moon, giant, belt body, cold or wet world, or
+	# airless rock (ice in its polar craters), however far that is.
+	var near := open.any(func(p: Dictionary) -> bool:
+		return int(from_home.call(p)) <= 5 and DepositRules.of(p["bodies"][0]).has("volatiles"))
+	if not near:
+		for p: Dictionary in open:
+			if category.call(p) in ["ice", "gas", "belt"] or p["bodies"][0]["type"] in ["arctic", "ocean", "barren"]:
+				_add_deposit(p["bodies"][0], "volatiles", 2)
+				break
+	# Rare elements on at least two rocks or belt bodies 3+ steps out.
+	var rare := open.filter(func(p: Dictionary) -> bool:
+		return int(from_home.call(p)) >= 3 and DepositRules.of(p["bodies"][0]).has("rare_elements")).size()
+	for p: Dictionary in open:
+		if rare >= 2:
+			break
+		if int(from_home.call(p)) >= 3 and category.call(p) in ["rock", "belt"] \
+				and not DepositRules.of(p["bodies"][0]).has("rare_elements"):
+			_add_deposit(p["bodies"][0], "rare_elements", rng.randi_range(1, 2))
+			rare += 1
+	# Exotic matter: one site, far from home and as close to a hostile base as can be.
+	var best: Dictionary = {}
+	var best_score := -INF
+	for p: Dictionary in open:
+		if category.call(p) == "habitable" or in_home.has(p["id"]) or int(from_home.call(p)) < 6:
+			continue
+		var score := 0.25 * float(from_home.call(p))
+		if not den_cells.is_empty():
+			var to_den := 1 << 20
+			for c in den_cells:
+				to_den = mini(to_den, grid.distance(_def_cell(grid, p), c))
+			score -= float(to_den)
+		if score > best_score:
+			best_score = score
+			best = p
+	if best.is_empty():
+		for i in range(open.size() - 1, -1, -1):  # the farthest body that can hold a containment
+			if category.call(open[i]) != "habitable":
+				best = open[i]
+				break
+	if not best.is_empty():
+		_add_deposit(best["bodies"][0], exotic, 2)
+
+
+static func _def_cell(grid: HexGrid, p: Dictionary) -> Vector2i:
+	return grid.cell_from_layout(Vector2i(int(p["at"][0]), int(p["at"][1])))
+
+
+## Adds (or enriches) a deposit, keeping at most two per body.
+static func _add_deposit(body: Dictionary, resource: String, richness: int) -> void:
+	var d: Dictionary = body.get("deposits", {})
+	if not d.has(resource) and d.size() >= 2:
+		d.erase(d.keys()[0])
+	d[resource] = maxi(int(d.get(resource, 0)), richness)
+	body["deposits"] = d
 
 
 static func _describe(data: DataRegistry, type: String, g: Dictionary) -> String:

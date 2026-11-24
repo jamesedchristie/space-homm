@@ -19,7 +19,9 @@ const FORMAT := "space-homm-save"
 ## 4: the system layer: civilian ships deployed in systems (with their jobs), blockades and the
 ## capital-to-be of unfounded home systems; claiming by colony or outpost instead of by entering.
 ## 5: system-scale campaigns: surveyed bodies per faction (older saves load with nothing surveyed).
-const VERSION := 5
+## 6: strategic resources: deposits on bodies ({resource: richness}) and strategic stockpiles
+## (version 5 saves load with no deposits and empty strategic stockpiles).
+const VERSION := 6
 const DIR := "user://saves"
 const AUTOSAVE := "autosave"
 const QUICKSAVE := "quicksave"
@@ -135,6 +137,7 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 			buildings.assign(b.get("buildings", []))
 			body["traits"] = traits
 			body["buildings"] = buildings
+			body.get_or_add("deposits", {})  # version 5 saves: bodies without deposits
 			p.bodies.append(body)
 		p.queue = p_d["queue"]
 		p.megaprojects.assign(p_d.get("megaprojects", []))
@@ -189,6 +192,9 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 	s.discoveries = d.get("discoveries", {})
 	s.permadeath = d["permadeath"]
 	s.resources = d["resources"]
+	for faction_id: String in s.resources:  # saves before strategic resources (version 5): none in store
+		for k in DepositRules.stockpiled(data):
+			s.resources[faction_id].get_or_add(k, 0)
 	s.research = d["research"]
 	s.relations = d["relations"]
 	s.opinions = d["opinions"]

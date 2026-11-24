@@ -322,12 +322,13 @@ func _body_card(planet: Planet, b: Dictionary, ships: Array[Dictionary]) -> Cont
 	var text := "%s [b]%s[/b]   %s" % [UiKit.color_tag("●", surface), b["name"], UiKit.color_tag(def.get("name", b["type"]), Palette.TEXT_DIM)]
 	_text(box, text, 16)
 	if not _engine.is_surveyed(_viewer, planet):
-		_text(box, UiKit.color_tag("Not surveyed: fly a ship to it (or next to it) to learn its traits.", Palette.TEXT_DIM), 12)
+		_text(box, UiKit.color_tag("Not surveyed: fly a ship to it (or next to it) to learn its traits and deposits.", Palette.TEXT_DIM), 12)
 	elif not known.is_empty():
 		var trait_lines := PackedStringArray()
 		for t: String in known:
 			trait_lines.append("%s: %s" % [UiKit.color_tag(data.planet_traits[t]["name"], Palette.ACTIVE), data.planet_traits[t].get("description", "")])
 		_text(box, "\n".join(trait_lines), 12)
+	_text(box, deposit_lines(_engine, _viewer, planet, b), 12)
 	var built := PackedStringArray()
 	for building_id: String in b["buildings"]:
 		built.append(data.buildings[building_id]["name"])
@@ -390,6 +391,11 @@ func _body_actions(box: VBoxContainer, planet: Planet, b: Dictionary, ships: Arr
 				var btn := UiKit.button(label, func() -> void:
 					command_requested.emit(CivilianCommand.new(_viewer, planet.id, ctor["ship"]["uid"], CivilianCommand.JOB, b["id"], o["id"])))
 				var tip: String = data.buildings[o["id"]].get("description", "")
+				var taps := DepositRules.extraction(data, {"buildings": [o["id"]], "deposits": _engine.known_deposits(_viewer, planet, b)})
+				for k: String in taps:
+					tip += "\nHere it would extract %+d %s a turn." % [int(taps[k]), DepositRules.resource_name(data, k).to_lower()]
+				if not taps.is_empty():
+					btn.text = "%s  ·  +%s" % [label, ", ".join(taps.keys().map(func(k: String) -> String: return "%d %s" % [int(taps[k]), DepositRules.resource_name(data, k).to_lower()]))]
 				if planet.owner.is_empty() and o["ok"]:
 					tip += "\nFinishing it claims %s for you as an outpost." % planet.name
 				btn.tooltip_text = tip + ("" if o["ok"] else "\n(%s)" % o["reason"])
@@ -521,6 +527,43 @@ static func _queue_name(data: DataRegistry, planet: Planet) -> String:
 		"megaproject":
 			return data.megaprojects[q["item"]]["name"]
 	return data.units[q["item"]]["name"]
+
+
+## A deposit as a short tag: a diamond in the resource's colour, its name and richness pips
+## ("◆ Rare Elements ●●○").
+static func deposit_tag(data: DataRegistry, resource: String, richness: int) -> String:
+	var pips := "●".repeat(richness) + "○".repeat(maxi(3 - richness, 0))
+	return UiKit.color_tag("◆ %s %s" % [DepositRules.resource_name(data, resource), pips], DepositRules.color(data, resource))
+
+
+## A body's deposits as the viewer knows them, one line each, with what taps them (or would):
+## "Deposits: ?" until surveyed.
+static func deposit_lines(engine: GalaxyEngine, viewer: String, planet: Planet, b: Dictionary) -> String:
+	var data := engine.data
+	if not engine.is_surveyed(viewer, planet):
+		return UiKit.color_tag("Deposits: ?", Palette.TEXT_DIM)
+	var deposits := engine.known_deposits(viewer, planet, b)
+	if deposits.is_empty():
+		return UiKit.color_tag("No strategic deposits.", Palette.TEXT_DIM)
+	var lines := PackedStringArray()
+	var extraction := DepositRules.extraction(data, b)
+	for k: String in deposits:
+		var richness := int(deposits[k])
+		var line := "%s  %s" % [deposit_tag(data, k, richness), UiKit.color_tag("(%s)" % DepositRules.richness_word(richness), Palette.TEXT_DIM)]
+		if extraction.has(k):
+			var by: Array = b["buildings"].filter(func(x: String) -> bool: return k in data.buildings[x].get("extracts", []))
+			line += "  tapped by %s: %s" % [data.buildings[by[0]]["name"], UiKit.color_tag("%+d a turn" % int(extraction[k]), Palette.GOOD)]
+			if planet.is_blockaded():
+				line += UiKit.color_tag(" (halted by the blockade)", Palette.BAD)
+		else:
+			var names := PackedStringArray()
+			for id in DepositRules.extractors_for(engine, b, k):
+				var req: String = data.buildings[id].get("requires_tech", "")
+				var locked := not req.is_empty() and req not in engine.state.known_techs(viewer)
+				names.append(data.buildings[id]["name"] + (" (needs %s)" % data.techs[req]["name"] if locked else ""))
+			line += UiKit.color_tag("  untapped%s" % ((": " + " or ".join(names) + " would extract %d a turn" % richness) if not names.is_empty() else ""), Palette.TEXT_DIM)
+		lines.append(line)
+	return "\n".join(lines)
 
 
 ## "Population 5 / 8   ·   growth +0.8/turn, next in 4 turns" for a colony body.

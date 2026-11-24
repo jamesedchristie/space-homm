@@ -161,12 +161,22 @@ static func progress(engine: GalaxyEngine) -> Array[Dictionary]:
 		var tech_name: String = engine.data.techs.get(goal, {}).get("name", goal)
 		var entry := {"id": "tech", "name": tech_name, "enabled": true, "rows": [], "leader": "",
 				"text": "Research %s to win. %s" % [tech_name, engine.data.techs.get(goal, {}).get("description", "")]}
+		var needs := ResearchRules.resource_cost(engine, goal)
+		if not needs.is_empty():
+			entry["text"] += " It completes only with %s in store." % EmpireRules.cost_text(engine, needs)
 		var best_tech := -1.0
 		for id in alive:
 			var v := tech_progress(engine, id)
 			var path := tech_path(engine, goal)
 			var have := path.filter(func(t: String) -> bool: return t in s.known_techs(id)).size()
-			entry["rows"].append({"faction": id, "text": "%d of %d techs on the road to %s" % [have, path.size(), tech_name], "value": v})
+			var row_text := "%d of %d techs on the road to %s" % [have, path.size(), tech_name]
+			var parts := PackedStringArray()
+			for k: String in needs:
+				parts.append("%d/%d %s" % [mini(int(s.resources.get(id, {}).get(k, 0)), int(needs[k])), int(needs[k]),
+						engine.data.resources.get(k, {}).get("name", k).to_lower()])
+			if not parts.is_empty():
+				row_text += "; " + ", ".join(parts)
+			entry["rows"].append({"faction": id, "text": row_text, "value": v})
 			if v > best_tech:
 				best_tech = v
 				entry["leader"] = id

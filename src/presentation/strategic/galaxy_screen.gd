@@ -499,10 +499,30 @@ func _refresh_resources() -> void:
 	hud.set_resource_chip("credits", Color(data.resources["credits"]["color"]), stock["credits"], income["credits"], credit_tip)
 	hud.set_resource_chip("alloys", Color(data.resources["alloys"]["color"]), stock["alloys"], income["alloys"],
 			"Alloys: %d in store, %+d per turn from mining bases and refineries.\nShips, buildings and wonders need them." % [stock["alloys"], income["alloys"]])
+	# Strategic resources: shown once you have some or produce some.
+	for k in DepositRules.strategic(data):
+		var have := int(stock.get(k, 0))
+		var gain := int(income.get(k, 0))
+		hud.set_resource_chip(k, DepositRules.color(data, k), have, gain, _strategic_tip(k, have, gain), true,
+				have > 0 or gain != 0)
 	var r: Dictionary = engine.state.research[f]
 	var per_turn := int(income["research"])
 	var color := Color(data.resources["research"]["color"])
-	if String(r["current"]).is_empty():
+	var waiting := ""
+	if not String(r["current"]).is_empty() and int(r["progress"]) >= ResearchRules.cost(engine, r["current"]):
+		waiting = EmpireRules.afford_error(engine, f, ResearchRules.resource_cost(engine, r["current"]))
+	if not waiting.is_empty():
+		# Short, the bar is crowded: "Hyperdrive 4/16 exotic" (the first resource still missing).
+		var needs := ResearchRules.resource_cost(engine, r["current"])
+		var short := ""
+		for k: String in needs:
+			if int(stock.get(k, 0)) < int(needs[k]):
+				short = "%d/%d %s" % [int(stock.get(k, 0)), int(needs[k]), DepositRules.resource_name(data, k).split(" ")[0].to_lower()]
+				break
+		hud.set_research_chip("%s %s" % [data.techs[r["current"]]["name"], short],
+				Palette.BAD, "%s is researched, but it completes only with the resources in store: %s. Research points keep banking." % [
+				data.techs[r["current"]]["name"], waiting], false)
+	elif String(r["current"]).is_empty():
 		hud.set_research_chip("Choose research  (+%d)" % per_turn, color,
 				"Nothing is being researched: points are banked until you choose (%d banked). Click or press T." % r["progress"], true)
 	else:
@@ -511,6 +531,35 @@ func _refresh_resources() -> void:
 		hud.set_research_chip("%s  %d/%d · %dt" % [data.techs[r["current"]]["name"], r["progress"], cost, turns], color,
 				"Researching %s: %d of %d (+%d per turn, %d turn(s) left). Click or press T for the tech tree." % [
 				data.techs[r["current"]]["name"], r["progress"], cost, per_turn, turns], false)
+
+
+## Tooltip for a strategic resource chip: stock and income, the bodies it comes from, where it is
+## found, what extracts it and what it is for.
+func _strategic_tip(k: String, have: int, gain: int) -> String:
+	var res: Dictionary = data.resources[k]
+	var lines := PackedStringArray()
+	lines.append("%s: %d in store, %+d per turn. %s" % [res["name"], have, gain, res.get("description", "")])
+	var sources := PackedStringArray()
+	var untapped := 0
+	for p: Planet in engine.state.planets.values():
+		for b in p.bodies:
+			var deposits := engine.known_deposits(player_faction, p, b)
+			if not deposits.has(k):
+				continue
+			if p.owner == player_faction and DepositRules.is_tapped(data, b, k):
+				var by: Array = b["buildings"].filter(func(x: String) -> bool: return k in data.buildings[x].get("extracts", []))
+				sources.append("%s (%s, %+d)" % [b["name"], data.buildings[by[0]]["name"], int(DepositRules.extraction(data, b)[k])])
+			elif p.owner.is_empty() or p.owner == player_faction:
+				untapped += 1
+	if not sources.is_empty():
+		lines.append("From: " + ", ".join(sources))
+	if untapped > 0:
+		lines.append("%d known deposit%s still untapped." % [untapped, "" if untapped == 1 else "s"])
+	lines.append("Found on %s; extracted by %s." % [res.get("found", "some bodies"), res.get("extracted_by", "a development")])
+	var uses := DepositRules.uses(engine, k)
+	if not uses.is_empty():
+		lines.append("Needed for: " + ", ".join(uses) + ".")
+	return "\n".join(lines)
 
 
 func _toggle_roster() -> void:
@@ -891,7 +940,7 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 		if planet != null and engine.is_system_scale():
 			var bdef: Dictionary = data.body_types.get(planet.bodies[0]["type"], {}) if not planet.bodies.is_empty() else {}
 			text += "   ·   %s, %s%s" % [planet.name, bdef.get("name", "body").to_lower(),
-					"" if engine.is_surveyed(player_faction, planet) else " (not surveyed)"]
+					_deposit_hint(planet) if engine.is_surveyed(player_faction, planet) else " (not surveyed: deposits ?)"]
 		elif planet != null:
 			text += "   ·   %s system, %d bodies" % [planet.name, planet.bodies.size()]
 		var anomaly := engine.state.anomaly_at(_hover)
@@ -905,6 +954,16 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 		if not terrain.is_empty() and engine.explored_cells(player_faction).has(_hover):
 			text += "   ·   %s: %s" % [terrain.get("name", ""), terrain.get("description", "")]
 	return text
+
+
+## ", volatiles (good), exotic matter (rich)" for a surveyed body's deposits in the hover hint.
+func _deposit_hint(planet: Planet) -> String:
+	var parts := PackedStringArray()
+	for b in planet.bodies:
+		var deposits := engine.known_deposits(player_faction, planet, b)
+		for k: String in deposits:
+			parts.append("%s (%s)" % [DepositRules.resource_name(data, k).to_lower(), DepositRules.richness_word(int(deposits[k]))])
+	return (": " + ", ".join(parts)) if not parts.is_empty() else ""
 
 
 func _select_next_fleet() -> void:
@@ -1157,9 +1216,9 @@ func _mission_report(events: Array[Dictionary]) -> String:
 ## "+45 alloys, Interceptor joins the fleet, map revealed (radius 4)".
 func _reward_text(r: Dictionary) -> String:
 	var parts := PackedStringArray()
-	for k in ["credits", "alloys"]:
+	for k in DepositRules.stockpiled(data):
 		if r.has(k):
-			parts.append(UiKit.color_tag("+%d %s" % [r[k], k], Color(data.resources[k]["color"])))
+			parts.append(UiKit.color_tag("+%d %s" % [r[k], DepositRules.resource_name(data, k).to_lower()], Color(data.resources[k]["color"])))
 	if r.has("research"):
 		parts.append(UiKit.color_tag("+%d research progress" % r["research"], Color(data.resources["research"]["color"])))
 	if r.has("ship"):
@@ -1198,7 +1257,11 @@ func _planet_info(planet: Planet) -> String:
 		if not known.is_empty():
 			line += "  " + UiKit.color_tag(", ".join(known.map(func(t: String) -> String: return data.planet_traits[t]["name"])), Palette.ACTIVE)
 		elif not engine.is_surveyed(player_faction, planet):
-			line += "  " + UiKit.color_tag("not surveyed: fly a ship next to it", Palette.TEXT_DIM)
+			line += "  " + UiKit.color_tag("not surveyed: fly a ship next to it (deposits ?)", Palette.TEXT_DIM)
+		var deposits := engine.known_deposits(player_faction, planet, b)
+		for k: String in deposits:
+			line += "  " + SystemView.deposit_tag(data, k, int(deposits[k])) \
+					+ (UiKit.color_tag(" tapped", Palette.GOOD) if DepositRules.is_tapped(data, b, k) and planet.owner == player_faction else "")
 		text += "\n" + line
 	for mp_id in planet.megaprojects:
 		text += "\n" + UiKit.color_tag("Wonder: %s" % data.megaprojects[mp_id]["name"], Palette.ACTIVE)
@@ -1325,6 +1388,9 @@ func _describe(e: Dictionary) -> String:
 			var found := PackedStringArray()
 			for t: String in e.get("traits", []):
 				found.append(data.planet_traits.get(t, {}).get("name", t))
+			for b in s.planets[e["planet"]].bodies:
+				for k: String in DepositRules.of(b):
+					found.append("%s (%s)" % [DepositRules.resource_name(data, k), DepositRules.richness_word(int(DepositRules.of(b)[k]))])
 			return UiKit.color_tag("   Surveyed %s: %s" % [s.planets[e["planet"]].name,
 					", ".join(found) if not found.is_empty() else "nothing special"], Palette.SHIELDS if found.is_empty() else Palette.ACTIVE)
 		GalaxyEvents.SYSTEM_CLAIMED:
@@ -1393,7 +1459,7 @@ func _describe(e: Dictionary) -> String:
 		GalaxyEvents.DEN_CLEARED:
 			if e["faction"] != player_faction:
 				return ""
-			return UiKit.color_tag("   Raider den cleared: +%d credits, +%d alloys in loot" % [int(e["loot"].get("credits", 0)), int(e["loot"].get("alloys", 0))], Palette.GOOD)
+			return UiKit.color_tag("   Raider den cleared: ", Palette.GOOD) + _reward_text(e["loot"]) + UiKit.color_tag(" in loot", Palette.GOOD)
 		GalaxyEvents.DISCOVERY_FOUND:
 			if e["faction"] != player_faction:
 				return ""
@@ -1434,6 +1500,11 @@ func _describe(e: Dictionary) -> String:
 			if e["faction"] != player_faction:
 				return ""
 			return UiKit.color_tag("Research complete: %s" % data.techs[e["tech"]]["name"], Color(data.resources["research"]["color"]))
+		GalaxyEvents.RESEARCH_WAITING:
+			if e["faction"] != player_faction:
+				return ""
+			return UiKit.color_tag("%s is researched but can't complete: %s. Extract more (points keep banking)." % [
+					data.techs[e["tech"]]["name"], e["reason"].to_lower()], Palette.BAD)
 		GalaxyEvents.BUILDING_COMPLETED:
 			if s.planets[e["planet"]].owner != player_faction:
 				return ""

@@ -38,7 +38,7 @@ func _world(fleets: Array, civilians: Dictionary = {}, extra: Dictionary = {}) -
 	for p: Dictionary in planets:
 		if civilians.has(p["id"]):
 			p["civilians"] = civilians[p["id"]]
-	var def := {"planets": planets, "resources": {"a": {"credits": 500, "alloys": 500}, "b": {"credits": 500, "alloys": 500}}}
+	var def := {"planets": planets, "resources": {"a": {"credits": 500, "alloys": 500, "volatiles": 50}, "b": {"credits": 500, "alloys": 500, "volatiles": 50}}}
 	def.merge(extra, true)
 	return Fixtures.galaxy(fleets, def)
 

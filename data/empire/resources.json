@@ -2,16 +2,43 @@
   "credits": {
     "name": "Credits",
     "description": "Money: pays for buildings, crews and gifts.",
-    "color": "#f0c060"
+    "color": "#f0c060",
+    "kind": "basic"
   },
   "alloys": {
     "name": "Alloys",
     "description": "Refined metals: the main cost of ships and stations.",
-    "color": "#9fb4c8"
+    "color": "#9fb4c8",
+    "kind": "basic"
   },
   "research": {
     "name": "Research",
     "description": "Flows into the current technology each turn (not stockpiled).",
-    "color": "#6fd6ff"
+    "color": "#6fd6ff",
+    "kind": "flow"
+  },
+  "volatiles": {
+    "name": "Volatiles",
+    "kind": "strategic",
+    "description": "Water ice, helium-3 and other light elements: air and water for colonies, fuel for advanced drives.",
+    "found": "ice moons, gas giants, arctic and ocean worlds, icy asteroids",
+    "extracted_by": "a Gas Refinery, an Ice Mine, a Mining Base on an icy asteroid, or a colony on its own world",
+    "color": "#5fe0b0"
+  },
+  "rare_elements": {
+    "name": "Rare Elements",
+    "kind": "strategic",
+    "description": "Heavy and rare-earth metals for armour, sensors and big guns.",
+    "found": "volcanic worlds, asteroid belts, some barren rocks and desert worlds",
+    "extracted_by": "a Mining Base (or a colony on its own world)",
+    "color": "#b68cff"
+  },
+  "exotic_matter": {
+    "name": "Exotic Matter",
+    "kind": "strategic",
+    "description": "Matter with negative energy density, found in a handful of strange places. It bends space: hyperdrives and the greatest wonders need it.",
+    "found": "very rarely: anomalous moons and rocks, deep pockets of the belt (in your home system, in one place only)",
+    "extracted_by": "an Exotic Containment (research Exotic Physics first)",
+    "color": "#ff5fc8"
   }
 }

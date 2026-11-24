@@ -4,7 +4,7 @@
     "description": "A star-powered foundry: +8 alloys here and +10% alloys empire-wide. One per empire.",
     "requires_tech": "stellar_engineering",
     "scope": "empire",
-    "cost": {"credits": 120, "alloys": 220},
+    "cost": {"credits": 120, "alloys": 220, "rare_elements": 30},
     "turns": 8,
     "yields": {"alloys": 8},
     "effects": [{"type": "yield", "resource": "alloys", "mul": 1.1}]
@@ -24,7 +24,7 @@
     "description": "The sector's market floor: +10 credits here, +3 trade income per friendly minor power and better relations with everyone. One in the whole galaxy.",
     "requires_tech": "interstellar_banking",
     "scope": "galaxy",
-    "cost": {"credits": 260, "alloys": 180},
+    "cost": {"credits": 260, "alloys": 180, "volatiles": 25},
     "turns": 10,
     "yields": {"credits": 10},
     "effects": [
@@ -37,7 +37,7 @@
     "description": "A fleet-wide command net: +1 fleet movement, +10% hull repair per turn anywhere and +10 XP per turn for fleet commanders. One per empire.",
     "requires_tech": "command_doctrine",
     "scope": "empire",
-    "cost": {"credits": 150, "alloys": 260},
+    "cost": {"credits": 150, "alloys": 260, "rare_elements": 30},
     "turns": 10,
     "effects": [
       {"type": "empire_modifier", "stat": "fleet_speed", "add": 1},
@@ -51,7 +51,7 @@
     "requires_tech": "ascension_theory",
     "scope": "empire",
     "victory": "science",
-    "cost": {"credits": 900, "alloys": 900},
+    "cost": {"credits": 900, "alloys": 900, "rare_elements": 40, "exotic_matter": 12},
     "turns": 30,
     "effects": []
   }
