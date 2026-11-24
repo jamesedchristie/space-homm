@@ -4,10 +4,19 @@
     "title": "Chair of the Joint Fleet Council",
     "personality": "Dry, pragmatic and stubborn. Keeps her word and expects the same, and never forgets who left a patrol to die.",
     "portrait": {
-      "look": "human", "backdrop": "bridge",
-      "skin": "#d29a7c", "lips": "#b4695f", "eyes": "#4f7f9c", "hair": "#4a2f22", "hair_style": "bun",
-      "primary": "#233f6e", "secondary": "#e9eef7", "accent": "#d9b44a", "glow": "#5aa8ff",
-      "age": 0.55, "jaw": 0.35
+      "look": "human",
+      "backdrop": "bridge",
+      "skin": "#d29a7c",
+      "lips": "#b4695f",
+      "eyes": "#4f7f9c",
+      "hair": "#4a2f22",
+      "hair_style": "bun",
+      "primary": "#233f6e",
+      "secondary": "#e9eef7",
+      "accent": "#d9b44a",
+      "glow": "#5aa8ff",
+      "age": 0.55,
+      "jaw": 0.35
     },
     "lines": {
       "first_contact": [
@@ -65,10 +74,19 @@
     "title": "Speaker of the Vel'tari Concord",
     "personality": "Serene and unhurried, with a memory of centuries. Speaks softly and in images, and is quietly certain that younger peoples will eventually come round.",
     "portrait": {
-      "look": "veltari", "backdrop": "crystal_hall",
-      "skin": "#e6e2f0", "lips": "#b79ad6", "eyes": "#9ee7ff", "hair": "#f0f2ff", "hair_style": "long",
-      "primary": "#4a3a78", "secondary": "#d9d3ee", "accent": "#c9b0ff", "glow": "#b48cff",
-      "age": 0.3, "jaw": 0.1
+      "look": "veltari",
+      "backdrop": "crystal_hall",
+      "skin": "#e6e2f0",
+      "lips": "#b79ad6",
+      "eyes": "#9ee7ff",
+      "hair": "#f0f2ff",
+      "hair_style": "long",
+      "primary": "#4a3a78",
+      "secondary": "#d9d3ee",
+      "accent": "#c9b0ff",
+      "glow": "#b48cff",
+      "age": 0.3,
+      "jaw": 0.1
     },
     "lines": {
       "first_contact": [
@@ -126,10 +144,21 @@
     "title": "Overlord of the Kesh Dominion",
     "personality": "Blunt, proud and loud. Respects strength, despises hesitation and will happily drink with a worthy enemy right after burning his fleet.",
     "portrait": {
-      "look": "kesh", "backdrop": "forge_hall",
-      "skin": "#a56f43", "lips": "#7a3f30", "eyes": "#e8a331", "hair": "#3a261a", "hair_style": "braids",
-      "primary": "#4b3326", "secondary": "#2d2420", "accent": "#d36a2e", "glow": "#ff6a4a",
-      "age": 0.6, "jaw": 0.95, "brow": 0.9, "horns": 0.0
+      "look": "kesh",
+      "backdrop": "forge_hall",
+      "skin": "#a56f43",
+      "lips": "#7a3f30",
+      "eyes": "#e8a331",
+      "hair": "#3a261a",
+      "hair_style": "braids",
+      "primary": "#4b3326",
+      "secondary": "#2d2420",
+      "accent": "#d36a2e",
+      "glow": "#ff6a4a",
+      "age": 0.6,
+      "jaw": 0.95,
+      "brow": 0.9,
+      "horns": 0.0
     },
     "lines": {
       "first_contact": [
@@ -187,10 +216,20 @@
     "title": "Chair of the Sorn Directorate",
     "personality": "Soft-spoken and exact. Never raises her voice, never forgets a debt, and answers a threat with a very precise reminder of what it will cost.",
     "portrait": {
-      "look": "sorn", "backdrop": "directorate",
-      "skin": "#8c97a3", "lips": "#6c7482", "eyes": "#1c1a24", "hair": "", "hair_style": "none",
-      "primary": "#2e4658", "secondary": "#c2cdd6", "accent": "#4dd0c8", "glow": "#4dd0c8",
-      "age": 0.45, "jaw": 0.3, "crest": 1.0
+      "look": "sorn",
+      "backdrop": "directorate",
+      "skin": "#8c97a3",
+      "lips": "#6c7482",
+      "eyes": "#1c1a24",
+      "hair": "",
+      "hair_style": "none",
+      "primary": "#2e4658",
+      "secondary": "#c2cdd6",
+      "accent": "#4dd0c8",
+      "glow": "#4dd0c8",
+      "age": 0.45,
+      "jaw": 0.3,
+      "crest": 1.0
     },
     "lines": {
       "first_contact": [
@@ -248,10 +287,23 @@
     "title": "Warlord of the Drift Raiders",
     "personality": "Scavenger-king of the Drift. Cackling, greedy and not interested in anything that does not come with a ransom. Never negotiates.",
     "portrait": {
-      "look": "kesh", "backdrop": "scrapyard",
-      "skin": "#7f5b3a", "lips": "#5b3328", "eyes": "#ff4a2e", "hair": "#5a2a1c", "hair_style": "mohawk",
-      "primary": "#5d3a24", "secondary": "#3a302b", "accent": "#b33a22", "glow": "#ff5a2e",
-      "age": 0.7, "jaw": 0.8, "brow": 0.8, "horns": 1.0, "scar": true, "cyber_eye": true
+      "look": "kesh",
+      "backdrop": "scrapyard",
+      "skin": "#7f5b3a",
+      "lips": "#5b3328",
+      "eyes": "#ff4a2e",
+      "hair": "#5a2a1c",
+      "hair_style": "mohawk",
+      "primary": "#5d3a24",
+      "secondary": "#3a302b",
+      "accent": "#b33a22",
+      "glow": "#ff5a2e",
+      "age": 0.7,
+      "jaw": 0.8,
+      "brow": 0.8,
+      "horns": 1.0,
+      "scar": true,
+      "cyber_eye": true
     },
     "lines": {
       "first_contact": [
@@ -307,10 +359,21 @@
     "title": "Master Factor of the Ceres Free Traders",
     "personality": "A cheerful, calculating haggler who counts every coin and every friend. Neutral, polite and always a little hard to read.",
     "portrait": {
-      "look": "sorn", "backdrop": "market",
-      "skin": "#9a8f86", "lips": "#7d6a62", "eyes": "#2a2018", "hair": "", "hair_style": "none",
-      "primary": "#7a4a2a", "secondary": "#e8c27a", "accent": "#e8b84a", "glow": "#ffc55a",
-      "age": 0.5, "jaw": 0.25, "crest": 0.7, "goggles": true
+      "look": "sorn",
+      "backdrop": "market",
+      "skin": "#9a8f86",
+      "lips": "#7d6a62",
+      "eyes": "#2a2018",
+      "hair": "",
+      "hair_style": "none",
+      "primary": "#7a4a2a",
+      "secondary": "#e8c27a",
+      "accent": "#e8b84a",
+      "glow": "#ffc55a",
+      "age": 0.5,
+      "jaw": 0.25,
+      "crest": 0.7,
+      "goggles": true
     },
     "lines": {
       "first_contact": [
@@ -359,6 +422,141 @@
       "farewell": [
         "Come back soon. The prices are best at dawn.",
         "Safe travels, {player}. Mind the pirates."
+      ]
+    }
+  },
+  "separatist_commander": {
+    "name": "Marshal Idris Kane",
+    "title": "Commander of the Free Colonies Front",
+    "personality": "A former colonial governor who believes Terra bled the colonies dry. Cold, articulate, and certain history will forgive him.",
+    "portrait": {
+      "look": "human",
+      "backdrop": "bridge",
+      "skin": "#b88466",
+      "lips": "#8e5a4c",
+      "eyes": "#6b6b6b",
+      "hair": "#8c8c8c",
+      "hair_style": "short",
+      "primary": "#3a2e2a",
+      "secondary": "#b9a48a",
+      "accent": "#c0392b",
+      "glow": "#ff6a4a",
+      "age": 0.75,
+      "jaw": 0.65,
+      "scar": true
+    },
+    "lines": {
+      "first_contact": [
+        "So the homeworld finally looks outward. I am Marshal Idris Kane. The colonies you abandoned have not forgotten you, {player}.",
+        "{player}. You call us separatists. We call ourselves free. This system is big enough for that, as long as you stay out of our orbits."
+      ],
+      "greeting": [
+        "Speak, {player}. I am listening, for now.",
+        "You again. The Front has nothing to say to Terra's governors."
+      ],
+      "hail_war": [
+        "Every outpost you build is one more chain, {player}. We will cut them all.",
+        "Your patrols are thin and your colonists are tired. We are neither."
+      ],
+      "war_on_you": [
+        "The time for petitions is over. The Free Colonies Front is at war with {player}.",
+        "Strike their mines. Strike their yards. Let Terra learn what it costs to rule by force."
+      ],
+      "you_declare_war": [
+        "Then you finally say it plainly. Good. We were always at war; now you admit it.",
+        "As expected. Terra only ever understood one argument."
+      ],
+      "peace_accepted": [
+        "A ceasefire, then. Do not mistake it for forgiveness.",
+        "Agreed. For the sake of the colonists, not for you."
+      ],
+      "peace_refused": [
+        "Peace, with the hand on our throat? No.",
+        "Not while your flag flies over our moons.",
+        "The Front does not bargain with occupiers."
+      ],
+      "peace_offer": [
+        "The colonies are bleeding, {player}. So are you. A ceasefire would serve us both.",
+        "Enough. I offer a truce: stay out of our orbits and we stay out of yours."
+      ],
+      "offer_declined": [
+        "Then the fighting goes on. Remember you chose it.",
+        "So be it. We will ask again when you have fewer ships."
+      ],
+      "gift": [
+        "Supplies for the colonies? I will see they reach people, not soldiers.",
+        "An unexpected courtesy, {player}. It is noted."
+      ],
+      "farewell": [
+        "Go back to your homeworld, {player}. Some of us remember what the stars were for.",
+        "Until next time. Watch your outer orbits."
+      ]
+    }
+  },
+  "scavenger_chief": {
+    "name": "Skraa-Vel the Gnawer",
+    "title": "Brood-Chief of the Vrask",
+    "personality": "Leader of an alien scavenger brood that strips wrecks and outposts. Speaks in hungry clicks; respects only strength and scrap.",
+    "portrait": {
+      "look": "sorn",
+      "backdrop": "scrapyard",
+      "skin": "#5d7448",
+      "lips": "#33402a",
+      "eyes": "#d8ff4a",
+      "hair": "",
+      "hair_style": "none",
+      "primary": "#2e3a24",
+      "secondary": "#4a4a3a",
+      "accent": "#9acd32",
+      "glow": "#b8ff3a",
+      "age": 0.45,
+      "crest": 1.4
+    },
+    "lines": {
+      "first_contact": [
+        "Click-click. New metal in the dark. Skraa-Vel smells it, {player}. The Vrask will eat well.",
+        "Soft-ships! Shiny-ships! The brood has waited long for a feast like you."
+      ],
+      "greeting": [
+        "Hrrk. Speak, metal-maker.",
+        "What does the soft-one want? Scrap? Skraa-Vel has none for you."
+      ],
+      "hail_war": [
+        "Your hulls crack nicely, {player}. The brood remembers the taste.",
+        "More ships? Good. More scrap."
+      ],
+      "war_on_you": [
+        "The brood is hungry. Strip their mines! Gnaw their stations!",
+        "Feast-time, {player}! Click-click-click!"
+      ],
+      "you_declare_war": [
+        "Hahk! As if the Vrask ever stopped.",
+        "War? The brood calls it dinner."
+      ],
+      "peace_accepted": [
+        "The brood does not make peace.",
+        "No. Hungry."
+      ],
+      "peace_refused": [
+        "Peace is not food.",
+        "Skraa-Vel laughs at you. Click.",
+        "No peace. Only scrap."
+      ],
+      "peace_offer": [
+        "Never.",
+        "No."
+      ],
+      "offer_declined": [
+        "Never.",
+        "No."
+      ],
+      "gift": [
+        "Metal! The brood accepts. The brood is still hungry.",
+        "Hrrk. Tasty tribute. Bring more."
+      ],
+      "farewell": [
+        "Run, soft-one. The brood follows the smell of engines.",
+        "Skraa-Vel will find you in the dark."
       ]
     }
   }

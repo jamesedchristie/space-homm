@@ -56,6 +56,7 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 			"species": f.get("species", ""),
 			## major: plays to win; barbarian: raids, never negotiates or wins; minor: a neutral power.
 			"role": f.get("role", "major"),
+			"leader": f.get("leader", ""),
 			## Ship designs: "raider" (barbarians' default: salvaged ships), "species" (the species' own).
 			"ship_variant": f.get("ship_variant", "raider" if f.get("role", "") == "barbarian" else ""),
 		})

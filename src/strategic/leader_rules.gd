@@ -16,6 +16,9 @@ const NEGOTIATORS := ["major", "minor"]
 
 ## Id of the leader for a faction (state faction dict or campaign faction def).
 static func leader_id(faction: Dictionary) -> String:
+	# A campaign can give a faction its own leader ("leader": id in data/strategic/leaders.json).
+	if not str(faction.get("leader", "")).is_empty():
+		return faction["leader"]
 	match faction.get("role", "major"):
 		"barbarian":
 			return WARLORD
