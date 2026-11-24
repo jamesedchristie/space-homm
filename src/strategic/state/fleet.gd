@@ -44,6 +44,13 @@ static func role_of(data: DataRegistry, unit_id: String) -> String:
 	return data.units.get(unit_id, {}).get("strategic", {}).get("role", "")
 
 
+## Which ship designs a faction flies (ModelFactory variant): "raider" (salvaged designs, the
+## barbarians' default) or "" (its species' own designs; a faction's "ship_variant": "species").
+static func model_variant(faction: Dictionary) -> String:
+	var v: String = faction.get("ship_variant", "raider" if faction.get("role", "") == "barbarian" else "")
+	return "" if v == "species" else v
+
+
 ## Only civilian ships (and at least one): such a fleet can't fight, and enemy warfleets destroy it.
 func is_civilian_only(data: DataRegistry) -> bool:
 	for ship in ships:

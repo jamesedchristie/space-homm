@@ -68,7 +68,7 @@ func show_tree(engine: GalaxyEngine, faction_id: String, interactive: bool) -> v
 		_status.text = "Researching [b]%s[/b]  %d / %d  (+%d per turn, %d turn%s)" % [data.techs[r["current"]]["name"],
 				r["progress"], cost, per_turn, turns, "" if turns == 1 else "s"]
 
-	var layout := _layout(data)
+	var layout := _layout(data, ResearchRules.tech_ids(engine))
 	var cells: Dictionary = layout["cells"]
 	var eras: Array = layout["eras"]
 	var cols := int(layout["cols"])
@@ -102,11 +102,9 @@ func show_tree(engine: GalaxyEngine, faction_id: String, interactive: bool) -> v
 
 ## Column = era block + depth along prerequisites inside that era; rows fill
 ## top to bottom in data order.
-func _layout(data: DataRegistry) -> Dictionary:
+func _layout(data: DataRegistry, tech_ids: Array[String]) -> Dictionary:
 	var depth := {}
-	var ids: Array[String] = []
-	for tech_id: String in data.techs:
-		ids.append(tech_id)
+	var ids: Array[String] = tech_ids.duplicate()
 	var era_of := func(id: String) -> int: return int(data.techs[id].get("era", 1))
 	# Depth inside the era, by longest chain of same-era prerequisites.
 	for _pass in ids.size():

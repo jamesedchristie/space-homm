@@ -51,6 +51,9 @@ const RESEARCH_PRIORITY := ["hydroponics", "automated_mining", "trade_protocols"
 		"archival_science", "orbital_habitats", "targeting_computers", "stellar_engineering", "deflector_grids",
 		"fleet_doctrine", "field_repairs", "deep_core_taps", "quantum_computing", "nanofabrication", "genetic_uplift",
 		"interstellar_banking", "ascension_theory", "capital_ships", "command_doctrine"]
+## In a campaign won by a tech (Solar Age: Hyperdrive), the research economy comes first, then the
+## road to that tech, then everything else in the usual order.
+const GOAL_ECONOMY := ["automated_mining", "deep_space_sensors", "cryogenic_labs", "hydroponics", "scientific_method"]
 ## Researched first while a stronger enemy is at war with the AI.
 const MILITARY_TECHS := ["reinforced_hulls", "shield_harmonics", "targeting_computers", "heavy_hulls", "orbital_defenses"]
 ## Keep this much net credit income after paying for a new ship's upkeep.
@@ -83,6 +86,11 @@ const CONSTRUCTORS_PER_SYSTEMS := 3
 const MAX_CONSTRUCTORS := 4
 ## What a development is worth to the AI, per resource (research counts most).
 const YIELD_WEIGHTS := {"credits": 1.0, "alloys": 1.2, "research": 1.5}
+## System-scale campaigns (the whole map is one star system, every body its own Planet): every body
+## is in reach, any marginal world is worth a colony, and idle warfleets chart the system.
+const SYSTEM_CIVILIAN_RANGE := 99
+const SYSTEM_COLONY_SCORE := 4.0
+const COLONY_SCORE := 9.0
 
 var _turn_key := ""
 ## fleet id -> system id a civilian fleet is heading for (so two don't pick the same one).
@@ -272,8 +280,12 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 					break
 
 	# 5. Nothing to fight: small fleets scout the unexplored space around the empire (settlers need
-	# to know where the worlds are, and finding them is how the map opens up).
-	if target == null and role == "major" and fleet.ships.size() <= SCOUT_SIZE and fleet.hero_id.is_empty():
+	# to know where the worlds are, and finding them is how the map opens up). In a system-scale
+	# campaign any idle warfleet surveys: the bodies' traits only show once a ship has been close.
+	if target == null and role == "major" and engine.is_system_scale() and not fleet.has_workers(data):
+		target = _unsurveyed_target(engine, fleet, vis, my_strength, attack_ratio)
+	if target == null and role == "major" and (fleet.ships.size() <= SCOUT_SIZE and fleet.hero_id.is_empty() \
+			or engine.is_system_scale()):
 		target = _unexplored_target(engine, fleet, vis, my_strength, attack_ratio)
 	if target == null:
 		return fleet.cell
@@ -298,6 +310,22 @@ func _unexplored_target(engine: GalaxyEngine, fleet: Fleet, vis: Dictionary, my_
 		if d < best_d and s.fleet_at(c) == null and not _dangerous(engine, fleet, c, vis, my_strength, attack_ratio):
 			best_d = d
 			best = c
+	return best
+
+
+## The nearest body the faction hasn't surveyed yet (system-scale campaigns), not next to a visible
+## threat, or null. Flying next to it is enough.
+func _unsurveyed_target(engine: GalaxyEngine, fleet: Fleet, vis: Dictionary, my_strength: float, attack_ratio: float) -> Variant:
+	var s := engine.state
+	var best: Variant = null
+	var best_d := 1 << 30
+	for p: Planet in s.planets.values():
+		if engine.is_surveyed(fleet.owner, p) or (not p.owner.is_empty() and s.at_war(fleet.owner, p.owner)):
+			continue
+		var d := s.grid.distance(fleet.cell, p.cell)
+		if d < best_d and not _dangerous(engine, fleet, p.cell, vis, my_strength, attack_ratio):
+			best_d = d
+			best = p.cell
 	return best
 
 
@@ -364,9 +392,19 @@ func _empire_command(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
 		var options := ResearchRules.available(engine, faction_id)
 		if not options.is_empty():
 			var pressed := _outgunned(engine, faction_id)
+			var goal := VictoryRules.tech_goal(engine)
+			var road: Array[String] = VictoryRules.tech_path(engine, goal) if not goal.is_empty() else ([] as Array[String])
+			var rank := func(t: String) -> int:
+				var r := RESEARCH_PRIORITY.find(t) if t in RESEARCH_PRIORITY else 999
+				if not road.is_empty():
+					if t in GOAL_ECONOMY:
+						r = GOAL_ECONOMY.find(t) - 300
+					elif t in road:
+						r = -200 + ResearchRules.era_of(engine, t)
+				return r
 			options.sort_custom(func(a: String, b: String) -> bool:
-				var ra := RESEARCH_PRIORITY.find(a) if a in RESEARCH_PRIORITY else 999
-				var rb := RESEARCH_PRIORITY.find(b) if b in RESEARCH_PRIORITY else 999
+				var ra: int = rank.call(a)
+				var rb: int = rank.call(b)
 				if pressed:
 					ra = MILITARY_TECHS.find(a) - 100 if a in MILITARY_TECHS else ra
 					rb = MILITARY_TECHS.find(b) - 100 if b in MILITARY_TECHS else rb
@@ -633,14 +671,17 @@ func _development_work(engine: GalaxyEngine, faction_id: String) -> int:
 	return n
 
 
-## Own systems and the explored empty ones within CIVILIAN_RANGE of them.
+## Own systems and the explored empty ones within CIVILIAN_RANGE of them. (In a system-scale campaign
+## the bodies of the home system are charted from the start: every empty one counts.)
 func _work_systems(engine: GalaxyEngine, faction_id: String) -> Array[Planet]:
 	var s := engine.state
 	var own := s.planets_of(faction_id)
 	var explored := engine.explored_cells(faction_id)
+	var system := engine.is_system_scale()
+	var reach := SYSTEM_CIVILIAN_RANGE if system else CIVILIAN_RANGE
 	var out: Array[Planet] = []
 	for p: Planet in s.planets.values():
-		if p.owner == faction_id or (p.owner.is_empty() and explored.has(p.cell) and _near_any(s, p.cell, own, CIVILIAN_RANGE)):
+		if p.owner == faction_id or (p.owner.is_empty() and (system or explored.has(p.cell)) and _near_any(s, p.cell, own, reach)):
 			out.append(p)
 	return out
 
@@ -668,7 +709,12 @@ func _best_colony_body(engine: GalaxyEngine, planet: Planet, faction_id: String)
 	var best: Dictionary = {}
 	for b in SystemRules.colony_targets(engine, planet, faction_id):
 		var score := float(EmpireRules.pop_cap(engine, b, faction_id)) + float(EmpireRules.colony_slots(engine, b, faction_id))
+		# pop_cap and colony_slots count the traits; take back the ones we haven't surveyed.
 		for t: String in b["traits"]:
+			if t not in engine.known_traits(faction_id, planet, b):
+				var hidden: Dictionary = engine.data.planet_traits.get(t, {})
+				score -= float(hidden.get("pop_cap", 0)) + float(hidden.get("slots", 0))
+		for t: String in engine.known_traits(faction_id, planet, b):
 			var def: Dictionary = engine.data.planet_traits.get(t, {})
 			score += float(def.get("pop_cap", 0)) + float(def.get("slots", 0)) + 2.0 * _yield_value(def.get("yields", {}))
 		score += _yield_value(engine.data.body_types.get(b["type"], {}).get("bonus", {}))
@@ -705,7 +751,7 @@ func _best_job(engine: GalaxyEngine, planet: Planet, faction_id: String) -> Dict
 			var def: Dictionary = engine.data.buildings[o["id"]]
 			var scarcity := _scarcity(engine, faction_id)
 			var value := _yield_value(def.get("yields", {}), scarcity) + _yield_value(engine.data.body_types.get(b["type"], {}).get("bonus", {}), scarcity) \
-					+ _yield_value_traits(engine, b)
+					+ _yield_value_traits(engine, engine.known_traits(faction_id, planet, b))
 			if o["id"] == "outpost":
 				value = 0.5 if planet.owner.is_empty() else 0.0  # only worth it to claim an empty system
 			if value <= 0.0:
@@ -715,9 +761,9 @@ func _best_job(engine: GalaxyEngine, planet: Planet, faction_id: String) -> Dict
 	return best
 
 
-func _yield_value_traits(engine: GalaxyEngine, b: Dictionary) -> float:
+func _yield_value_traits(engine: GalaxyEngine, traits: Array[String]) -> float:
 	var v := 0.0
-	for t: String in b["traits"]:
+	for t: String in traits:
 		v += _yield_value(engine.data.planet_traits.get(t, {}).get("yields", {}))
 	return v
 
@@ -739,8 +785,10 @@ func _civilian_command(engine: GalaxyEngine, faction_id: String) -> GalaxyComman
 					if entry["deployed"] and not _colony_targets(engine, faction_id).is_empty():
 						return _checked(engine, CivilianCommand.new(faction_id, planet.id, ship["uid"], CivilianCommand.DEPART))
 					continue
-				# The first colony founds the capital wherever we stand; later ones settle good worlds only.
-				if not has_colony or float(best["score"]) >= 9.0 or planet.owner == faction_id:
+				# The first colony founds the capital wherever we stand; later ones settle good worlds only
+				# (in a home system, any world will do: there is nowhere else to go yet).
+				var good := SYSTEM_COLONY_SCORE if engine.is_system_scale() else COLONY_SCORE
+				if not has_colony or float(best["score"]) >= good or planet.owner == faction_id:
 					return _checked(engine, CivilianCommand.new(faction_id, planet.id, ship["uid"], CivilianCommand.FOUND, best["body"]["id"]))
 			elif entry["role"] == "constructor":
 				if not ship.get("job", {}).is_empty():

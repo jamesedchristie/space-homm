@@ -270,7 +270,7 @@ func _build_victory(engine: GalaxyEngine, faction_id: String) -> void:
 ## Tech ids ordered by era, then cost.
 static func _tech_order(engine: GalaxyEngine) -> Array[String]:
 	var ids: Array[String] = []
-	ids.assign(engine.data.techs.keys())
+	ids.assign(ResearchRules.tech_ids(engine))
 	ids.sort_custom(func(a: String, b: String) -> bool:
 		var ea := ResearchRules.era_of(engine, a)
 		var eb := ResearchRules.era_of(engine, b)

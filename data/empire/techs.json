@@ -524,5 +524,20 @@
         "megaproject": "ascension_gate"
       }
     ]
+  },
+  "hyperdrive": {
+    "name": "Hyperdrive",
+    "description": "Act 1 complete: your ships can leave the system (the galaxy opens in a later update).",
+    "era": 3,
+    "cost": 260,
+    "scale": "system",
+    "requires": ["quantum_computing", "improved_drives"],
+    "effects": [
+      {
+        "type": "empire_modifier",
+        "stat": "fleet_speed",
+        "add": 1
+      }
+    ]
   }
 }

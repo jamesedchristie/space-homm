@@ -40,5 +40,38 @@
       {"weight": 1, "text": "A pilot among the survivors joins your fleet, ship and all.", "rewards": {"ship": "frigate"}},
       {"weight": 2, "text": "The pods are empty; whatever was inside got out. Your sensor logs show where it went.", "rewards": {"intel": 5}}
     ]
+  },
+  "derelict_probe": {
+    "name": "Derelict Probe",
+    "description": "One of your own first probes, launched generations ago and long given up for lost. Fly a ship in to recover it.",
+    "color": "#9fd6ff",
+    "listed_only": true,
+    "outcomes": [
+      {"weight": 3, "text": "Its recorders are intact: decades of readings from the outer system. Your scientists are delighted.", "rewards": {"research": 45}},
+      {"weight": 2, "text": "Its last images map the outer system in detail.", "rewards": {"intel": 5}},
+      {"weight": 1, "text": "The probe's power cell is still good, and its alloy frame is worth recycling.", "rewards": {"alloys": 30, "credits": 15}}
+    ]
+  },
+  "comet": {
+    "name": "Comet",
+    "description": "A long-period comet falling sunward, rich in ice and volatiles. Fly a ship in to sample it.",
+    "color": "#d8f4ff",
+    "listed_only": true,
+    "outcomes": [
+      {"weight": 3, "text": "Your crews tap the comet's ices: fuel and water worth a fortune to the colonies.", "rewards": {"credits": 50}},
+      {"weight": 2, "text": "Pristine material from the birth of the system. A research bonanza.", "rewards": {"research": 35}},
+      {"weight": 1, "text": "An outgassing jet slams into your ships before they can pull away.", "rewards": {"damage": 0.15, "credits": 20}}
+    ]
+  },
+  "old_station": {
+    "name": "Old Station",
+    "description": "An early research station, abandoned in a decaying orbit. Fly a ship in to board it.",
+    "color": "#ffd38a",
+    "listed_only": true,
+    "outcomes": [
+      {"weight": 3, "text": "The station's stores were never emptied: machine parts and refined metals.", "rewards": {"alloys": 40}},
+      {"weight": 2, "text": "Its automated tender still answers to old command codes. A skeleton crew brings it home.", "rewards": {"ship": "interceptor"}},
+      {"weight": 1, "text": "The station's logs say where the separatists hid their first caches.", "rewards": {"credits": 35, "intel": 4}}
+    ]
   }
 }

@@ -18,7 +18,8 @@ const FORMAT := "space-homm-save"
 ## modifiers, event log and pending event, why the game ended.
 ## 4: the system layer: civilian ships deployed in systems (with their jobs), blockades and the
 ## capital-to-be of unfounded home systems; claiming by colony or outpost instead of by entering.
-const VERSION := 4
+## 5: system-scale campaigns: surveyed bodies per faction (older saves load with nothing surveyed).
+const VERSION := 5
 const DIR := "user://saves"
 const AUTOSAVE := "autosave"
 const QUICKSAVE := "quicksave"
@@ -89,6 +90,7 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 			"event_log": s.event_log.duplicate(true),
 			"pending_event": s.pending_event.duplicate(true),
 			"victory_reason": s.victory_reason,
+			"surveyed": s.surveyed.duplicate(true),
 		},
 	}
 
@@ -201,6 +203,9 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 	s.event_log = d.get("event_log", {})
 	s.pending_event = d.get("pending_event", {})
 	s.victory_reason = d.get("victory_reason", "")
+	s.surveyed = d.get("surveyed", {})
+	for f: Dictionary in s.factions:
+		s.surveyed.get_or_add(f["id"], {})
 	# Typed arrays inside dictionaries come back untyped; the rules only read them.
 	for faction_id: String in s.research:
 		var known: Array[String] = []

@@ -48,6 +48,8 @@ static func status(engine: GalaxyEngine, faction_id: String, tech_id: String) ->
 	var known := engine.state.known_techs(faction_id)
 	if tech_id in known:
 		return KNOWN
+	if not offered(engine, tech_id):
+		return LOCKED
 	if not era_open(engine, faction_id, era_of(engine, tech_id)):
 		return LOCKED
 	for req: String in engine.data.techs[tech_id].get("requires", []):
@@ -77,12 +79,30 @@ static func lock_reason(engine: GalaxyEngine, faction_id: String, tech_id: Strin
 static func available(engine: GalaxyEngine, faction_id: String) -> Array[String]:
 	var out: Array[String] = []
 	for tech_id: String in engine.data.techs:
-		if status(engine, faction_id, tech_id) == AVAILABLE:
+		if offered(engine, tech_id) and status(engine, faction_id, tech_id) == AVAILABLE:
 			out.append(tech_id)
 	return out
 
 
-## Research points a tech costs: its base cost times its era's multiplier.
+## Whether the campaign has this tech at all: a tech with a "scale" (e.g. "system": Hyperdrive, the
+## end of Act 1) only exists in campaigns of that scale.
+static func offered(engine: GalaxyEngine, tech_id: String) -> bool:
+	var tech_scale: String = engine.data.techs.get(tech_id, {}).get("scale", "")
+	return tech_scale.is_empty() or tech_scale == engine.scale()
+
+
+## The campaign's techs (every tech it offers), in data order.
+static func tech_ids(engine: GalaxyEngine) -> Array[String]:
+	var out: Array[String] = []
+	for tech_id: String in engine.data.techs:
+		if offered(engine, tech_id):
+			out.append(tech_id)
+	return out
+
+
+## Research points a tech costs: its base cost times its era's multiplier (and the campaign's
+## "research_cost_mul", which tunes the shared tree for a shorter or slower campaign).
 static func cost(engine: GalaxyEngine, tech_id: String) -> int:
 	var mul := float(engine.data.eras.get(str(era_of(engine, tech_id)), {}).get("cost_mul", 1.0))
+	mul *= float(engine.campaign.get("research_cost_mul", 1.0))
 	return roundi(float(engine.data.techs[tech_id].get("cost", 50)) * mul)

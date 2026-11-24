@@ -26,7 +26,8 @@ var pending_battle: Dictionary = {}
 var is_over := false
 ## Winning faction id; "" for a draw or while running.
 var winner := ""
-## Why the campaign ended: "elimination", "objective", "peace", "science", "score" or "max_turns" ("" while running).
+## Why the campaign ended: "elimination", "objective", "peace", "science", "score", "max_turns" or a tech
+## victory's reason (e.g. "act1"); "" while running.
 var victory_reason := ""
 
 var next_uid := 0
@@ -64,6 +65,9 @@ var peace_offers: Dictionary = {}
 var modifiers: Dictionary = {}
 ## faction id -> {"last": turn of its last event, "seen": {event id: turn}}.
 var event_log: Dictionary = {}
+## faction id -> {planet id: true}: bodies the faction has surveyed (a ship of theirs has been at or
+## next to it, or they hold it). Only campaigns with "survey": true hide unsurveyed bodies' traits.
+var surveyed: Dictionary = {}
 ## While non-empty, a faction has to answer a galactic event before anything else happens:
 ## {"faction", "event": id, "turn", "planet": system id or ""}
 var pending_event: Dictionary = {}

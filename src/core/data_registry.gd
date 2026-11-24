@@ -165,8 +165,8 @@ func validate() -> PackedStringArray:
 			if r.has("item") and not items.has(r["item"]):
 				_err("discovery '%s': unknown item '%s'" % [id, r["item"]])
 	for id: String in campaigns:
-		# Generated sectors: check what the generator makes from a couple of seeds.
-		if campaigns[id].has("generate"):
+		# Generated sectors (and generated home systems): check what the generator makes from a couple of seeds.
+		if campaigns[id].has("generate") or campaigns[id].has("system_generate"):
 			# Generating the big sector is slow and every registry load (tests
 			# make many) would repeat it: reuse the result for an identical template.
 			var key := str(hash(var_to_str(campaigns[id]))) + ":" + str(units.size()) + ":" + str(buildings.size())
@@ -176,7 +176,9 @@ func validate() -> PackedStringArray:
 				continue
 			var before := errors.size()
 			for test_seed in [1, 2]:
-				_validate_campaign("%s (seed %d)" % [id, test_seed], GalaxyGenerator.generate(self, campaigns[id], test_seed))
+				var generated := GalaxyGenerator.generate(self, campaigns[id], test_seed) if campaigns[id].has("generate") \
+						else SystemLayout.generate(self, campaigns[id], test_seed)
+				_validate_campaign("%s (seed %d)" % [id, test_seed], generated)
 			_generated_checks[key] = errors.slice(before)
 		else:
 			_validate_campaign(id, campaigns[id])
@@ -413,6 +415,18 @@ func _validate_campaign(id: String, def: Dictionary) -> void:
 			_err("%s: planet '%s' has unknown owner '%s'" % [owner, p.get("name", ""), p["owner"]])
 	if def.get("start", "owned") not in ["owned", "colony_ship"]:
 		_err("%s: start must be 'owned' or 'colony_ship'" % owner)
+	if def.get("scale", "galaxy") not in ["galaxy", "system"]:
+		_err("%s: scale must be 'galaxy' or 'system'" % owner)
+	var goal: String = def.get("victory", {}).get("tech", "")
+	if not goal.is_empty() and not techs.has(goal):
+		_err("%s: victory tech '%s' is unknown" % [owner, goal])
+	for d: Dictionary in def.get("discoveries", []):
+		if not discoveries.has(d.get("kind", "")):
+			_err("%s: unknown discovery '%s'" % [owner, d.get("kind", "")])
+	for p: Dictionary in def.get("planets", []):
+		for c: Dictionary in p.get("civilians", []):
+			if not units.has(c.get("unit", "")):
+				_err("%s: system '%s' has an unknown civilian unit '%s'" % [owner, p.get("name", ""), c.get("unit", "")])
 	for unit_id: String in def.get("start_ships", []):
 		if not units.has(unit_id):
 			_err("%s: unknown start ship '%s'" % [owner, unit_id])

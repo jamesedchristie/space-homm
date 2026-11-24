@@ -58,5 +58,13 @@
     "color": "#3d4a3a",
     "decoration": "crates",
     "cover": "half"
+  },
+  "glare": {
+    "name": "Stellar Glare",
+    "description": "Too close to the sun: searing plasma and blinding light. Impassable, blocks line of sight.",
+    "passable": false,
+    "blocks_sight": true,
+    "color": "#a0501a",
+    "decoration": "glare"
   }
 }

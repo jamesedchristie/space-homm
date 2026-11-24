@@ -26,5 +26,23 @@
     "description": "Impassable.",
     "passable": false,
     "color": "#05060a"
+  },
+  "star": {
+    "name": "Star",
+    "description": "The system's sun. Impassable: nothing flies through a star.",
+    "passable": false,
+    "color": "#ffb84a"
+  },
+  "corona": {
+    "name": "Corona",
+    "description": "Searing plasma close to the sun. Costs 3 movement; battles here are fought in its glare.",
+    "move_cost": 3,
+    "color": "#5a2c10"
+  },
+  "jump_point": {
+    "name": "Jump Point",
+    "description": "dormant until Hyperdrive. Once it wakes, ships can leave the system.",
+    "passable": false,
+    "color": "#0f3040"
   }
 }

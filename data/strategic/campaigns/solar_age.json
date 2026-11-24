@@ -1,0 +1,207 @@
+{
+  "id": "solar_age",
+  "name": "Solar Age",
+  "description": "Act 1 prototype: your home system at the dawn of your space age. Survey and settle the worlds around your sun, hold off separatists and alien scavengers, and research Hyperdrive.",
+  "scale": "system",
+  "max_turns": 150,
+  "events": true,
+  "survey": true,
+  "research_cost_mul": 0.55,
+  "victory": {
+    "tech": "hyperdrive",
+    "tech_reason": "act1",
+    "science": false,
+    "score": false,
+    "peace": false
+  },
+  "random": {
+    "planet_traits": 0.9
+  },
+  "briefing": "[b]Act 1: the Solar Age.[/b] Your people have just learned to live and work beyond their homeworld. The whole map is your home system: the sun at its heart, rocky inner worlds, your homeworld, marginal worlds a Colony Ship can settle, an asteroid belt, gas giants with icy moons and the cold outer dark.\n\n[b]Every body is claimed on its own.[/b] Fly a ship to a body (or next to it) to [b]survey[/b] it and see its traits. A [b]Colony Ship[/b] settles a habitable world; a [b]Constructor[/b] builds mining bases on rocks and belts, research stations on ice and gas, or a plain outpost. Click a body you hold, or select a ship parked on one and press [b]S[/b], to open it.\n\n[b]Not everyone wants your government.[/b] Separatists hold a fortified base out among the moons, and alien scavengers have made a lair in the outer system. Both send raiders to plunder your outposts while their bases stand; storming a base pays loot.\n\n[b]Goal:[/b] research [b]Hyperdrive[/b] (the last era of the tech tree) to wake the dormant jump points at the edge of the system and end Act 1. Lose everything and the campaign is over.\n\n[b]Controls[/b]: click a fleet, then a blue hex. [b]S[/b] open a body, [b]T[/b] tech tree, [b]E[/b] Empire, [b]H[/b] Heroes, [b]Space[/b] end turn, [b]Esc[/b] menu.",
+  "battle_max_rounds": 30,
+  "default_battle_map": "open_space",
+  "permadeath": false,
+  "inventory": {
+    "patrol": [
+      "frag_grenade"
+    ]
+  },
+  "relations": [
+    {
+      "factions": [
+        "separatists",
+        "scavengers"
+      ],
+      "status": "peace",
+      "opinion": 0
+    }
+  ],
+  "resources": {
+    "patrol": {
+      "credits": 120,
+      "alloys": 100
+    },
+    "separatists": {
+      "credits": 60,
+      "alloys": 40
+    },
+    "scavengers": {
+      "credits": 40,
+      "alloys": 40
+    }
+  },
+  "factions": [
+    {
+      "id": "patrol",
+      "name": "Terran Alliance",
+      "controller": "player",
+      "species": "human"
+    },
+    {
+      "id": "separatists",
+      "name": "Free Colonies Front",
+      "controller": "ai",
+      "role": "barbarian",
+      "species": "human",
+      "ai": {
+        "attack_ratio": 1.0,
+        "hunt_range": 7
+      },
+      "barbarian": {
+        "spawn_every": 7,
+        "max_fleets": 2,
+        "fleet": [
+          "interceptor",
+          "interceptor"
+        ],
+        "fleet_name": "Separatist Raiders",
+        "den_loot": {
+          "credits": 90,
+          "alloys": 50
+        }
+      }
+    },
+    {
+      "id": "scavengers",
+      "name": "Vrask Scavengers",
+      "controller": "ai",
+      "role": "barbarian",
+      "species": "kesh",
+      "ship_variant": "species",
+      "ai": {
+        "attack_ratio": 1.1,
+        "hunt_range": 6
+      },
+      "barbarian": {
+        "spawn_every": 9,
+        "max_fleets": 2,
+        "fleet": [
+          "interceptor"
+        ],
+        "fleet_name": "Scavenger Pack",
+        "den_loot": {
+          "credits": 70,
+          "alloys": 70
+        }
+      }
+    }
+  ],
+  "system_generate": {
+    "width": 25,
+    "height": 17,
+    "star": "yellow",
+    "star_name": "Sol",
+    "homeworld_name": "Terra",
+    "home_description": "Your homeworld: the cradle of your people and the heart of the young space age.",
+    "home_owner": "patrol",
+    "home_buildings": ["colony", "shipyard"],
+    "home_pop": 3,
+    "_orbits": "Bodies on circular orbits round the central star, inner to outer. radius is in hex widths from the star; type may be a list (one is picked); chance makes the orbit optional; moons are placed next to their planet; a belt is an arc of asteroid-belt terrain with belt bodies on it.",
+    "orbits": [
+      {"radius": 2.2, "type": ["volcanic", "barren"]},
+      {"radius": 3.3, "type": ["barren", "volcanic"]},
+      {"radius": 4.4, "type": "terran", "home": true, "moons": ["barren"]},
+      {"radius": 5.6, "type": ["desert", "arctic"]},
+      {"radius": 6.8, "belt": true, "arc": [0.45, 0.6], "belt_bodies": [2, 3]},
+      {"radius": 7.9, "type": ["arctic", "desert"], "chance": 0.6},
+      {"radius": 8.6, "type": "gas_giant", "moons": ["ice_moon", "ice_moon"], "moon_chance": 0.6},
+      {"radius": 10.2, "type": "gas_giant", "moons": ["ice_moon"], "chance": 0.75},
+      {"radius": 11.0, "type": "ice_moon", "dwarf": true}
+    ],
+    "jump_points": [2, 3],
+    "dens": [
+      {
+        "faction": "separatists",
+        "where": "moon",
+        "description": "Separatist stronghold: a fortified base dug into the ice.",
+        "buildings": ["outpost", "defense_platform", "defense_platform"]
+      },
+      {
+        "faction": "scavengers",
+        "where": "outermost",
+        "description": "Scavenger lair: alien salvage-ships nest in the wreckage here.",
+        "buildings": ["outpost", "defense_platform"]
+      }
+    ],
+    "discoveries": {
+      "count": [3, 4],
+      "kinds": ["derelict_probe", "comet", "old_station", "derelict_hulk"]
+    },
+    "fleets": [
+      {
+        "name": "Home Guard",
+        "owner": "patrol",
+        "at": "home",
+        "ships": [
+          {"unit": "frigate", "name": "Vigilant"},
+          {"unit": "interceptor", "name": "Kestrel"}
+        ]
+      },
+      {
+        "name": "Pioneer",
+        "owner": "patrol",
+        "at": "near_home",
+        "ships": [
+          {"unit": "colony_ship", "name": "Pioneer"}
+        ]
+      },
+      {
+        "name": "Separatist Raiders",
+        "owner": "separatists",
+        "at": "den",
+        "ships": [
+          {"unit": "interceptor", "name": "Defiance"},
+          {"unit": "interceptor", "name": "Liberty"}
+        ]
+      },
+      {
+        "name": "Scavenger Pack",
+        "owner": "scavengers",
+        "at": "den",
+        "ships": [
+          {"unit": "interceptor", "name": "Hrask"}
+        ]
+      }
+    ],
+    "civilians": [
+      {"unit": "constructor", "name": "Foreman", "owner": "patrol", "at": "home_moon"}
+    ],
+    "heroes": [
+      {
+        "id": "reyes",
+        "name": "Cmdr. Ana Reyes",
+        "class": "vanguard",
+        "owner": "patrol",
+        "fleet": "Home Guard",
+        "traits": ["veteran"],
+        "gear": {"weapon": "shotgun", "armor": "light_plating"},
+        "loyalty": 70
+      }
+    ],
+    "anomalies": [
+      {"id": "derelict", "name": "Derelict Station", "mission": "derelict_station", "where": "outer_moon"},
+      {"id": "wreck", "name": "Wreck Field", "mission": "wreck_ambush", "where": "outer_space", "chance": 0.6}
+    ],
+    "backdrop": {"a": "#14244a", "b": "#3a1f4a", "density": 0.45}
+  }
+}

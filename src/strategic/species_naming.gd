@@ -46,19 +46,28 @@ static func apply(def: Dictionary, faction_id: String, species_id: String, data:
 
 
 ## The container holding "fleets"/"heroes"/"planets" lists: the template's
-## "generate" block when there is one, else the definition itself.
+## "generate" (or "system_generate") block when there is one, else the definition itself.
 static func _lists(def: Dictionary, key: String) -> Array:
 	var out: Array = []
 	if def.has(key):
 		out.append(def[key])
-	if def.get("generate", {}).has(key):
-		out.append(def["generate"][key])
+	for block: String in ["generate", "system_generate"]:
+		if def.get(block, {}).has(key):
+			out.append(def[block][key])
 	return out
 
 
 static func _rename_home(def: Dictionary, faction_id: String, names: Dictionary) -> void:
 	var home_name: String = names.get("home", "")
 	if home_name.is_empty():
+		return
+	# A system-scale campaign (SystemLayout): the home star names the bodies, the homeworld is its own.
+	var system: Dictionary = def.get("system_generate", {})
+	if not system.is_empty() and system.get("home_owner", "") == faction_id:
+		system["star_name"] = names.get("home_star", home_name)
+		system["homeworld_name"] = names.get("homeworld", home_name)
+		if names.has("home_description"):
+			system["home_description"] = names["home_description"]
 		return
 	var homes: Dictionary = def.get("generate", {}).get("homes", {})
 	if homes.has(faction_id):

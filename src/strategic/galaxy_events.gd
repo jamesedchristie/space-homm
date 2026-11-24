@@ -74,3 +74,6 @@ const CIVILIANS_LOST := "civilians_lost"        # {planet, faction, ships: [name
 const SYSTEM_INVADED := "system_invaded"        # {planet, faction, previous_owner, fleet}: troops landed
 const BLOCKADE_STARTED := "blockade_started"    # {planet, faction, owner}
 const BLOCKADE_LIFTED := "blockade_lifted"      # {planet, faction}
+
+# System-scale campaigns (one star system on the map, every body its own Planet)
+const BODY_SURVEYED := "body_surveyed"          # {faction, planet, traits: [ids]}: a ship of the faction came close

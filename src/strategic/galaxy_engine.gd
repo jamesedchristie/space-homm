@@ -36,6 +36,8 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 	s.rng.seed = s.seed_value
 	if def.has("generate"):
 		def = GalaxyGenerator.generate(p_data, def, s.seed_value)
+	elif def.has("system_generate"):
+		def = SystemLayout.generate(p_data, def, s.seed_value)
 	engine.campaign = def
 	s.max_turns = int(def.get("max_turns", 200))
 	s.grid = HexGrid.from_map(def.get("map", {}), p_data.galaxy_terrain)
@@ -54,6 +56,8 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 			"species": f.get("species", ""),
 			## major: plays to win; barbarian: raids, never negotiates or wins; minor: a neutral power.
 			"role": f.get("role", "major"),
+			## Ship designs: "raider" (barbarians' default: salvaged ships), "species" (the species' own).
+			"ship_variant": f.get("ship_variant", "raider" if f.get("role", "") == "barbarian" else ""),
 		})
 		s.explored[f["id"]] = {}
 		var stock: Dictionary = def.get("resources", {}).get(f["id"], {})
@@ -65,6 +69,7 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 		s.opinions[f["id"]] = {}
 		s.modifiers[f["id"]] = []
 		s.event_log[f["id"]] = {"last": 0, "seen": {}}
+		s.surveyed[f["id"]] = {}
 		team += 1
 
 	for p_def: Dictionary in def.get("planets", []):
@@ -132,6 +137,12 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 		var d_id: String = d_def.get("id", s.make_uid("discovery"))
 		s.discoveries[d_id] = {"id": d_id, "kind": d_def["kind"], "cell": s.grid.cell_from_layout(_layout(d_def.get("at", [0, 0])))}
 	engine._roll_random_features(def.get("random", {}))
+	if engine.is_system_scale():
+		# Everyone can see their own sun: the star and its corona are charted from the start.
+		for c in s.grid.cells():
+			if s.grid.terrain_at(c) in ["star", "corona"]:
+				for f in s.factions:
+					s.explored[f["id"]][c] = true
 	s.permadeath = def.get("permadeath", false)
 	for r: Dictionary in def.get("relations", []):
 		var pair: Array = r["factions"]
@@ -168,7 +179,9 @@ func _roll_random_features(random: Dictionary) -> void:
 	var count := int(spec.get("count", 0))
 	if count <= 0:
 		return
-	var kinds: Array = spec.get("kinds", data.discoveries.keys())
+	# Kinds flagged "listed_only" (home-system finds) only appear where a campaign names them.
+	var kinds: Array = spec.get("kinds", data.discoveries.keys().filter(
+			func(k: String) -> bool: return not data.discoveries[k].get("listed_only", false)))
 	kinds.sort()
 	var min_d := int(spec.get("min_distance", 2))
 	var free: Array[Vector2i] = []
@@ -374,6 +387,31 @@ func visible_cells(faction_id: String) -> Dictionary:
 	return vis
 
 
+## "system" for a system-scale campaign (the hex map is one star system and every body is its own
+## Planet), else "galaxy".
+func scale() -> String:
+	return str(campaign.get("scale", "galaxy"))
+
+
+func is_system_scale() -> bool:
+	return scale() == "system"
+
+
+## Whether the faction has surveyed this body: always, in campaigns without surveys ("survey": true).
+func is_surveyed(faction_id: String, planet: Planet) -> bool:
+	if planet == null or not campaign.get("survey", false):
+		return true
+	return planet.owner == faction_id or state.surveyed.get(faction_id, {}).has(planet.id)
+
+
+## A body's traits as the faction knows them: none until the body is surveyed.
+func known_traits(faction_id: String, planet: Planet, b: Dictionary) -> Array[String]:
+	var out: Array[String] = []
+	if is_surveyed(faction_id, planet):
+		out.assign(b.get("traits", []))
+	return out
+
+
 ## Moves per turn: slowest ship, plus tech bonuses.
 func fleet_speed(fleet: Fleet) -> int:
 	return fleet.speed(data) + int(EmpireRules.modifier(self, fleet.owner, "fleet_speed"))
@@ -519,7 +557,13 @@ func pending_battle_scenario() -> Dictionary:
 	var defending_faction: String = defender.owner if defender != null else planet.owner
 	var defended_planet: Planet = planet if planet != null and planet.owner == defending_faction else null
 	var map_def: Dictionary = {}  # battles in a star system are fought inside it (SystemBattleMap)
-	if planet != null:
+	if is_system_scale():
+		# The map is one star system: fight where the ships are, among the bodies around them,
+		# the attacker coming in from the cell it attacked from (LocalBattleMap).
+		map_def = LocalBattleMap.build_for(self, cell, attacker.cell, defended_planet)
+		map_id = map_def["id"]
+		deployment = map_def["deployment"]
+	elif planet != null:
 		map_def = SystemBattleMap.build(data, planet, defended_planet != null)
 		map_id = map_def["id"]
 		deployment = map_def["deployment"]
@@ -570,8 +614,11 @@ func _battle_side(fleet: Fleet, faction_id: String, slots: Array, planet: Planet
 					"at": slots[units.size()], "ref": "platform:%s:%d" % [planet.id, i], "statuses": statuses})
 		if not defenses.is_empty():
 			names.append("%s defenses" % planet.name)
-	return {"team": faction["team"], "name": " + ".join(names), "controller": faction["controller"], "units": units,
+	var side := {"team": faction["team"], "name": " + ".join(names), "controller": faction["controller"], "units": units,
 			"species": faction.get("species", ""), "role": faction.get("role", "major")}
+	if faction.has("ship_variant"):
+		side["model_variant"] = Fleet.model_variant(faction)
+	return side
 
 
 ## Deterministic seed for the next battle (so campaigns replay exactly).
@@ -1310,6 +1357,10 @@ func _run_economy(faction_id: String) -> void:
 		r["known"].append(current)
 		r["current"] = ""
 		emit({"type": GalaxyEvents.TECH_RESEARCHED, "faction": faction_id, "tech": current})
+		# Tech victory ({"victory": {"tech": id}}): the first major power to research it wins.
+		if current == VictoryRules.tech_goal(self) and state.faction(faction_id).get("role", "major") == "major" \
+				and not state.is_over:
+			_finish(faction_id, VictoryRules.tech_reason(self))
 
 	_tick_jobs(faction_id)
 	for planet in state.planets_of(faction_id):
@@ -1455,7 +1506,8 @@ func _barbarian_spawns(faction_id: String) -> void:
 		fleet.id = state.make_uid("fleet")
 		fleet.owner = faction_id
 		fleet.cell = den.cell
-		fleet.name = "%s Raiders %d" % [den.name, state.next_uid]
+		var label: String = spec.get("fleet_name", "%s Raiders" % den.name)
+		fleet.name = "%s %d" % [label, state.next_uid]
 		for unit_id: String in spec.get("fleet", ["interceptor", "interceptor"]):
 			var def: Dictionary = data.units[unit_id]
 			fleet.ships.append({"uid": state.make_uid("ship"), "unit": unit_id,
@@ -1777,6 +1829,38 @@ func _reveal_around(fleet: Fleet) -> void:
 	var explored: Dictionary = state.explored[fleet.owner]
 	for c in state.grid.cells_within(fleet.cell, fleet_sensor(fleet)):
 		explored[c] = true
+	_update_survey(fleet.owner)
+
+
+## Surveys (campaigns with "survey": true): a major power learns a body's traits once one of its
+## ships has been at or next to it, or it holds the body or has ships working there.
+func _update_survey(only_faction: String = "") -> void:
+	if not campaign.get("survey", false):
+		return
+	for f in state.factions:
+		var fid: String = f["id"]
+		if (not only_faction.is_empty() and fid != only_faction) or f.get("role", "major") != "major" or state.is_eliminated(fid):
+			continue
+		var known: Dictionary = state.surveyed.get_or_add(fid, {})
+		var fleets := state.fleets_of(fid)
+		for p: Planet in state.planets.values():
+			if known.has(p.id):
+				continue
+			var seen := p.owner == fid
+			for fl in fleets:
+				if seen:
+					break
+				seen = state.grid.distance(fl.cell, p.cell) <= 1
+			for c in p.civilians:
+				seen = seen or c["owner"] == fid
+			if not seen:
+				continue
+			known[p.id] = true
+			if p.owner != fid:
+				var traits: Array = []
+				for b in p.bodies:
+					traits.append_array(b["traits"])
+				emit({"type": GalaxyEvents.BODY_SURVEYED, "faction": fid, "planet": p.id, "traits": traits})
 
 
 func _update_explored() -> void:
@@ -1784,6 +1868,7 @@ func _update_explored() -> void:
 		var explored: Dictionary = state.explored[f["id"]]
 		for c: Vector2i in visible_cells(f["id"]):
 			explored[c] = true
+	_update_survey()
 	_detect_contacts()
 
 
@@ -1846,6 +1931,11 @@ func _check_eliminations() -> void:
 					winner = f
 			_finish(winner, "objective")
 		elif remaining.is_empty():
+			_finish("", "elimination")
+		return
+	# A tech goal (Act 1: Hyperdrive) is the only way to win; losing everything ends it.
+	if not VictoryRules.tech_goal(self).is_empty():
+		if remaining.is_empty():
 			_finish("", "elimination")
 		return
 	if remaining.size() <= 1:

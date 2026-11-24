@@ -8,12 +8,44 @@ extends RefCounted
 ##   science:   complete the megaproject flagged "victory": "science" (the
 ##              Ascension Gate), which needs the final-era technology.
 ##   score:     at the turn limit the highest score wins.
+##   tech:      {"victory": {"tech": id, "tech_reason"?: "act1"}}: the first major power to research
+##              that tech wins (Solar Age: Hyperdrive ends Act 1). It replaces conquest: a lone
+##              major power doesn't win by default, it only loses by being eliminated.
 ##
 ## A campaign's "victory" block can switch kinds on or off ("science": false,
 ## "score": false, "peace": false). Scenarios with an "eliminate" objective
 ## default science and score to off, so they stay about their objective.
 
-const KINDS := ["conquest", "science", "score", "peace"]
+const KINDS := ["conquest", "science", "score", "peace", "tech"]
+
+
+## The tech whose discovery wins the campaign ("" if none).
+static func tech_goal(engine: GalaxyEngine) -> String:
+	return str(engine.campaign.get("victory", {}).get("tech", ""))
+
+
+## state.victory_reason for a tech victory.
+static func tech_reason(engine: GalaxyEngine) -> String:
+	return str(engine.campaign.get("victory", {}).get("tech_reason", "tech"))
+
+
+## 0..1 progress of a faction towards the tech goal: research points spent along its road
+## (every tech the goal needs, itself included) against their total cost.
+static func tech_progress(engine: GalaxyEngine, faction_id: String) -> float:
+	var goal := tech_goal(engine)
+	if goal.is_empty() or not engine.data.techs.has(goal):
+		return 0.0
+	var known := engine.state.known_techs(faction_id)
+	var total := 0.0
+	var have := 0.0
+	for t in tech_path(engine, goal):
+		var c := float(ResearchRules.cost(engine, t))
+		total += c
+		if t in known:
+			have += c
+		elif engine.state.research.get(faction_id, {}).get("current", "") == t:
+			have += minf(float(engine.state.research[faction_id].get("progress", 0)), c)
+	return have / maxf(total, 1.0)
 
 
 static func objective(engine: GalaxyEngine) -> String:
@@ -22,6 +54,8 @@ static func objective(engine: GalaxyEngine) -> String:
 
 static func enabled(engine: GalaxyEngine, kind: String) -> bool:
 	var block: Dictionary = engine.campaign.get("victory", {})
+	if kind == "tech":
+		return not tech_goal(engine).is_empty()
 	if block.has(kind):
 		return bool(block[kind])
 	if kind == "science" or kind == "score":
@@ -122,9 +156,27 @@ static func progress(engine: GalaxyEngine) -> Array[Dictionary]:
 	var alive := majors(engine)
 	var out: Array[Dictionary] = []
 
+	var goal := tech_goal(engine)
+	if not goal.is_empty():
+		var tech_name: String = engine.data.techs.get(goal, {}).get("name", goal)
+		var entry := {"id": "tech", "name": tech_name, "enabled": true, "rows": [], "leader": "",
+				"text": "Research %s to win. %s" % [tech_name, engine.data.techs.get(goal, {}).get("description", "")]}
+		var best_tech := -1.0
+		for id in alive:
+			var v := tech_progress(engine, id)
+			var path := tech_path(engine, goal)
+			var have := path.filter(func(t: String) -> bool: return t in s.known_techs(id)).size()
+			entry["rows"].append({"faction": id, "text": "%d of %d techs on the road to %s" % [have, path.size(), tech_name], "value": v})
+			if v > best_tech:
+				best_tech = v
+				entry["leader"] = id
+		out.append(entry)
+
 	var objective_id := objective(engine)
-	var conquest := {"id": "conquest", "name": "Conquest", "enabled": true, "rows": [], "leader": ""}
-	if objective_id.is_empty():
+	var conquest := {"id": "conquest", "name": "Conquest", "enabled": goal.is_empty(), "rows": [], "leader": ""}
+	if not goal.is_empty():
+		conquest["text"] = "Not how this campaign is won: hold on to something, or it ends in defeat."
+	elif objective_id.is_empty():
 		conquest["text"] = "Be the last major power standing."
 	else:
 		conquest["text"] = "Scenario objective: destroy %s." % s.faction(objective_id).get("name", objective_id)

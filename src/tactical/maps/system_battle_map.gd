@@ -335,8 +335,9 @@ static func _crescent(disc: Array[Vector2i], taken: Dictionary, west: Array, wid
 # --- Validation ---------------------------------------------------------------
 
 ## "" if the map is playable, else why not: slots inside the grid, free,
-## distinct; every passable cell reachable from the attacker's deployment.
-static func check(map_def: Dictionary, terrain_defs: Dictionary) -> String:
+## distinct; every passable cell reachable from the attacker's deployment; at
+## least `min_open` of the cells passable.
+static func check(map_def: Dictionary, terrain_defs: Dictionary, min_open: float = 0.7) -> String:
 	var grid := GridFactory.from_map(map_def, terrain_defs)
 	var slots: Array[Vector2i] = []
 	for side: String in ["west", "east"]:
@@ -366,6 +367,6 @@ static func check(map_def: Dictionary, terrain_defs: Dictionary) -> String:
 			passable += 1
 			if not seen.has(c):
 				return "cell %s is unreachable" % str(grid.layout_from_cell(c))
-	if float(passable) < 0.7 * float(grid.cells().size()):
+	if float(passable) < min_open * float(grid.cells().size()):
 		return "too little open space (%d of %d)" % [passable, grid.cells().size()]
 	return ""
