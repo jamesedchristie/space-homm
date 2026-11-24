@@ -29,6 +29,8 @@ extends RefCounted
 
 ## Hex steps kept between bodies of different groups (a planet and its moons are one group).
 const GAP := 3
+## Dens (and the outer mission site) keep at least this many steps from the homeworld.
+const DEN_HOME_DISTANCE := 8
 const ATTEMPTS := 60
 const ROMAN := ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV"]
 const MOON_LETTERS := ["a", "b", "c", "d"]
@@ -311,6 +313,8 @@ static func _assemble(data: DataRegistry, gen: Dictionary, out: Dictionary, grid
 			if p != home_def:
 				planets.append(p)
 
+	var home_cell := grid.cell_from_layout(Vector2i(int(home_def["at"][0]), int(home_def["at"][1]))) \
+			if not home_def.is_empty() else Vector2i(-999, -999)
 	# Dens: fortified bases of the hostile factions.
 	var dens: Dictionary = {}  # faction id -> planet def
 	var used: Dictionary = {}  # planet ids taken by a den or anomaly
@@ -319,7 +323,7 @@ static func _assemble(data: DataRegistry, gen: Dictionary, out: Dictionary, grid
 		for p: Dictionary in home_group["defs"]:
 			used[p["id"]] = true
 	for den: Dictionary in gen.get("dens", []):
-		var site := _den_site(grid, center, planets, den.get("where", "outermost"), used)
+		var site := _den_site(grid, center, planets, den.get("where", "outermost"), used, home_cell)
 		if site.is_empty():
 			continue
 		used[site["id"]] = true
@@ -395,9 +399,9 @@ static func _assemble(data: DataRegistry, gen: Dictionary, out: Dictionary, grid
 			continue
 		var at := Vector2i(-1, -1)
 		if a_def.get("where", "") == "outer_moon":
-			var site := _den_site(grid, center, planets, "moon", used)
+			var site := _den_site(grid, center, planets, "moon", used, home_cell)
 			if site.is_empty():
-				site = _den_site(grid, center, planets, "outermost", used)
+				site = _den_site(grid, center, planets, "outermost", used, home_cell)
 			if not site.is_empty():
 				used[site["id"]] = true
 				at = Vector2i(int(site["at"][0]), int(site["at"][1]))
@@ -459,29 +463,38 @@ static func _describe(data: DataRegistry, type: String, g: Dictionary) -> String
 	return ""
 
 
-## A planet def for a den or mission site: "moon" (a moon of the outermost gas giant), "belt" (a belt
-## body) or "outermost" (the farthest body). Skips `used` ids.
-static func _den_site(grid: HexGrid, center: Vector2i, planets: Array, where: String, used: Dictionary) -> Dictionary:
+## A planet def for a den or mission site: "moon" (a moon of a gas giant), "belt" (a belt body) or
+## "outermost" (any body), as far from the homeworld (and the sun) as possible and at least
+## DEN_HOME_DISTANCE steps from home when that can be had. Skips `used` ids.
+static func _den_site(grid: HexGrid, center: Vector2i, planets: Array, where: String, used: Dictionary,
+		home: Vector2i = Vector2i(-999, -999)) -> Dictionary:
 	var best: Dictionary = {}
-	var best_d := -1.0
-	for p: Dictionary in planets:
-		if used.has(p["id"]) or not p.get("owner", "").is_empty():
-			continue
-		var type: String = p["bodies"][0]["type"]
-		var ok := true
-		match where:
-			"moon":
-				ok = p.has("moon_of")
-			"belt":
-				ok = type == "asteroid_belt"
-		if not ok:
-			continue
-		var d := pixel_distance(grid, grid.cell_from_layout(Vector2i(int(p["at"][0]), int(p["at"][1]))), center)
-		if d > best_d:
-			best_d = d
-			best = p
+	var best_score := -1.0
+	for pass_index in 2:
+		for p: Dictionary in planets:
+			if used.has(p["id"]) or not p.get("owner", "").is_empty():
+				continue
+			var type: String = p["bodies"][0]["type"]
+			var ok := true
+			match where:
+				"moon":
+					ok = p.has("moon_of")
+				"belt":
+					ok = type == "asteroid_belt"
+			if not ok:
+				continue
+			var cell := grid.cell_from_layout(Vector2i(int(p["at"][0]), int(p["at"][1])))
+			var from_home := grid.distance(cell, home) if home.x != -999 else 0
+			if pass_index == 0 and home.x != -999 and from_home < DEN_HOME_DISTANCE:
+				continue
+			var score := float(from_home) + 0.5 * pixel_distance(grid, cell, center)
+			if score > best_score:
+				best_score = score
+				best = p
+		if not best.is_empty():
+			break
 	if best.is_empty() and where != "outermost":
-		return _den_site(grid, center, planets, "outermost", used)
+		return _den_site(grid, center, planets, "outermost", used, home)
 	return best
 
 
