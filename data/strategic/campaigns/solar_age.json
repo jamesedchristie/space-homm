@@ -17,7 +17,7 @@
   "random": {
     "planet_traits": 0.9
   },
-  "briefing": "[b]Act 1: the Solar Age.[/b] Your people have just learned to live and work beyond their homeworld. The whole map is your home system: the sun at its heart, rocky inner worlds, your homeworld, marginal worlds a Colony Ship can settle, an asteroid belt, gas giants with icy moons and the cold outer dark.\n\n[b]Every body is claimed on its own.[/b] Fly a ship to a body (or next to it) to [b]survey[/b] it and see its traits. A [b]Colony Ship[/b] settles a habitable world; a [b]Constructor[/b] builds mining bases on rocks and belts, research stations on ice and gas, or a plain outpost. Click a body you hold, or select a ship parked on one and press [b]S[/b], to open it.\n\n[b]Not everyone wants your government.[/b] Separatists hold a fortified base out among the moons, and alien scavengers have made a lair in the outer system. Both send raiders to plunder your outposts while their bases stand; storming a base pays loot.\n\n[b]Goal:[/b] research [b]Hyperdrive[/b] (the last era of the tech tree) to wake the dormant jump points at the edge of the system and end Act 1. Lose everything and the campaign is over.\n\n[b]Controls[/b]: click a fleet, then a blue hex. [b]S[/b] open a body, [b]T[/b] tech tree, [b]E[/b] Empire, [b]H[/b] Heroes, [b]Space[/b] end turn, [b]Esc[/b] menu.",
+  "briefing": "[b]Act 1: the Solar Age.[/b] Your people have just learned to live and work beyond their homeworld. The whole map is your home system: the sun at its heart, rocky inner worlds, your homeworld, marginal worlds a Colony Ship can settle, an asteroid belt, gas giants with icy moons and the cold outer dark. Somewhere out there are the dormant [b]jump points[/b] of someone who came before you.\n\n[b]Every body is claimed on its own.[/b] Fly a ship to a body (or next to it) to [b]survey[/b] it and see its traits and deposits. A [b]Colony Ship[/b] settles a habitable world; a [b]Constructor[/b] builds mining bases on rocks and belts, research stations on ice and gas, or a plain outpost. Click a body you hold, or select a ship parked on one and press [b]S[/b], to open it.\n\n[b]Not everyone wants your government.[/b] The [b]Free Colonies Front[/b] holds a fortified base out among the moons, and alien scavengers, the [b]Vrask[/b], have made a lair in the outer system. Their raiders rob your outposts of credits and strategic resources and knock the developments offline for a few turns; storm a base to take back what they hoarded.\n\n[b]Mission Control[/b] keeps your current [b]objective[/b] at the top of the list on the left (click it for the full briefing). The first one: chart the system.\n\n[b]Goal:[/b] research [b]Hyperdrive[/b] (the last era of the tech tree; it burns exotic matter and volatiles) to wake the jump points and end Act 1. Lose everything and the campaign is over.\n\n[b]Controls[/b]: click a fleet, then a blue hex. [b]S[/b] open a body, [b]T[/b] tech tree, [b]E[/b] Empire, [b]H[/b] Heroes, [b]Space[/b] end turn, [b]Esc[/b] menu.",
   "battle_max_rounds": 30,
   "default_battle_map": "open_space",
   "permadeath": false,
@@ -77,8 +77,16 @@
         "fleet_name": "Separatist Raiders",
         "den_loot": {
           "credits": 90,
-          "alloys": 50
-        }
+          "alloys": 50,
+          "rare_elements": 4
+        },
+        "plunder": {
+          "credits": 35,
+          "strategic_share": 0.2,
+          "strategic_max": 8,
+          "offline_turns": 4
+        },
+        "hoard": true
       },
       "leader": "separatist_commander"
     },
@@ -102,8 +110,16 @@
         "fleet_name": "Scavenger Pack",
         "den_loot": {
           "credits": 70,
-          "alloys": 70
-        }
+          "alloys": 70,
+          "volatiles": 6
+        },
+        "plunder": {
+          "credits": 25,
+          "strategic_share": 0.3,
+          "strategic_max": 10,
+          "offline_turns": 5
+        },
+        "hoard": true
       },
       "leader": "scavenger_chief"
     }
@@ -331,6 +347,194 @@
       "a": "#14244a",
       "b": "#3a1f4a",
       "density": 0.45
+    },
+    "story_anomalies": [
+      {
+        "id": "ice_cave",
+        "name": "Ice Cave Signal",
+        "mission": "ice_cave",
+        "story": "exotic_matter",
+        "where": "far",
+        "categories": [
+          "ice",
+          "rock"
+        ]
+      },
+      {
+        "id": "listening_post",
+        "name": "Front Listening Post",
+        "mission": "listening_post",
+        "story": "the_front_strikes",
+        "where": "near_den",
+        "faction": "separatists",
+        "moon": true
+      },
+      {
+        "id": "scavenger_nest",
+        "name": "Scavenger Nest",
+        "mission": "scavenger_nest",
+        "story": "strange_signals",
+        "where": "near_den",
+        "faction": "scavengers",
+        "categories": [
+          "belt",
+          "rock"
+        ]
+      }
+    ]
+  },
+  "story": {
+    "_steps": "Act 1 milestones (StoryRules): each starts when the previous one is done (and not before min_turn), shows its briefing, tracks its goal and pays its reward.",
+    "steps": [
+      {
+        "id": "chart_the_system",
+        "title": "Chart the System",
+        "objective": "Survey the bodies of the system",
+        "briefing": "[i]Mission Control, Terra:[/i] \"Congratulations, Commander. For the first time in history we have ships that can reach every world round our sun, and we know almost nothing about them. Fly out. Get close to every rock, moon and giant you can: our telescopes see where they are, only your sensors can tell us what they are made of.\"",
+        "hint": "Move a warship next to a body to survey it. Surveys reveal traits and strategic deposits.",
+        "done_text": "The survey teams' reports are pouring in: metals in the rocks, ice on the moons, gas in the giants. The academies are drowning in data.",
+        "goal": {
+          "type": "surveyed",
+          "n": 7
+        },
+        "reward": {
+          "research": 30,
+          "credits": 30
+        }
+      },
+      {
+        "id": "industry",
+        "title": "Industry Beyond the Homeworld",
+        "objective": "Hold bodies besides the homeworld",
+        "briefing": "[i]Ministry of Industry:[/i] \"Surveys don't pay for themselves. Put a Constructor to work: a mining base on a rich rock, an ice mine on a moon, a research station on a giant. Or send the Colony Ship out to a world of its own. Every body we hold makes the next one cheaper to reach.\"",
+        "hint": "Click an idle Constructor in the list, then a body: it flies there and builds the best development for its deposits.",
+        "done_text": "The first ore freighters dock at Terra's orbital yards. The newsfeeds call it the start of the Solar Age. Not everyone on the new outposts is cheering.",
+        "goal": {
+          "type": "developed",
+          "n": 2
+        },
+        "reward": {
+          "alloys": 40,
+          "credits": 40,
+          "volatiles": 5
+        }
+      },
+      {
+        "id": "the_front_strikes",
+        "title": "The Front Strikes",
+        "objective": "Deal with the Free Colonies Front: win a battle against them, raid their listening post or storm their base",
+        "min_turn": 12,
+        "briefing": "[i]Fleet Intelligence:[/i] \"Raiders have hit one of our outposts, and they're not pirates. The Free Colonies Front: colonists who say the outer worlds are being stripped for Terra's benefit, and who have found guns. Their ships are fast and light. They've also dug a listening post into an ice moon near their base: it reads every order we send. A commander with an away team could go in and shut it down.\"",
+        "hint": "Intercept the raiders with a warfleet, or take a commanded fleet to the Listening Post on the map.",
+        "done_text": "The Front has learned we bite back. Their manifestos still circulate on the outer bodies, but their raiders think twice now. And in the quiet that follows, the listening crews pick up something else.",
+        "on_start": [
+          {
+            "type": "raid",
+            "faction": "separatists",
+            "count": 1
+          }
+        ],
+        "goal": {
+          "type": "any",
+          "goals": [
+            {
+              "type": "flag",
+              "flag": "beat:separatists"
+            },
+            {
+              "type": "flag",
+              "flag": "mission:listening_post"
+            },
+            {
+              "type": "flag",
+              "flag": "den:separatists"
+            }
+          ]
+        },
+        "reward": {
+          "credits": 60,
+          "rare_elements": 4,
+          "xp": 40
+        }
+      },
+      {
+        "id": "strange_signals",
+        "title": "Strange Signals",
+        "objective": "Find the source of the outer signals: clear the Scavenger Nest, storm the Vrask lair or beat their packs twice",
+        "min_turn": 20,
+        "briefing": "[i]Deep Space Tracking:[/i] \"It isn't the Front. Clicks, chirps, structured, coming from a mining asteroid that's been dead for years. We've matched it to the raider packs that strip our outposts in the outer system: the Vrask. Aliens, Commander. Scavengers, living in our system, maybe for longer than we've been flying. They've hollowed out that asteroid into a nest, and our stolen cargo is in it.\"",
+        "hint": "A commanded fleet can enter the Scavenger Nest on the map. Scavenger packs steal strategic resources: their lair holds the hoard.",
+        "done_text": "The nest's records, scratched into hull plates, are star charts: our system, drawn by someone else. One body is circled again and again: an ice moon in the outer dark, where the Vrask never go.",
+        "goal": {
+          "type": "any",
+          "goals": [
+            {
+              "type": "flag",
+              "flag": "mission:scavenger_nest"
+            },
+            {
+              "type": "flag",
+              "flag": "den:scavengers"
+            },
+            {
+              "type": "flag",
+              "flag": "beat:scavengers",
+              "n": 2
+            }
+          ]
+        },
+        "reward": {
+          "research": 50,
+          "alloys": 40,
+          "xp": 40
+        }
+      },
+      {
+        "id": "exotic_matter",
+        "title": "Exotic Matter",
+        "objective": "Secure exotic matter: tap a deposit with Exotic Containment, recover it under the ice, or stock 8",
+        "briefing": "[i]Chief Scientist:[/i] \"The Hyperdrive theory works on paper and nowhere else: a jump needs exotic matter, and we have none. There's one deposit in the system, out in the contested dark: we need Exotic Physics to contain it. And there's the moon the Vrask avoid. Something under its ice is transmitting prime numbers, and the readings behind it are exotic matter. Refined.\"",
+        "hint": "Research Exotic Physics, then build Exotic Containment on the deposit. Or take a commanded fleet to the Ice Cave Signal.",
+        "done_text": "Violet light in a containment bottle: exotic matter, ours. The Hyperdrive team works in shifts round the clock now.",
+        "goal": {
+          "type": "any",
+          "goals": [
+            {
+              "type": "extracting",
+              "resource": "exotic_matter"
+            },
+            {
+              "type": "flag",
+              "flag": "mission:ice_cave"
+            },
+            {
+              "type": "stock",
+              "resource": "exotic_matter",
+              "n": 8
+            }
+          ]
+        },
+        "reward": {
+          "research": 60,
+          "volatiles": 10
+        }
+      },
+      {
+        "id": "hyperdrive",
+        "title": "Beyond the Sun",
+        "objective": "Research Hyperdrive (it burns 16 exotic matter and 30 volatiles)",
+        "briefing": "[i]Mission Control:[/i] \"Everything we have built leads here. Finish the Hyperdrive, fill its tanks, and the jump points at the edge of the system will wake for us. What waits on the other side, nobody knows.\"",
+        "hint": "Hyperdrive is in the last era of the tech tree. Keep the exotic matter and volatiles it needs in store.",
+        "done_text": "",
+        "goal": {
+          "type": "tech",
+          "tech": "hyperdrive"
+        }
+      }
+    ],
+    "ending": {
+      "title": "Act 1 complete: the Jump Points Stir",
+      "text": "The Hyperdrive core spins up in a cradle of violet light, and at the edge of the system the dormant jump points answer. Gates that have been dark since before your species learned to make fire open, one by one, onto stars no telescope has ever resolved.\n\nThe Front sends a single message: [i]Take us with you.[/i] The Vrask send none: their last pack is already gone, through the gates, ahead of you. Whoever built the vault under the ice left their marks on the far side too.\n\nThe Solar Age is over. The galaxy is waiting. [i](Act 2 arrives in a later update.)[/i]"
     }
   }
 }

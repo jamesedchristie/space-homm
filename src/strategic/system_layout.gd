@@ -22,6 +22,11 @@ extends RefCounted
 ##   "fleets": [fleet defs with "at": "home" | "near_home" | "den" (the owner's den)],
 ##   "civilians": [{"unit", "name", "owner", "at": "home" | "home_moon"}],
 ##   "heroes": [hero defs], "anomalies": [anomaly defs with "where": "outer_moon" | "outer_space", "chance"?],
+##   "story_anomalies": [{"id", "name", "mission", "story": step id, "where": "near_den" (with "faction": the
+##               body nearest that faction's den) | "far" (the body farthest from home), "moon"?: true (moons only),
+##               "categories"?: [body categories, in order of preference]}]: mission sites that appear when that story
+##               milestone starts (StoryRules). They are placed before the other anomalies, on free bodies that aren't
+##               habitable worlds (any such body if none fits), with their own RNG.
 ##   "backdrop": {...}
 ## }
 ## The output also carries "system": {"star", "name", "at", "orbits": [radii], "belt": {radius, from, to}}
@@ -392,6 +397,8 @@ static func _assemble(data: DataRegistry, gen: Dictionary, out: Dictionary, grid
 		target["civilians"] = list
 	out["heroes"] = (gen.get("heroes", []) as Array).duplicate(true)
 
+	# Story mission sites first (they need particular bodies, e.g. an ice moon), then the other anomalies.
+	out["story_anomalies"] = _story_sites(data, gen, grid, planets, used, dens, home_cell, seed_value)
 	# Anomalies (missions): on an outer moon, or out in the dark.
 	var anomalies: Array = []
 	var anomaly_cells: Dictionary = {}
@@ -523,6 +530,51 @@ static func _place_deposits(data: DataRegistry, grid: HexGrid, center: Vector2i,
 				break
 	if not best.is_empty():
 		_add_deposit(best["bodies"][0], exotic, 2)
+
+
+## Story mission sites (see the class comment), each on its own free body.
+static func _story_sites(data: DataRegistry, gen: Dictionary, grid: HexGrid, planets: Array, used: Dictionary,
+		dens: Dictionary, home_cell: Vector2i, seed_value: int) -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value * 6151 + 71
+	var out: Array = []
+	for a_def: Dictionary in gen.get("story_anomalies", []):
+		var den: Dictionary = dens.get(a_def.get("faction", ""), {})
+		var best: Dictionary = {}
+		var best_score := -INF
+		# "categories" in order of preference, then any free body that isn't a habitable world.
+		var passes: Array = (a_def.get("categories", []) as Array).duplicate()
+		passes.append("")
+		for wanted: String in passes:
+			for p: Dictionary in planets:
+				if used.has(p["id"]) or not p.get("owner", "").is_empty():
+					continue
+				if not wanted.is_empty() and a_def.get("moon", false) and not p.has("moon_of"):
+					continue
+				var category := str(data.body_types.get(p["bodies"][0]["type"], {}).get("category", ""))
+				if not wanted.is_empty() and category != wanted:
+					continue
+				if category == "habitable":
+					continue  # worlds are for colonies
+				var cell := _def_cell(grid, p)
+				var score := float(grid.distance(cell, home_cell)) + rng.randf() * 0.5
+				if a_def.get("where", "far") == "near_den" and not den.is_empty():
+					score = -float(grid.distance(cell, _def_cell(grid, den))) + 0.1 * score
+				if score > best_score:
+					best_score = score
+					best = p
+			if not best.is_empty():
+				break
+		if best.is_empty():
+			continue
+		used[best["id"]] = true
+		var site: Dictionary = a_def.duplicate(true)
+		for k in ["where", "faction", "moon", "categories"]:
+			site.erase(k)
+		site["at"] = (best["at"] as Array).duplicate()
+		site["body"] = best["id"]
+		out.append(site)
+	return out
 
 
 static func _def_cell(grid: HexGrid, p: Dictionary) -> Vector2i:

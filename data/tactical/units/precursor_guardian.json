@@ -1,0 +1,30 @@
+{
+  "id": "precursor_guardian",
+  "name": "Ancient Guardian",
+  "description": "A construct as tall as a shuttle, built by someone who walked this system before your species had fire.",
+  "tags": [
+    "drone"
+  ],
+  "stats": {
+    "max_hull": 140,
+    "max_shields": 55,
+    "armor": 4,
+    "initiative": 4,
+    "max_ap": 4,
+    "sight": 7
+  },
+  "abilities": [
+    "lattice_beam",
+    "seismic_slam"
+  ],
+  "visual": {
+    "placeholder": "drone",
+    "sprite": "",
+    "size": 1.6,
+    "model": "precursor_guardian"
+  },
+  "stat_names": {
+    "hull": "Lattice",
+    "shields": "Field"
+  }
+}

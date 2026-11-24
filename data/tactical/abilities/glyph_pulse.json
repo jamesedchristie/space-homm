@@ -1,0 +1,24 @@
+{
+  "id": "glyph_pulse",
+  "name": "Glyph Pulse",
+  "description": "A sentinel's lance of patterned light.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    6
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        9,
+        13
+      ],
+      "damage_type": "energy"
+    }
+  ],
+  "fx": "beam"
+}

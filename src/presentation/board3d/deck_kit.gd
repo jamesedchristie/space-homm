@@ -309,6 +309,9 @@ const PAINTS := {
 	"industrial": [Color(0.62, 0.36, 0.1), Color(0.55, 0.45, 0.12), Color(0.3, 0.3, 0.32), Color(0.42, 0.2, 0.12)],
 	"derelict": [Color(0.3, 0.34, 0.38), Color(0.42, 0.24, 0.16), Color(0.26, 0.32, 0.26), Color(0.4, 0.4, 0.42)],
 	"wreck": [Color(0.32, 0.3, 0.28), Color(0.45, 0.28, 0.16), Color(0.25, 0.27, 0.3)],
+	"ice": [Color(0.7, 0.8, 0.86), Color(0.36, 0.44, 0.5), Color(0.62, 0.2, 0.16), Color(0.5, 0.52, 0.55)],
+	"ruin": [Color(0.22, 0.24, 0.3), Color(0.3, 0.3, 0.36), Color(0.62, 0.52, 0.26)],
+	"nest": [Color(0.36, 0.26, 0.12), Color(0.28, 0.24, 0.16), Color(0.45, 0.3, 0.14)],
 }
 ## What a cover cell can hold, per theme (picked per cell, repeats weight the pick).
 const COVER := {
@@ -317,6 +320,9 @@ const COVER := {
 	"industrial": ["barrels", "ore", "pipes", "crates", "generator"],
 	"derelict": ["crates", "lockers", "console", "debris", "barrels"],
 	"wreck": ["debris", "debris", "crates", "barrels", "lockers"],
+	"ice": ["ice", "ice", "crates", "console", "barrels"],
+	"ruin": ["monolith", "monolith", "ice", "debris"],
+	"nest": ["resin", "resin", "debris", "crates"],
 }
 
 
@@ -353,6 +359,12 @@ func _cover(c: Vector2i) -> void:
 			_lockers(o, r, yaw, paints)
 		"debris":
 			_debris(o, r, paints)
+		"ice":
+			_ice(o, r)
+		"monolith":
+			_monolith(o, r, yaw)
+		"resin":
+			_resin(o, r, paints)
 
 
 ## A box turned by `yaw` around its centre (all six faces; sides a little darker).
@@ -559,6 +571,46 @@ func _debris(o: Vector3, r: RandomNumberGenerator, paints: Array) -> void:
 		var col: Color = (paints[r.randi() % paints.size()] as Color).darkened(r.randf_range(0.2, 0.5))
 		_obox(_metal if i % 2 == 0 else _plate, at, size, r.randf() * TAU, col)
 	_hcyl(_dark, o + Vector3(0, 0.35, 0), Vector3(cos(r.randf() * TAU), 0.25, sin(r.randf() * TAU)), 0.07, 1.3, Color(0.2, 0.19, 0.18))
+
+
+## Blocks of ice cut from the moon's crust: pale, tilted slabs.
+func _ice(o: Vector3, r: RandomNumberGenerator) -> void:
+	for i in r.randi_range(3, 5):
+		var size := Vector3(r.randf_range(0.25, 0.55), r.randf_range(0.25, 0.85), r.randf_range(0.2, 0.45))
+		var at := o + Vector3(r.randf_range(-0.4, 0.4), size.y * 0.45, r.randf_range(-0.4, 0.4))
+		var col := Color(0.62, 0.78, 0.9).lerp(Color(0.86, 0.94, 1.0), r.randf())
+		_obox(_plate, at, size, r.randf() * TAU, col)
+	if r.randf() < 0.4:
+		_obox(_cyan, o + Vector3(0, 0.02, 0), Vector3(0.9, 0.01, 0.9), 0.0, mood.accent2 * 0.35)
+
+
+## A pillar of the old builders: dark stone with a glowing glyph band and a gold cap.
+func _monolith(o: Vector3, r: RandomNumberGenerator, yaw: float) -> void:
+	var b := Basis(Vector3.UP, yaw)
+	var h := r.randf_range(0.8, 1.25)
+	var stone := Color(0.2, 0.22, 0.28).lightened(r.randf_range(0.0, 0.1))
+	_obox(_plate, o + Vector3(0, h / 2.0, 0), Vector3(0.42, h, 0.42), yaw, stone)
+	_obox(_metal, o + Vector3(0, h + 0.03, 0), Vector3(0.5, 0.06, 0.5), yaw, Color(0.62, 0.52, 0.26))
+	for side in [-1.0, 1.0]:
+		_obox(_cyan, o + b * Vector3(0, h * 0.55, side * 0.215), Vector3(0.08, h * 0.6, 0.012), yaw, mood.accent * 1.1)
+	# Fallen chips round the base.
+	for i in r.randi_range(1, 3):
+		_obox(_plate, o + Vector3(r.randf_range(-0.5, 0.5), 0.06, r.randf_range(-0.5, 0.5)), Vector3.ONE * r.randf_range(0.1, 0.18),
+				r.randf() * TAU, stone.darkened(0.2))
+
+
+## Vrask nest dressing: lumps of hardened resin with salvage pressed in and glowing egg sacs.
+func _resin(o: Vector3, r: RandomNumberGenerator, paints: Array) -> void:
+	for i in r.randi_range(3, 4):
+		var size := Vector3(r.randf_range(0.35, 0.7), r.randf_range(0.2, 0.55), r.randf_range(0.3, 0.6))
+		var at := o + Vector3(r.randf_range(-0.35, 0.35), size.y * 0.4, r.randf_range(-0.35, 0.35))
+		_obox(_plate, at, size, r.randf() * TAU, (paints[r.randi() % paints.size()] as Color).darkened(r.randf_range(0.0, 0.3)))
+	if r.randf() < 0.6:
+		_obox(_metal, o + Vector3(r.randf_range(-0.3, 0.3), 0.3, r.randf_range(-0.3, 0.3)), Vector3(0.5, 0.05, 0.3), r.randf() * TAU,
+				Color(0.5, 0.5, 0.52))
+	for i in r.randi_range(1, 3):
+		var at := o + Vector3(r.randf_range(-0.45, 0.45), 0.0, r.randf_range(-0.45, 0.45))
+		_cyl(_cyan, at, 0.09, 0.2, mood.accent * 0.8, 8)
 
 
 # --- Rooms, paint and lights (high quality) -------------------------------------

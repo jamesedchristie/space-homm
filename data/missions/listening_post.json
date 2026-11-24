@@ -1,0 +1,441 @@
+{
+  "id": "listening_post",
+  "name": "Separatist Listening Post",
+  "type": "ground",
+  "description": "The Free Colonies Front has dug a listening post into the ice of a moon, and every order your fleet sends passes through its dishes. Go in through the service airlock, reach the relay core, and decide what to do with what they know: copy it, burn it, or make them hear you.",
+  "map": "listening_post",
+  "squad_size": 4,
+  "marine_unit": "marine",
+  "duration": 2,
+  "max_rounds": 30,
+  "requires_hero": true,
+  "recommended_level": 1,
+  "enemy_name": "Free Colonies Front",
+  "enemies": [
+    {
+      "unit": "separatist_militia",
+      "name": "Hall Sentry",
+      "at": [
+        8,
+        5
+      ],
+      "group": "hall"
+    },
+    {
+      "unit": "separatist_militia",
+      "name": "Off-shift Rifleman",
+      "at": [
+        7,
+        1
+      ],
+      "group": "barracks"
+    },
+    {
+      "unit": "separatist_militia",
+      "name": "Off-shift Rifleman",
+      "at": [
+        8,
+        0
+      ],
+      "group": "barracks"
+    },
+    {
+      "unit": "sentry_drone",
+      "name": "Comms Drone",
+      "at": [
+        14,
+        1
+      ],
+      "group": "comms"
+    },
+    {
+      "unit": "separatist_militia",
+      "name": "Generator Tech",
+      "at": [
+        7,
+        9
+      ],
+      "group": "generator"
+    },
+    {
+      "unit": "separatist_officer",
+      "name": "Cell Leader Okafor",
+      "at": [
+        14,
+        5
+      ],
+      "group": "core"
+    },
+    {
+      "unit": "separatist_militia",
+      "name": "Core Guard",
+      "at": [
+        15,
+        6
+      ],
+      "group": "core"
+    }
+  ],
+  "objectives": [
+    {
+      "type": "reach_cells",
+      "cells": [
+        [
+          15,
+          4
+        ],
+        [
+          15,
+          5
+        ],
+        [
+          15,
+          6
+        ]
+      ],
+      "description": "Reach the relay core"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "airlock",
+      "cells": [
+        [
+          3,
+          4
+        ],
+        [
+          3,
+          5
+        ],
+        [
+          3,
+          6
+        ]
+      ],
+      "title": "Service Airlock",
+      "text": "Frost on the inner door, warm air beyond it. A hand-painted banner over the corridor: THE COLONIES ARE NOT YOUR MINES. Somewhere ahead a radio plays music from the homeworld."
+    },
+    {
+      "id": "rolls",
+      "cells": [
+        [
+          6,
+          2
+        ],
+        [
+          7,
+          2
+        ],
+        [
+          8,
+          2
+        ]
+      ],
+      "title": "Recruitment Rolls",
+      "text": "Bunks for twenty, and a slate of names pinned above them: miners, hydroponics techs, a teacher from the moon colony. Not soldiers. Colonists.",
+      "choices": [
+        {
+          "label": "Copy the rolls for Intelligence",
+          "text": "Names, home bodies, who recruited whom. Command will want this.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 20,
+              "intel": 1
+            }
+          ]
+        },
+        {
+          "label": "Leave them be",
+          "text": "You put the slate back. These are your people too. The squad notices.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 15,
+              "loyalty": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "alarm_grid",
+      "cells": [
+        [
+          12,
+          1
+        ],
+        [
+          12,
+          2
+        ],
+        [
+          13,
+          2
+        ]
+      ],
+      "title": "Alarm Grid",
+      "text": "The comms room's alarm loop runs through one junction box, and the box is open. One wrong wire and every siren in the post goes off.",
+      "choices": [
+        {
+          "label": "Splice the alarm loop",
+          "check": {
+            "skill": "tech",
+            "difficulty": 2
+          },
+          "text": "The sirens stay silent and the core's guards keep listening to music. You also pull their frequency tables.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 30,
+              "research": 20
+            }
+          ],
+          "fail_text": "A spark, a whoop, and red light everywhere. The core is ready for you, and someone is coming down the corridor.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 10
+            },
+            {
+              "type": "alarm",
+              "group": "core"
+            },
+            {
+              "type": "spawn",
+              "units": [
+                {
+                  "unit": "separatist_militia",
+                  "name": "Responder",
+                  "at": [
+                    9,
+                    5
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Leave it alone",
+          "text": "Not worth the risk.",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "relay",
+      "cells": [
+        [
+          13,
+          5
+        ],
+        [
+          14,
+          4
+        ],
+        [
+          14,
+          6
+        ]
+      ],
+      "title": "The Relay Core",
+      "text": "The dish array's heart: racks of receivers, every one of your fleet's orders for a year in a stack of crystal memory. A broadcast mic is still live.",
+      "choices": [
+        {
+          "label": "Copy everything",
+          "text": "The crystals copy in a minute and a half: frequencies, codes, the Front's own traffic. The guards hear the drives spin up.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 30,
+              "research": 40,
+              "intel": 1
+            },
+            {
+              "type": "alert",
+              "group": "core"
+            }
+          ]
+        },
+        {
+          "label": "Wreck the array",
+          "check": {
+            "skill": "tech",
+            "difficulty": 3
+          },
+          "text": "Thermite on the racks: the Front is deaf for months. In the scramble you find their strongbox.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 40,
+              "credits": 70,
+              "rare_elements": 3
+            }
+          ],
+          "fail_text": "The charge goes off early. The array is wrecked, and so is the corridor's silence.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 20,
+              "credits": 30
+            },
+            {
+              "type": "alert",
+              "group": "core"
+            },
+            {
+              "type": "effect",
+              "to": "unit",
+              "effect": {
+                "type": "damage",
+                "amount": 10,
+                "damage_type": "explosive"
+              }
+            }
+          ]
+        },
+        {
+          "label": "Take the mic: offer them amnesty",
+          "check": {
+            "skill": "command",
+            "difficulty": 3
+          },
+          "text": "Your voice on every speaker in the post. Some of them put down their rifles. The ones who don't are shaken, and your squad stands taller.",
+          "effects": [
+            {
+              "type": "reward",
+              "xp": 50,
+              "loyalty": 10
+            },
+            {
+              "type": "effect",
+              "to": "squad",
+              "effect": {
+                "type": "apply_status",
+                "status": "rallied",
+                "duration": 3
+              }
+            }
+          ],
+          "fail_text": "Laughter on the channel, then the core guards open fire.",
+          "fail_effects": [
+            {
+              "type": "reward",
+              "xp": 15
+            },
+            {
+              "type": "alert",
+              "team": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "patrol",
+      "round": 7,
+      "title": "Patrol Returns",
+      "text": "The outer airlock cycles behind you: a Front patrol back from the ice, and they have seen your boot prints.",
+      "effects": [
+        {
+          "type": "spawn",
+          "units": [
+            {
+              "unit": "separatist_militia",
+              "name": "Ice Patrol",
+              "at": [
+                1,
+                1
+              ]
+            },
+            {
+              "unit": "separatist_militia",
+              "name": "Ice Patrol",
+              "at": [
+                1,
+                9
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "rewards": {
+    "xp": 120,
+    "credits": 50,
+    "rare_elements": 3
+  },
+  "caches": {
+    "count": 2,
+    "title": "Supply Locker",
+    "loot": [
+      {
+        "weight": 3,
+        "text": "A strongbox of colonial scrip, still good at the homeworld's banks.",
+        "rewards": {
+          "credits": 40
+        }
+      },
+      {
+        "weight": 2,
+        "text": "Spare dish parts and alloy plate.",
+        "rewards": {
+          "alloys": 30
+        }
+      },
+      {
+        "weight": 2,
+        "text": "Sealed canisters of reactor ice.",
+        "rewards": {
+          "volatiles": 4
+        }
+      },
+      {
+        "weight": 2,
+        "text": "A Front field manual with annotated maps.",
+        "rewards": {
+          "intel": 1
+        }
+      },
+      {
+        "weight": 1,
+        "text": "A case of grenades.",
+        "rewards": {
+          "items": [
+            "frag_grenade"
+          ]
+        }
+      }
+    ]
+  },
+  "loot": [
+    {
+      "weight": 3,
+      "text": "The post's ore samples: someone was prospecting.",
+      "rewards": {
+        "rare_elements": 3
+      }
+    },
+    {
+      "weight": 2,
+      "text": "Their payroll, in your credits.",
+      "rewards": {
+        "credits": 80
+      }
+    },
+    {
+      "weight": 2,
+      "text": "Decoded traffic: the routes their raiders fly.",
+      "rewards": {
+        "intel": 1
+      }
+    }
+  ],
+  "on_failure": {
+    "mission": "derelict_rescue",
+    "name": "Front Holding Cells"
+  }
+}

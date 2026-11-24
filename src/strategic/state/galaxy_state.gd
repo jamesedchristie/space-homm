@@ -68,6 +68,9 @@ var event_log: Dictionary = {}
 ## faction id -> {planet id: true}: bodies the faction has surveyed (a ship of theirs has been at or
 ## next to it, or they hold it). Only campaigns with "survey": true hide unsurveyed bodies' traits.
 var surveyed: Dictionary = {}
+## faction id -> {"step", "active", "done": {step id: turn}, "flags": {key: count}, "revealed": {anomaly id: true}}:
+## where each major power is in the campaign's story (StoryRules).
+var story: Dictionary = {}
 ## While non-empty, a faction has to answer a galactic event before anything else happens:
 ## {"faction", "event": id, "turn", "planet": system id or ""}
 var pending_event: Dictionary = {}

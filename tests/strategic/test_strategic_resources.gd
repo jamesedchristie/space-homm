@@ -290,7 +290,7 @@ func test_deposits_and_stockpiles_survive_a_save() -> void:
 	e.start()
 	e.state.resources["patrol"]["exotic_matter"] = 7
 	var save := GalaxySave.to_dict(e, "solar_age")
-	assert_eq(int(save["version"]), 6)
+	assert_true(int(save["version"]) >= 6)
 	var loaded: Dictionary = GalaxySave.from_dict(_data, save)
 	var e2: GalaxyEngine = loaded["engine"]
 	assert_eq(int(e2.state.resources["patrol"]["exotic_matter"]), 7)

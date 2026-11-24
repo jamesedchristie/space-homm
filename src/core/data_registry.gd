@@ -407,6 +407,8 @@ func _validate_mission(id: String, def: Dictionary) -> void:
 
 func _validate_campaign(id: String, def: Dictionary) -> void:
 	var owner := "campaign '%s'" % id
+	if def.has("story"):
+		StoryRules.validate(self, owner, def)
 	var map_def: Dictionary = def.get("map", {})
 	if not map_def.has("width") or not map_def.has("height"):
 		_err("%s: map needs width and height" % owner)

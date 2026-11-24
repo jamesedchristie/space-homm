@@ -98,7 +98,7 @@ static func planet_yields(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 ## the faction's "body_bonus" tech effects; leave it empty for base output.
 static func body_yields(engine: GalaxyEngine, b: Dictionary, faction_id: String = "") -> Dictionary:
 	var out := {}
-	if b["buildings"].is_empty():
+	if b["buildings"].is_empty() or is_offline(engine, b):
 		return out
 	var extra_pop := maxi(pop(b) - 1, 0)
 	for building_id: String in b["buildings"]:
@@ -117,6 +117,17 @@ static func body_yields(engine: GalaxyEngine, b: Dictionary, faction_id: String 
 				_add(out, e.get("yields", {}))
 	_add(out, DepositRules.extraction(engine.data, b))  # strategic deposits its developments tap
 	return out
+
+
+## A development knocked offline (a raid, a mining accident) yields nothing until its
+## "offline_until" turn comes round.
+static func is_offline(engine: GalaxyEngine, b: Dictionary) -> bool:
+	return int(b.get("offline_until", 0)) > engine.state.turn_number
+
+
+## Turns until an offline development is back (0 when it works).
+static func offline_turns(engine: GalaxyEngine, b: Dictionary) -> int:
+	return maxi(int(b.get("offline_until", 0)) - engine.state.turn_number, 0)
 
 
 ## Whether a "body_bonus" tech effect covers body `b`: it must match one of

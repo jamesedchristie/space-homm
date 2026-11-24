@@ -855,7 +855,9 @@ func resolve_pending_mission(battle: BattleEngine) -> Array[Dictionary]:
 			var roll := BattleEngine.roll_weighted(mission["loot"], state.rng)
 			rewards.append(roll.get("rewards", {}))
 			loot_text = roll.get("text", "")
-	var gains := {"credits": 0, "alloys": 0, "research": 0, "intel": 0}
+	var gains := {"research": 0, "intel": 0}
+	for k in DepositRules.stockpiled(data):
+		gains[k] = 0
 	for r in rewards:
 		for k: String in gains:
 			gains[k] += int(r.get(k, 0))
@@ -896,8 +898,11 @@ func resolve_pending_mission(battle: BattleEngine) -> Array[Dictionary]:
 	for item_id in items:
 		state.inventory[faction_id].append(item_id)
 	var stock: Dictionary = state.resources[faction_id]
-	stock["credits"] = int(stock["credits"]) + gains["credits"]
-	stock["alloys"] = int(stock["alloys"]) + gains["alloys"]
+	var strategic := {}
+	for k in DepositRules.stockpiled(data):
+		stock[k] = int(stock.get(k, 0)) + int(gains[k])
+		if int(gains[k]) != 0 and DepositRules.is_strategic(data, k):
+			strategic[k] = int(gains[k])
 	state.research[faction_id]["progress"] = int(state.research[faction_id]["progress"]) + gains["research"]
 	var revealed := _reveal_enemy_planets(faction_id, gains["intel"])
 	fleet.moves_left = 0
@@ -905,7 +910,7 @@ func resolve_pending_mission(battle: BattleEngine) -> Array[Dictionary]:
 	emit({"type": GalaxyEvents.MISSION_RESOLVED, "anomaly": anomaly["id"], "mission": mission["id"],
 			"fleet": fleet.id, "success": success, "heroes": outcomes, "xp": xp, "items": items,
 			"loyalty": loyalty, "traits": new_traits, "credits": gains["credits"], "alloys": gains["alloys"],
-			"research": gains["research"], "intel": revealed, "loot_text": loot_text})
+			"research": gains["research"], "strategic": strategic, "intel": revealed, "loot_text": loot_text})
 
 	if success:
 		if mission.get("rewards", {}).get("free_captives", false):
@@ -998,6 +1003,8 @@ func _do_equip(cmd: EquipItemCommand) -> void:
 			"previous": previous})
 
 func emit(event: Dictionary) -> void:
+	if StoryRules.enabled(self):
+		StoryRules.note(self, event)
 	_events.append(event)
 
 
@@ -1284,7 +1291,16 @@ func _capture_planet(planet: Planet, fleet: Fleet) -> void:
 		if not previous.is_empty():
 			_plunder(planet, fleet)
 		return  # nothing to take from an unclaimed system
-	var loot: Dictionary = state.faction(previous).get("barbarian", {}).get("den_loot", {}) if not previous.is_empty() else {}
+	var loot: Dictionary = state.faction(previous).get("barbarian", {}).get("den_loot", {}).duplicate() if not previous.is_empty() else {}
+	if not loot.is_empty() and state.faction(previous).get("barbarian", {}).get("hoard", false):
+		# Their stolen goods are stored at their bases: this one's share comes back with it.
+		var bases := state.planets_of(previous).size()
+		var hoard: Dictionary = state.resources[previous]
+		for k in DepositRules.stockpiled(data):
+			var share := int(hoard.get(k, 0)) / maxi(bases, 1)
+			if share > 0:
+				hoard[k] = int(hoard[k]) - share
+				loot[k] = int(loot.get(k, 0)) + share
 	if not loot.is_empty():
 		var stock: Dictionary = state.resources[fleet.owner]
 		for k in DepositRules.stockpiled(data):
@@ -1531,18 +1547,51 @@ func _do_resolve_event(cmd: ResolveEventCommand) -> void:
 ## its owner, one building wrecked, a pop lost, the build queue lost) and move on. The system
 ## stays with its owner, unless nothing is left standing (an outpost whose only development
 ## was wrecked becomes unclaimed again).
+##
+## A barbarian with a "plunder" spec raids Planetarion-style instead:
+##   {"credits": n (most stolen, default 40), "strategic_share": 0..1 of each strategic stockpile
+##    (at least 1 while there is any), "strategic_max": n per resource, "offline_turns": n}
+## Credits and strategic resources go into the raiders' hoard; the raided development is knocked
+## offline for "offline_turns" turns (no yields, no extraction). Only a development raided again
+## while still offline is wrecked. Colonies lose a pop and their build queue, no buildings.
 func _plunder(planet: Planet, fleet: Fleet) -> void:
 	var previous := planet.owner
+	var spec: Dictionary = state.faction(fleet.owner).get("barbarian", {}).get("plunder", {})
 	var stolen := 0
+	var taken := {}
 	if not previous.is_empty():
 		var stock: Dictionary = state.resources[previous]
-		stolen = mini(int(stock.get("credits", 0)), 40)
+		var hoard: Dictionary = state.resources[fleet.owner]
+		stolen = mini(maxi(int(stock.get("credits", 0)), 0), int(spec.get("credits", 40)))
 		stock["credits"] = int(stock["credits"]) - stolen
-		state.resources[fleet.owner]["credits"] = int(state.resources[fleet.owner].get("credits", 0)) + stolen
+		hoard["credits"] = int(hoard.get("credits", 0)) + stolen
+		var share := float(spec.get("strategic_share", 0.0))
+		if share > 0.0:
+			for k in DepositRules.strategic(data):
+				var have := int(stock.get(k, 0))
+				if have <= 0:
+					continue
+				var n := mini(maxi(ceili(have * share), 1), int(spec.get("strategic_max", have)))
+				stock[k] = have - n
+				hoard[k] = int(hoard.get(k, 0)) + n
+				taken[k] = n
 	var wrecked := ""
-	for b_id: String in planet.buildings:
-		if b_id != "colony":
-			wrecked = b_id
+	var offline := 0
+	if spec.is_empty():
+		for b_id: String in planet.buildings:
+			if b_id != "colony":
+				wrecked = b_id
+	else:
+		for b in planet.bodies:
+			if b["buildings"].is_empty() or "colony" in b["buildings"]:
+				continue
+			if EmpireRules.is_offline(self, b):
+				wrecked = b["buildings"][b["buildings"].size() - 1]  # hit again while down: wrecked for good
+				b.erase("offline_until")
+			else:
+				offline = int(spec.get("offline_turns", 3))
+				b["offline_until"] = state.turn_number + offline
+			break
 	if not wrecked.is_empty():
 		planet.remove_building(wrecked)
 	planet.queue = {}
@@ -1555,7 +1604,7 @@ func _plunder(planet: Planet, fleet: Fleet) -> void:
 		_evacuate_heroes(planet, previous)
 	DiplomacyRules.change_opinion(state, previous, fleet.owner, DiplomacyRules.PLANET_TAKEN_OPINION)
 	emit({"type": GalaxyEvents.SYSTEM_PLUNDERED, "planet": planet.id, "faction": fleet.owner, "previous_owner": previous,
-			"credits": stolen, "building": wrecked, "razed": razed})
+			"credits": stolen, "stolen": taken, "building": wrecked, "offline": offline, "razed": razed})
 	_update_explored()
 	_check_eliminations()
 
@@ -2188,6 +2237,8 @@ func _finish(winner: String, reason: String) -> void:
 
 
 func _flush() -> Array[Dictionary]:
+	if StoryRules.enabled(self):
+		StoryRules.update(self)
 	var out := _events
 	_events = []
 	return out

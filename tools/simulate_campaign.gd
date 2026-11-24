@@ -90,8 +90,17 @@ func _initialize() -> void:
 						if DepositRules.is_tapped(data, b, k):
 							strategic[k][2] += 1
 				strat.append("%s%d%+d" % [k.substr(0, 1), stock, int(income.get(k, 0))])
-			line.append("%s t%d p%d s%d c%+d %s" % [id, engine.state.known_techs(id).size(), EmpireRules.total_population(engine, id),
-					engine.state.planets_of(id).size(), int(income["credits"]), " ".join(strat)])
+			var story := ""
+			if StoryRules.enabled(engine):
+				var done: Dictionary = StoryRules.state_of(engine, id)["done"]
+				var flags := PackedStringArray()
+				for k: String in StoryRules.state_of(engine, id)["flags"]:
+					if k.begins_with("mission:"):
+						flags.append(k.trim_prefix("mission:"))
+				story = " m%d@%s%s" % [done.size(), ",".join(done.values().map(func(t: Variant) -> String: return str(t))),
+						(" [" + ",".join(flags) + "]") if not flags.is_empty() else ""]
+			line.append("%s t%d p%d s%d c%+d %s%s" % [id, engine.state.known_techs(id).size(), EmpireRules.total_population(engine, id),
+					engine.state.planets_of(id).size(), int(income["credits"]), " ".join(strat), story])
 		if verbose:
 			print("  seed %2d: %-8s %-11s turn %3d | %s" % [first_seed + i, key, result["reason"], result["turns"], " | ".join(line)])
 
@@ -117,6 +126,10 @@ func _initialize() -> void:
 			float(totals.get(GalaxyEvents.JOB_COMPLETED, 0)) / runs, float(totals.get(GalaxyEvents.BLOCKADE_STARTED, 0)) / runs,
 			float(totals.get(GalaxyEvents.SYSTEM_INVADED, 0)) / runs, float(totals.get(GalaxyEvents.PLANET_CAPTURED, 0)) / runs,
 			float(totals.get(GalaxyEvents.FLEET_DESTROYED, 0)) / runs])
+	if totals.has(GalaxyEvents.STORY_STEP_STARTED):
+		print("  story per run: %.1f milestones started, %.1f reached, %.1f mission sites revealed; %.1f raids on majors" % [
+				float(totals.get(GalaxyEvents.STORY_STEP_STARTED, 0)) / runs, float(totals.get(GalaxyEvents.STORY_STEP_COMPLETED, 0)) / runs,
+				float(totals.get(GalaxyEvents.ANOMALY_ADDED, 0)) / runs, float(totals.get(GalaxyEvents.SYSTEM_PLUNDERED, 0)) / runs])
 	print("  per run: %.1f events answered, %.1f pop growths, %.1f megaprojects completed, %.1f budget crises" % [
 			float(totals.get(GalaxyEvents.EVENT_RESOLVED, 0)) / runs, float(totals.get(GalaxyEvents.POP_GREW, 0)) / runs,
 			float(totals.get(GalaxyEvents.MEGAPROJECT_COMPLETED, 0)) / runs, float(totals.get(GalaxyEvents.BUDGET_CRISIS, 0)) / runs])

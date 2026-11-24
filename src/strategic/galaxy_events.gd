@@ -26,9 +26,10 @@ const HERO_KILLED := "hero_killed"              # {hero}
 const HERO_FREED := "hero_freed"                # {hero}
 const MISSION_OFFERED := "mission_offered"      # {anomaly, fleet, mission}
 const MISSION_DECLINED := "mission_declined"    # {anomaly, fleet}
-const MISSION_RESOLVED := "mission_resolved"    # {anomaly, mission, fleet, success, heroes: {id: outcome}, xp, items, loyalty, traits, credits, alloys, research, intel: [planet names], loot_text}
+const MISSION_RESOLVED := "mission_resolved"    # {anomaly, mission, fleet, success, heroes: {id: outcome}, xp, items, loyalty, traits, credits, alloys, research, strategic: {resource: n}, intel: [planet names], loot_text}
 const ANOMALY_CHANGED := "anomaly_changed"      # {anomaly, mission, name}
 const ANOMALY_REMOVED := "anomaly_removed"      # {anomaly}
+const ANOMALY_ADDED := "anomaly_added"          # {anomaly, name, mission, faction}: a story milestone put a new mission site on the map
 
 # Empire
 const INCOME := "income"                        # {faction, income: {credits, alloys, research}}
@@ -40,8 +41,8 @@ const BUILDING_COMPLETED := "building_completed"  # {planet, building}
 const SHIP_COMPLETED := "ship_completed"        # {planet, unit, fleet, ship}
 const FLEET_CREATED := "fleet_created"          # {fleet, planet}
 const FLEETS_MERGED := "fleets_merged"          # {fleet, into, name, into_name}: `fleet` joined `into` and is gone
-const SYSTEM_PLUNDERED := "system_plundered"    # {planet, faction, previous_owner, credits, building, razed}
-const DEN_CLEARED := "den_cleared"              # {planet, faction, loot: {credits, alloys}}
+const SYSTEM_PLUNDERED := "system_plundered"    # {planet, faction, previous_owner, credits, stolen: {strategic resource: n}, building, offline: turns, razed}
+const DEN_CLEARED := "den_cleared"              # {planet, faction, loot: {resource: n}} (den_loot plus the den's share of a "hoard")
 const DISCOVERY_FOUND := "discovery_found"      # {discovery, kind, name, fleet, faction, text, rewards}
 const FLEET_SPLIT := "fleet_split"              # {fleet, new_fleet, ships: [names]}
 const WAR_DECLARED := "war_declared"            # {faction, target}
@@ -80,3 +81,7 @@ const BLOCKADE_LIFTED := "blockade_lifted"      # {planet, faction}
 
 # System-scale campaigns (one star system on the map, every body its own Planet)
 const BODY_SURVEYED := "body_surveyed"          # {faction, planet, traits: [ids]}: a ship of the faction came close
+
+# Story arcs (campaign "story", see StoryRules)
+const STORY_STEP_STARTED := "story_step_started"      # {faction, step, index, first: bool}
+const STORY_STEP_COMPLETED := "story_step_completed"  # {faction, step, index, reward: [lines], next: step id or ""}

@@ -1,0 +1,37 @@
+{
+  "id": "vrask_broodmother",
+  "name": "Vrask Brood-Matron",
+  "description": "The matron of a scavenger nest: twice a warrior's size, armoured like a hull plate, and she screams.",
+  "tags": [
+    "infantry",
+    "rusher"
+  ],
+  "stats": {
+    "max_hull": 140,
+    "max_shields": 0,
+    "armor": 4,
+    "initiative": 5,
+    "max_ap": 5,
+    "sight": 7
+  },
+  "abilities": [
+    "vrask_talons",
+    "acid_spit",
+    "brood_screech"
+  ],
+  "visual": {
+    "placeholder": "boarder",
+    "sprite": "",
+    "size": 1.3,
+    "model": "vrask_matron"
+  },
+  "stat_names": {
+    "hull": "Carapace",
+    "shields": "Shields"
+  },
+  "aptitudes": {
+    "combat": 3,
+    "command": 2,
+    "tech": 0
+  }
+}

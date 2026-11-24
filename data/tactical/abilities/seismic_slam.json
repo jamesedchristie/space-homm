@@ -1,0 +1,31 @@
+{
+  "id": "seismic_slam",
+  "name": "Seismic Slam",
+  "description": "Both fists into the ice: damages every adjacent enemy, 50% chance to stun.",
+  "ap_cost": 2,
+  "cooldown": 2,
+  "target": "cell",
+  "range": [
+    0,
+    0
+  ],
+  "radius": 1,
+  "affects": "enemies",
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        16,
+        21
+      ],
+      "damage_type": "kinetic"
+    },
+    {
+      "type": "apply_status",
+      "status": "disabled",
+      "duration": 1,
+      "chance": 0.5
+    }
+  ],
+  "fx": "pulse"
+}

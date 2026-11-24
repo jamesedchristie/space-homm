@@ -1,0 +1,14 @@
+{
+  "id": "corroded",
+  "name": "Corroded",
+  "description": "Acid in the plating: -2 armour and +15% damage taken.",
+  "modifiers": {
+    "armor": {
+      "add": -2
+    },
+    "damage_taken": {
+      "mul": 1.15
+    }
+  },
+  "ai_value": -9
+}

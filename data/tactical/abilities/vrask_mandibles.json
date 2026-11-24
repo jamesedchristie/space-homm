@@ -1,0 +1,25 @@
+{
+  "id": "vrask_mandibles",
+  "name": "Mandibles",
+  "description": "A scavenger drone's shearing jaws. Adjacent enemies only; ignores cover.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    1
+  ],
+  "requires_los": true,
+  "melee": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        11,
+        15
+      ],
+      "damage_type": "kinetic"
+    }
+  ],
+  "fx": "melee"
+}

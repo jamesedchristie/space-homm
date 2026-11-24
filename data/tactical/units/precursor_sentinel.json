@@ -1,0 +1,29 @@
+{
+  "id": "precursor_sentinel",
+  "name": "Lattice Sentinel",
+  "description": "A floating crystal of the old builders. It has been waiting under the ice for a very long time.",
+  "tags": [
+    "drone"
+  ],
+  "stats": {
+    "max_hull": 28,
+    "max_shields": 32,
+    "armor": 1,
+    "initiative": 7,
+    "max_ap": 4,
+    "sight": 7
+  },
+  "abilities": [
+    "glyph_pulse"
+  ],
+  "visual": {
+    "placeholder": "drone",
+    "sprite": "",
+    "size": 0.65,
+    "model": "precursor_sentinel"
+  },
+  "stat_names": {
+    "hull": "Lattice",
+    "shields": "Field"
+  }
+}

@@ -21,7 +21,9 @@ const FORMAT := "space-homm-save"
 ## 5: system-scale campaigns: surveyed bodies per faction (older saves load with nothing surveyed).
 ## 6: strategic resources: deposits on bodies ({resource: richness}) and strategic stockpiles
 ## (version 5 saves load with no deposits and empty strategic stockpiles).
-const VERSION := 6
+## 7: story milestones per faction ("story"), developments knocked offline by raids ("offline_until" on
+## bodies). Version 6 saves load with the story at its start.
+const VERSION := 7
 const DIR := "user://saves"
 const AUTOSAVE := "autosave"
 const QUICKSAVE := "quicksave"
@@ -94,6 +96,7 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 			"pending_event": s.pending_event.duplicate(true),
 			"victory_reason": s.victory_reason,
 			"surveyed": s.surveyed.duplicate(true),
+			"story": s.story.duplicate(true),
 		},
 	}
 
@@ -212,6 +215,7 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 	s.pending_event = d.get("pending_event", {})
 	s.victory_reason = d.get("victory_reason", "")
 	s.surveyed = d.get("surveyed", {})
+	s.story = d.get("story", {})
 	for f: Dictionary in s.factions:
 		s.surveyed.get_or_add(f["id"], {})
 	# Typed arrays inside dictionaries come back untyped; the rules only read them.

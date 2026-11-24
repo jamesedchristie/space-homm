@@ -1,0 +1,29 @@
+{
+  "id": "acid_spit",
+  "name": "Acid Spit",
+  "description": "A gob of digestive acid: eats through plating (target corroded: -2 armour, +15% damage taken for 2 turns).",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    5
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        9,
+        12
+      ],
+      "damage_type": "energy"
+    },
+    {
+      "type": "apply_status",
+      "status": "corroded",
+      "duration": 2
+    }
+  ],
+  "fx": "projectile"
+}

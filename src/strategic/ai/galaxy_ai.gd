@@ -165,6 +165,25 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 			best = d
 			target = other.cell
 
+	# 1a. In a system-scale campaign the whole map is home: a visible enemy warfleet loitering next to one
+	# of our bodies (it pins our unarmed workers down) is hunted wherever it is, if we can beat it.
+	if target == null and engine.is_system_scale() and s.faction(fleet.owner).get("role", "major") == "major" \
+			and not fleet.has_workers(data):
+		var own := s.planets_of(fleet.owner)
+		var best_threat := 1 << 30
+		for other: Fleet in s.fleets.values():
+			if not s.at_war(fleet.owner, other.owner) or not vis.has(other.cell) or other.is_civilian_only(data) \
+					or not _near_any(s, other.cell, own, CIVILIAN_DANGER):
+				continue
+			var their := other.strength(data)
+			var at := s.planet_at(other.cell)
+			if at != null and at.owner == other.owner:
+				their += defense_strength(engine, at)
+			var d := s.grid.distance(fleet.cell, other.cell)
+			if my_strength >= their * attack_ratio and d < best_threat:
+				best_threat = d
+				target = other.cell
+
 	# 1b. A rival at war with us is building the Ascension Gate: everything that can goes there.
 	# Even without troops, a blockade stops the build.
 	if target == null and s.faction(fleet.owner).get("role", "major") == "major" and not fleet.has_workers(data):
@@ -1039,6 +1058,12 @@ func _effects_value(engine: GalaxyEngine, faction_id: String, effects: Array, pe
 		match fx["type"]:
 			"resources":
 				total += float(fx.get("credits", 0)) + float(fx.get("alloys", 0))
+				# Strategic resources are scarce: worth a few credits each, more while the goal needs them.
+				var need := strategic_need(engine, faction_id)
+				for k in DepositRules.strategic(engine.data):
+					total += float(fx.get(k, 0)) * 4.0 * float(need.get(k, 1.0))
+			"offline":
+				total -= 12.0 * int(fx.get("turns", 3))
 			"research":
 				total += float(fx.get("amount", 0)) * 1.2
 			"pop":

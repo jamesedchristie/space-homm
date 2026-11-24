@@ -1,0 +1,26 @@
+{
+  "id": "vrask_talons",
+  "name": "Talons",
+  "description": "Hooked forelimbs that pry armour plates apart. Adjacent enemies only; ignores cover and armour.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    1
+  ],
+  "requires_los": true,
+  "melee": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        17,
+        22
+      ],
+      "damage_type": "kinetic",
+      "ignore_armor": true
+    }
+  ],
+  "fx": "melee"
+}

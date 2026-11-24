@@ -10,9 +10,10 @@ extends RefCounted
 
 const CONDITIONS := ["has_colony", "growing_colony", "pop_min", "min_colonies", "turn_min", "turn_max",
 		"at_war", "at_war_major", "at_peace_minor", "barbarians", "has_building", "has_shipyard", "has_fleet",
-		"researching", "credits_min", "credits_max", "tech_known", "has_hero"]
+		"researching", "credits_min", "credits_max", "tech_known", "has_hero",
+		"scale", "story_step", "stock_min", "extracting", "faction_alive", "developed_min"]
 const EFFECTS := ["resources", "research", "pop", "damage_building", "free_building", "repair_fleets",
-		"damage_fleets", "opinion", "raiders", "free_ship", "free_hero", "modifier", "item"]
+		"damage_fleets", "opinion", "raiders", "free_ship", "free_hero", "modifier", "item", "offline"]
 const OPINION_TARGETS := ["minor", "random_major", "war_target", "all_majors"]
 const POP_TARGETS := ["context", "random", "all", "largest"]
 
@@ -59,6 +60,10 @@ static func _validate_conditions(data: DataRegistry, owner: String, conditions: 
 			data._err("%s: unknown building '%s'" % [owner, cond.get("building", "")])
 		elif cond["type"] == "tech_known" and not data.techs.has(cond.get("tech", "")):
 			data._err("%s: unknown tech '%s'" % [owner, cond.get("tech", "")])
+		elif cond["type"] in ["stock_min", "extracting"] and not DepositRules.stockpiled(data).has(cond.get("resource", "")):
+			data._err("%s: unknown resource '%s'" % [owner, cond.get("resource", "")])
+		elif cond["type"] == "scale" and cond.get("scale", "") not in ["galaxy", "system"]:
+			data._err("%s: scale must be 'galaxy' or 'system'" % owner)
 
 
 static func _validate_effect(data: DataRegistry, owner: String, fx: Dictionary) -> void:
@@ -155,6 +160,30 @@ static func condition_met(engine: GalaxyEngine, faction_id: String, cond: Dictio
 				if h.status != Hero.DEAD and h.status != Hero.CAPTURED:
 					return true
 			return false
+		"scale":
+			return engine.scale() == cond.get("scale", "galaxy")
+		"story_step":
+			# The faction has reached (started or finished) that milestone of the campaign's story.
+			var at := StoryRules.step_index(engine, cond.get("step", ""))
+			var st := StoryRules.state_of(engine, faction_id)
+			return at >= 0 and (int(st["step"]) > at or (int(st["step"]) == at and bool(st["active"])))
+		"stock_min":
+			return int(s.resources[faction_id].get(cond.get("resource", ""), 0)) >= int(cond.get("n", 1))
+		"extracting":
+			for p in s.planets_of(faction_id):
+				for b in p.bodies:
+					if DepositRules.is_tapped(engine.data, b, cond.get("resource", "")):
+						return true
+			return false
+		"faction_alive":
+			return s.faction(cond.get("faction", "")).has("id") and not s.is_eliminated(cond.get("faction", ""))
+		"developed_min":
+			# Bodies (or systems) with a development, the homeworld included.
+			var n := 0
+			for p in s.planets_of(faction_id):
+				if not p.buildings.is_empty():
+					n += 1
+			return n >= int(cond.get("n", 1))
 	return false
 
 
@@ -303,7 +332,7 @@ static func _apply_effect(engine: GalaxyEngine, faction_id: String, fx: Dictiona
 		"resources":
 			var parts := PackedStringArray()
 			var stock: Dictionary = s.resources[faction_id]
-			for k: String in ["credits", "alloys"]:
+			for k: String in DepositRules.stockpiled(engine.data):
 				if fx.has(k):
 					var delta := int(fx[k])
 					if delta < 0:
@@ -345,7 +374,9 @@ static func _apply_effect(engine: GalaxyEngine, faction_id: String, fx: Dictiona
 		"opinion":
 			return _apply_opinion(engine, faction_id, fx)
 		"raiders":
-			return _spawn_raiders(engine, faction_id, int(fx.get("count", 1)), planet_id)
+			return spawn_raiders(engine, faction_id, int(fx.get("count", 1)), planet_id, fx.get("faction", ""))
+		"offline":
+			return _offline(engine, faction_id, planet_id, int(fx.get("turns", 3)))
 		"free_ship":
 			return _free_ship(engine, faction_id, fx["unit"])
 		"free_hero":
@@ -446,12 +477,37 @@ static func _apply_opinion(engine: GalaxyEngine, faction_id: String, fx: Diction
 	return "%s opinion of you %+d" % [", ".join(names), amount]
 
 
-static func _spawn_raiders(engine: GalaxyEngine, faction_id: String, count: int, planet_id: String) -> String:
+## A development of the faction (the event's own body first) is knocked offline for `turns`
+## turns: it yields nothing until it is repaired (see EmpireRules.is_offline).
+static func _offline(engine: GalaxyEngine, faction_id: String, planet_id: String, turns: int) -> String:
+	var s := engine.state
+	var pool: Array = []  # [planet, body]
+	var local: Array = []
+	for p in s.planets_of(faction_id):
+		for b in p.bodies:
+			if b["buildings"].is_empty() or "colony" in b["buildings"] or EmpireRules.is_offline(engine, b):
+				continue
+			pool.append([p, b])
+			if p.id == planet_id:
+				local.append([p, b])
+	var from: Array = local if not local.is_empty() else pool
+	if from.is_empty():
+		return ""
+	var pick: Array = from[s.rng.randi() % from.size()]
+	(pick[1] as Dictionary)["offline_until"] = s.turn_number + turns
+	return "%s at %s offline for %d turns" % [engine.data.buildings[pick[1]["buildings"][0]]["name"], (pick[0] as Planet).name, turns]
+
+
+## Spawns `count` raider fleets of `raider_id` (default: the first barbarian faction still in the game)
+## a couple of cells from the faction's system `planet_id` (or its first system). Used by events and
+## story milestones.
+static func spawn_raiders(engine: GalaxyEngine, faction_id: String, count: int, planet_id: String, raider_id: String = "") -> String:
 	var s := engine.state
 	var barbarians := _barbarians(engine)
 	if barbarians.is_empty():
 		return ""
-	var raider_id: String = barbarians[0]
+	if raider_id.is_empty() or raider_id not in barbarians:
+		raider_id = barbarians[0]
 	var spec: Dictionary = s.faction(raider_id).get("barbarian", {})
 	var anchor: Planet = s.planets.get(planet_id)
 	if anchor == null:
@@ -468,7 +524,7 @@ static func _spawn_raiders(engine: GalaxyEngine, faction_id: String, count: int,
 		fleet.id = s.make_uid("fleet")
 		fleet.owner = raider_id
 		fleet.cell = cell
-		fleet.name = "Raiders %d" % s.next_uid
+		fleet.name = "%s %d" % [spec.get("fleet_name", "Raiders"), s.next_uid]
 		for unit_id: String in spec.get("fleet", ["interceptor", "interceptor"]):
 			var def: Dictionary = engine.data.units[unit_id]
 			fleet.ships.append({"uid": s.make_uid("ship"), "unit": unit_id,
@@ -476,7 +532,7 @@ static func _spawn_raiders(engine: GalaxyEngine, faction_id: String, count: int,
 		s.fleets[fleet.id] = fleet
 		engine.emit({"type": GalaxyEvents.FLEET_CREATED, "fleet": fleet.id, "planet": ""})
 		spawned += 1
-	return "A raider fleet appears near %s" % anchor.name if spawned > 0 else ""
+	return "A %s fleet appears near %s" % [s.faction(raider_id).get("name", "raider"), anchor.name] if spawned > 0 else ""
 
 
 ## A free, passable cell 2-3 systems from `from`, or (-1, -1).

@@ -1,0 +1,24 @@
+{
+  "id": "lattice_beam",
+  "name": "Lattice Beam",
+  "description": "The guardian's eye opens: a beam of ordered light that strips shields.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    7
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        13,
+        17
+      ],
+      "damage_type": "energy"
+    }
+  ],
+  "fx": "beam"
+}

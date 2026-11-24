@@ -236,6 +236,23 @@ func _build_victory(engine: GalaxyEngine, faction_id: String) -> void:
 	var list := _lists[3]
 	var s := engine.state
 	list.add_child(_text(UiKit.color_tag("Every way this campaign can be won, and how close each major power is. The first to meet a condition wins; you can still stop a rival's Ascension Gate by conquering the system it is built in.", Palette.TEXT_DIM)))
+	if StoryRules.enabled(engine):
+		# The campaign's story milestones (StoryRules): done, current, still to come.
+		var lines := PackedStringArray(["[b]Milestones[/b]"])
+		for m: Dictionary in StoryRules.overview(engine, faction_id):
+			var def: Dictionary = m["def"]
+			match m["state"]:
+				"done":
+					lines.append(UiKit.color_tag("✔ " + def.get("title", ""), Palette.GOOD))
+				"active":
+					lines.append(UiKit.color_tag("◆ %s: %s" % [def.get("title", ""), StoryRules.objective_text(engine, faction_id, def)], Palette.ACTIVE))
+				"waiting":
+					lines.append(UiKit.color_tag("◇ %s (soon)" % def.get("title", ""), Palette.TEXT_DIM))
+				_:
+					lines.append(UiKit.color_tag("○ ???", Palette.TEXT_DIM))
+		var story_card := UiKit.panel(Color(0.08, 0.1, 0.16, 0.95))
+		story_card.add_child(_text("\n".join(lines)))
+		list.add_child(story_card)
 	for entry: Dictionary in VictoryRules.progress(engine):
 		var card := UiKit.panel(Color(0.08, 0.1, 0.16, 0.95))
 		var box := VBoxContainer.new()

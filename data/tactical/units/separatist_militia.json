@@ -1,0 +1,36 @@
+{
+  "id": "separatist_militia",
+  "name": "Front Militia",
+  "description": "A Free Colonies Front volunteer: a colonist with a rifle, a cause and a grudge against the homeworld.",
+  "tags": [
+    "infantry"
+  ],
+  "stats": {
+    "max_hull": 38,
+    "max_shields": 12,
+    "armor": 1,
+    "initiative": 6,
+    "max_ap": 4,
+    "sight": 6
+  },
+  "abilities": [
+    "rifle_burst",
+    "combat_knife",
+    "overwatch"
+  ],
+  "visual": {
+    "placeholder": "boarder",
+    "sprite": "",
+    "size": 0.95,
+    "model": "separatist"
+  },
+  "stat_names": {
+    "hull": "Health",
+    "shields": "Shields"
+  },
+  "aptitudes": {
+    "combat": 1,
+    "command": 0,
+    "tech": 1
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "vrask_warrior",
+  "name": "Vrask Warrior",
+  "description": "A Vrask scavenger of the warrior caste: crested chitin, hooked talons and an acid gland.",
+  "tags": [
+    "infantry",
+    "rusher"
+  ],
+  "stats": {
+    "max_hull": 72,
+    "max_shields": 0,
+    "armor": 3,
+    "initiative": 6,
+    "max_ap": 5,
+    "sight": 6
+  },
+  "abilities": [
+    "vrask_talons",
+    "acid_spit"
+  ],
+  "visual": {
+    "placeholder": "boarder",
+    "sprite": "",
+    "size": 1.0,
+    "model": "vrask_warrior"
+  },
+  "stat_names": {
+    "hull": "Carapace",
+    "shields": "Shields"
+  },
+  "aptitudes": {
+    "combat": 2,
+    "command": 0,
+    "tech": 0
+  }
+}

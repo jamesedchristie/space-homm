@@ -1,0 +1,30 @@
+{
+  "id": "brood_screech",
+  "name": "Brood Screech",
+  "description": "A shriek that rattles bone: enemies within 2 take light damage and deal 40% less damage for a turn.",
+  "ap_cost": 2,
+  "cooldown": 3,
+  "target": "cell",
+  "range": [
+    0,
+    0
+  ],
+  "radius": 2,
+  "affects": "enemies",
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        4,
+        6
+      ],
+      "damage_type": "kinetic"
+    },
+    {
+      "type": "apply_status",
+      "status": "suppressed",
+      "duration": 1
+    }
+  ],
+  "fx": "pulse"
+}

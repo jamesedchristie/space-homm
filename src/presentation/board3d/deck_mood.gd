@@ -15,7 +15,8 @@ extends RefCounted
 ##     "flicker": 0.0,     0..1: share of ceiling lamps that stutter (failing power)
 ##     "fires": 0,         small fires burning on the deck (wrecks)
 ##     "grime": 0.4, "scorch": 0.0,   floor dirt; share of cells with blast scorch marks
-##     "props": "cargo"    cover dressing: cargo, lab, industrial, derelict, wreck
+##     "props": "cargo"    cover dressing: cargo, lab, industrial, derelict, wreck, ice (ice-cut posts),
+##                         ruin (precursor halls), nest (Vrask resin and egg sacs)
 ##   }
 
 var ambient := Color(0.24, 0.3, 0.42)

@@ -1,0 +1,14 @@
+{
+  "id": "attuned",
+  "name": "Attuned",
+  "description": "The ancient lattice hums with you: +20% damage dealt, 25% less damage taken.",
+  "modifiers": {
+    "damage_dealt": {
+      "mul": 1.2
+    },
+    "damage_taken": {
+      "mul": 0.75
+    }
+  },
+  "ai_value": 14
+}

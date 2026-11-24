@@ -1,0 +1,37 @@
+{
+  "id": "separatist_officer",
+  "name": "Front Officer",
+  "description": "A cell leader of the Front: former Alliance officer, still wearing the cut of the coat.",
+  "tags": [
+    "infantry"
+  ],
+  "stats": {
+    "max_hull": 55,
+    "max_shields": 18,
+    "armor": 1,
+    "initiative": 6,
+    "max_ap": 4,
+    "sight": 7
+  },
+  "abilities": [
+    "rifle_burst",
+    "suppress",
+    "throw_grenade",
+    "combat_knife"
+  ],
+  "visual": {
+    "placeholder": "boarder",
+    "sprite": "",
+    "size": 1.0,
+    "model": "separatist_officer"
+  },
+  "stat_names": {
+    "hull": "Health",
+    "shields": "Shields"
+  },
+  "aptitudes": {
+    "combat": 2,
+    "command": 2,
+    "tech": 1
+  }
+}

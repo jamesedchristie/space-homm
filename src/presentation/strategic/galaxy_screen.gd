@@ -55,6 +55,8 @@ var _busy := false
 var _queued_contacts: Array[String] = []
 ## Peace offers already presented ("from>to@turn").
 var _offers_shown: Dictionary = {}
+## Story milestones whose briefing the player has seen (StoryRules).
+var _story_shown: Dictionary = {}
 var _last_autosave_turn := -1
 ## Ships picked for detaching (D); while non-empty, clicks place the new fleet.
 var _split_ships: Array[String] = []
@@ -161,6 +163,7 @@ func _begin(new_engine: GalaxyEngine) -> int:
 	hud.diplomacy.visible = false
 	_queued_contacts.clear()
 	_offers_shown.clear()
+	_story_shown.clear()
 	hud.close_dialog()
 	ai = GalaxyAI.new()
 	engine = new_engine
@@ -634,6 +637,11 @@ func _play(events: Array[Dictionary], token: int) -> void:
 					board.float_text_at_fleet(hero.fleet_id, "Level up!", Palette.ACTIVE)
 			GalaxyEvents.ANOMALY_REMOVED, GalaxyEvents.ANOMALY_CHANGED:
 				_sync_views()
+			GalaxyEvents.ANOMALY_ADDED:
+				_sync_views()
+			GalaxyEvents.STORY_STEP_COMPLETED, GalaxyEvents.STORY_STEP_STARTED:
+				if e["faction"] == player_faction and not autoplay and not engine.state.is_over:
+					await _show_story(e)
 			GalaxyEvents.DISCOVERY_FOUND:
 				_sync_views()
 				if e["faction"] == player_faction:
@@ -668,6 +676,70 @@ func _play(events: Array[Dictionary], token: int) -> void:
 				_sync_views()
 				_game_over()
 	_sync_views()
+
+
+# --- Story ---------------------------------------------------------------------
+
+## A milestone of the campaign's story (StoryRules): the briefing when one starts, the debriefing
+## and reward (with the next briefing folded in) when one is done; "recall" re-opens the current one
+## from the attention list. The very first briefing is part of the campaign briefing, so it is skipped.
+func _show_story(e: Dictionary) -> void:
+	var list := StoryRules.steps(engine)
+	var i := int(e.get("index", -1))
+	if i < 0 or i >= list.size() or hud.is_dialog_open():
+		return
+	var kind: String = e.get("type", "")
+	var step: Dictionary = list[i]
+	var title: String = step.get("title", "")
+	var parts := PackedStringArray()
+	var brief: Dictionary = {}  # the milestone whose briefing to show
+	if kind == GalaxyEvents.STORY_STEP_STARTED:
+		if e.get("first", false) or _story_shown.has(step.get("id", "")):
+			return
+		brief = step
+	elif kind == GalaxyEvents.STORY_STEP_COMPLETED:
+		title = "Milestone: %s" % title
+		if not str(step.get("done_text", "")).is_empty():
+			parts.append(step["done_text"])
+		var gained: Array = e.get("reward", [])
+		if not gained.is_empty():
+			parts.append(UiKit.color_tag("Reward: " + ", ".join(gained), Palette.GOOD))
+		var upcoming := StoryRules.current(engine, player_faction)
+		if StoryRules.is_active(engine, player_faction) and upcoming.get("id", "") == e.get("next", ""):
+			brief = upcoming
+		if parts.is_empty() and brief.is_empty():
+			return
+	else:
+		brief = step  # re-opened from the attention list
+	if not brief.is_empty():
+		_story_shown[brief.get("id", "")] = true
+		if not parts.is_empty():
+			parts.append("")
+			parts.append("[b]Next: %s[/b]" % brief.get("title", ""))
+		parts.append(brief.get("briefing", ""))
+		parts.append("")
+		parts.append(UiKit.color_tag("Objective: ", Palette.ACTIVE) + StoryRules.objective_text(engine, player_faction, brief))
+		if not str(brief.get("hint", "")).is_empty():
+			parts.append(UiKit.color_tag(brief["hint"], Palette.TEXT_DIM))
+		if not brief.get("reward", {}).is_empty():
+			parts.append(UiKit.color_tag("Reward: " + _story_reward_text(brief["reward"]), Palette.TEXT_DIM))
+	hud.ask(title, "
+".join(parts), [{"id": "ok", "label": "Continue"}], Vector2(620, 440))
+	await hud.dialog_choice
+
+
+func _story_reward_text(r: Dictionary) -> String:
+	var out := PackedStringArray()
+	for k in DepositRules.stockpiled(data):
+		if r.has(k):
+			out.append("%d %s" % [int(r[k]), DepositRules.resource_name(data, k).to_lower()])
+	if r.has("research"):
+		out.append("%d research" % int(r["research"]))
+	if r.has("xp"):
+		out.append("%d XP for your heroes" % int(r["xp"]))
+	for item_id: String in r.get("items", []):
+		out.append(data.items.get(item_id, {}).get("name", item_id))
+	return ", ".join(out)
 
 
 # --- Diplomacy screens ---------------------------------------------------------
@@ -771,6 +843,11 @@ func _game_over() -> void:
 	for f in s.factions:
 		if not s.is_eliminated(f["id"]):
 			lines.append("%s: score %d" % [UiKit.color_tag(f["name"], Palette.team_color(f["team"])), EmpireRules.score(engine, f["id"])])
+	var ending: Dictionary = engine.campaign.get("story", {}).get("ending", {})
+	if not ending.is_empty() and s.winner == player_faction and s.victory_reason == VictoryRules.tech_reason(engine):
+		title = ending.get("title", title)
+		lines.insert(0, ending.get("text", ""))
+		lines.insert(1, "")
 	hud.ask(title, "\n".join(lines), [{"id": "new", "label": "New campaign"}, {"id": "menu", "label": "Main menu"}])
 	var token := _token
 	var choice: String = await hud.dialog_choice
@@ -846,6 +923,11 @@ func _refresh_attention(human: bool) -> void:
 		hud.set_attention(items)
 		return
 	var f := player_faction
+	if StoryRules.is_active(engine, f):
+		var step := StoryRules.current(engine, f)
+		items.append({"text": "◆ " + StoryRules.objective_text(engine, f, step), "color": Palette.ACTIVE,
+				"action": func() -> void: _show_story({"faction": f, "step": step.get("id", ""),
+						"index": StoryRules.step_index(engine, step.get("id", "")), "recall": true})})
 	if int(engine.state.resources[f]["credits"]) < 0:
 		items.append({"text": "In debt: no growth, no repairs, hull loss", "color": Palette.BAD, "action": _toggle_empire})
 	if String(engine.state.research[f]["current"]).is_empty():
@@ -1192,6 +1274,9 @@ func _mission_report(events: Array[Dictionary]) -> String:
 				for k in ["credits", "alloys"]:
 					if e.get(k, 0) != 0:
 						lines.append(UiKit.color_tag("+%d %s" % [e[k], k], Color(data.resources[k]["color"])))
+				for k: String in e.get("strategic", {}):
+					lines.append(UiKit.color_tag("+%d %s" % [int(e["strategic"][k]), DepositRules.resource_name(data, k).to_lower()],
+							Color(data.resources[k]["color"])))
 				if e.get("research", 0) != 0:
 					lines.append(UiKit.color_tag("+%d research progress" % e["research"], Color(data.resources["research"]["color"])))
 				if not e.get("intel", []).is_empty():
@@ -1271,6 +1356,9 @@ func _planet_info(planet: Planet) -> String:
 		text += "\n" + UiKit.color_tag("Defended by %d gun(s): attackers always have to fight them." % defenses, Palette.BAD)
 	if planet.is_blockaded():
 		text += "\n" + UiKit.color_tag("BLOCKADED by %s: no production, no growth." % engine.state.faction(planet.blockade)["name"], Palette.BAD)
+	for b in planet.bodies:
+		if EmpireRules.is_offline(engine, b):
+			text += "\n" + UiKit.color_tag("Raided: %s is offline for %d more turn(s) (no yields)." % [b["name"], EmpireRules.offline_turns(engine, b)], Palette.BAD)
 	var mine_here := planet.civilians.filter(func(c: Dictionary) -> bool: return c["owner"] == player_faction)
 	if not mine_here.is_empty():
 		text += "\n" + UiKit.color_tag("Your ships here: %s (open the system with S)" % ", ".join(mine_here.map(func(c: Dictionary) -> String: return c["name"])), Palette.GOOD)
@@ -1451,6 +1539,10 @@ func _describe(e: Dictionary) -> String:
 			var losses := PackedStringArray()
 			if int(e["credits"]) > 0:
 				losses.append("%d credits stolen" % e["credits"])
+			for k: String in e.get("stolen", {}):
+				losses.append("%d %s stolen" % [int(e["stolen"][k]), DepositRules.resource_name(data, k).to_lower()])
+			if int(e.get("offline", 0)) > 0:
+				losses.append("the development is offline for %d turns" % int(e["offline"]))
 			if not e["building"].is_empty():
 				losses.append("%s wrecked" % data.buildings[e["building"]]["name"])
 			if e.get("razed", true):
@@ -1496,6 +1588,20 @@ func _describe(e: Dictionary) -> String:
 			return UiKit.color_tag("   %s %s" % [hero.name, what[e["type"]]], Palette.ACTIVE)
 		GalaxyEvents.ANOMALY_CHANGED:
 			return UiKit.color_tag("New mission available: %s" % e["name"], Palette.BAD)
+		GalaxyEvents.ANOMALY_ADDED:
+			if e.get("faction", "") != player_faction:
+				return ""
+			return UiKit.color_tag("New mission site on the map: %s" % e["name"], Palette.ACTIVE)
+		GalaxyEvents.STORY_STEP_STARTED:
+			if e["faction"] != player_faction:
+				return ""
+			return UiKit.color_tag("[b]Objective:[/b] %s" % StoryRules.steps(engine)[e["index"]].get("title", ""), Palette.ACTIVE)
+		GalaxyEvents.STORY_STEP_COMPLETED:
+			if e["faction"] != player_faction:
+				return ""
+			var gained: Array = e.get("reward", [])
+			return UiKit.color_tag("[b]Milestone reached:[/b] %s%s" % [StoryRules.steps(engine)[e["index"]].get("title", ""),
+					(" (" + ", ".join(gained) + ")") if not gained.is_empty() else ""], Palette.GOOD)
 		GalaxyEvents.TECH_RESEARCHED:
 			if e["faction"] != player_faction:
 				return ""

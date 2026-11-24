@@ -74,5 +74,18 @@
     "abilities": [
       "field_medic"
     ]
+  },
+  "lattice_ward": {
+    "name": "Lattice Ward",
+    "slot": "armor",
+    "description": "A plate of precursor lattice from under the ice: +2 armor, +20 shields.",
+    "modifiers": {
+      "armor": {
+        "add": 2
+      },
+      "max_shields": {
+        "add": 20
+      }
+    }
   }
 }

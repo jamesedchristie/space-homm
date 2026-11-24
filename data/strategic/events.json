@@ -329,5 +329,128 @@
       {"label": "Seal it and survey", "hint": "+20 research.",
         "effects": [{"type": "research", "amount": 20}], "result": "The surveyors map the vault and leave it for later."}
     ]
+  },
+
+  "front_sympathisers": {
+    "name": "Front Sympathisers",
+    "weight": 3,
+    "min_turn": 10,
+    "conditions": [{"type": "scale", "scale": "system"}, {"type": "faction_alive", "faction": "separatists"}, {"type": "developed_min", "n": 3}],
+    "text": "Leaflets on {planet}'s concourses overnight: THE COLONIES ARE NOT YOUR MINES. The dock crews have stopped saluting the inspectors, and two shipments of ore went missing last week.",
+    "choices": [
+      {"label": "Arrest the organisers", "hint": "20 credits. 70%: the cell is broken up. Otherwise the Front sends raiders.", "cost": {"credits": 20}, "chance": 0.7,
+        "effects": [{"type": "resources", "credits": 25}], "result": "The organisers are in custody and the missing ore turns up in their lockers.", "fail_effects": [{"type": "raiders", "count": 1, "faction": "separatists"}], "fail_result": "The arrests are a rallying cry. A Front raider pack is already on its way."},
+      {"label": "Hear their grievances", "hint": "40 credits: a colonial charter (faster growth for 10 turns).", "cost": {"credits": 40},
+        "effects": [{"type": "modifier", "id": "colonial_charter", "name": "Colonial charter", "turns": 10, "effects": [{"type": "empire_modifier", "stat": "growth", "add": 0.25}]}], "result": "A charter of rights for the outer bodies. The leaflets stop; the colonists start having children again."},
+      {"label": "Ignore it", "hint": "50%: nothing comes of it. Otherwise sabotage.", "chance": 0.5,
+        "effects": [], "result": "The leaflets yellow on the walls. Nothing happens.", "fail_effects": [{"type": "offline", "turns": 4}], "fail_result": "Someone pours abrasive into a development's bearings. It will take four turns to fix."}
+    ]
+  },
+
+  "scavenger_trade": {
+    "name": "A Scavenger's Offer",
+    "weight": 2,
+    "min_turn": 8,
+    "conditions": [{"type": "scale", "scale": "system"}, {"type": "faction_alive", "faction": "scavengers"}],
+    "text": "A Vrask hauler drifts up to {planet} with its weapons cold and broadcasts in broken Terran: [i]HARD-METAL. YOU GIVE. WE GIVE SHINY-COLD.[/i] Its holds are full of ice. Whose ice, nobody wants to ask.",
+    "choices": [
+      {"label": "Trade alloys for ice", "hint": "30 alloys for 12 volatiles.", "cost": {"alloys": 30},
+        "effects": [{"type": "resources", "volatiles": 12}], "result": "The trade goes through with alien courtesy. The volatiles are good."},
+      {"label": "Ask for what glows", "hint": "60 credits. 70%: 3 exotic matter and the samples' data.", "cost": {"credits": 60}, "chance": 0.7,
+        "effects": [{"type": "resources", "exotic_matter": 3}, {"type": "research", "amount": 20}], "result": "A sealed canister of violet crystal changes hands. The labs go quiet when they open it.", "fail_effects": [], "fail_result": "The canister holds coloured glass. Somewhere, a Vrask is laughing."},
+      {"label": "Seize the hauler", "hint": "60%: its cargo is yours. Otherwise a scavenger pack answers and your fleets take hits.", "chance": 0.6,
+        "effects": [{"type": "resources", "alloys": 35, "volatiles": 8}], "result": "The hauler's crew flees in a pod. Its holds are yours.", "fail_effects": [{"type": "damage_fleets", "amount": 0.15}, {"type": "raiders", "count": 1, "faction": "scavengers"}], "fail_result": "The hauler fights back and screams for help. A pack answers."}
+    ]
+  },
+
+  "coronal_mass_ejection": {
+    "name": "Coronal Mass Ejection",
+    "weight": 2,
+    "min_turn": 6,
+    "conditions": [{"type": "scale", "scale": "system"}, {"type": "developed_min", "n": 2}],
+    "text": "The sun throws off a billion tonnes of plasma. It will cross the inner orbits in hours, and half of your outposts were built without storm cellars.",
+    "choices": [
+      {"label": "Power everything down", "hint": "One development goes offline for 2 turns. Safe.",
+        "effects": [{"type": "offline", "turns": 2}], "result": "The storm passes over dark stations. Two days of lost work, nothing broken."},
+      {"label": "Shield the fleet and stations", "hint": "35 credits.", "cost": {"credits": 35},
+        "effects": [], "result": "The shield generators scream for an hour, then the storm is gone. Nobody notices but the engineers."},
+      {"label": "Fly into it with instruments", "hint": "55%: +45 research. Otherwise the fleets are burned.", "chance": 0.55,
+        "effects": [{"type": "research", "amount": 45}], "result": "The first close readings of our own sun's fury. The physicists are giddy.", "fail_effects": [{"type": "damage_fleets", "amount": 0.2}], "fail_result": "The storm is stronger than the models. Every ship comes back scorched."}
+    ]
+  },
+
+  "mining_accident": {
+    "name": "Mining Accident",
+    "weight": 3,
+    "min_turn": 8,
+    "conditions": [{"type": "scale", "scale": "system"}, {"type": "has_building", "building": "mining_base"}],
+    "text": "A shaft collapses at one of your mining bases. Twelve miners are trapped below, the air scrubbers are failing, and the rescue rig is three days out.",
+    "choices": [
+      {"label": "Spare nothing for the rescue", "hint": "30 credits: the miners' trust (+10% alloys for 8 turns).", "cost": {"credits": 30},
+        "effects": [{"type": "modifier", "id": "miners_trust", "name": "Miners' trust", "turns": 8, "effects": [{"type": "yield", "resource": "alloys", "mul": 1.1}]}], "result": "All twelve walk out. The crews work double shifts for the people who came for them."},
+      {"label": "Seal the shaft, dig elsewhere", "hint": "A development is offline for 4 turns.",
+        "effects": [{"type": "offline", "turns": 4}], "result": "The base goes quiet for a memorial and a re-survey. Nobody on the outer bodies forgets it."},
+      {"label": "Send the robots", "hint": "20 alloys. 60%: they get everyone out and hit a rich seam.", "cost": {"alloys": 20}, "chance": 0.6,
+        "effects": [{"type": "resources", "rare_elements": 4, "alloys": 20}], "result": "The robots dig the miners out and find a seam of rare metals on the way.", "fail_effects": [{"type": "offline", "turns": 3}], "fail_result": "The robots bring down the rest of the shaft. Everyone is saved; the base is not."}
+    ]
+  },
+
+  "comet_flyby": {
+    "name": "Comet Flyby",
+    "weight": 3,
+    "min_turn": 5,
+    "conditions": [{"type": "scale", "scale": "system"}],
+    "text": "A long-period comet swings through the inner system for the first time in four thousand years: a mountain of dirty ice with a tail longer than the orbit of {planet}.",
+    "choices": [
+      {"label": "Send a tanker to skim the tail", "hint": "15 credits for 10 volatiles.", "cost": {"credits": 15},
+        "effects": [{"type": "resources", "volatiles": 10}], "result": "The tanker comes back heavy with fresh ice and helium-3."},
+      {"label": "Study its nucleus", "hint": "+30 research.",
+        "effects": [{"type": "research", "amount": 30}], "result": "Primordial ice, older than the planets. The data will keep the academies busy for years."},
+      {"label": "Mine it before it leaves", "hint": "30 alloys. 60%: 18 volatiles and 2 exotic matter. Otherwise the rig is lost.", "cost": {"alloys": 30}, "chance": 0.6,
+        "effects": [{"type": "resources", "volatiles": 18, "exotic_matter": 2}], "result": "A rig on the comet's back for a month. In its heart: ice, and a few grains of something violet.", "fail_effects": [], "fail_result": "The comet's jets tear the rig loose. It tumbles into the dark with the comet."}
+    ]
+  },
+
+  "brood_message": {
+    "name": "A Voice in the Static",
+    "weight": 4,
+    "conditions": [{"type": "scale", "scale": "system"}, {"type": "faction_alive", "faction": "scavengers"}, {"type": "story_step", "step": "strange_signals"}],
+    "text": "Every receiver in the system picks it up at once: clicks and chirps, then a voice stitched together from stolen broadcasts. [i]WE ARE BROOD OF HESK. WE WERE HERE FIRST. YOUR SHINY THINGS ARE OURS. THE COLD MOON IS NOT OURS. DO NOT WAKE IT.[/i]",
+    "choices": [
+      {"label": "Reply, and record everything", "hint": "+40 research: our first alien language.",
+        "effects": [{"type": "research", "amount": 40}], "result": "The linguists work for a week straight. The Vrask never answer again, but now we can read their markings."},
+      {"label": "Answer with the fleet's guns", "hint": "Your crews are steeled (+10% fleet repair in the field for 10 turns).",
+        "effects": [{"type": "modifier", "id": "steeled_crews", "name": "Steeled crews", "turns": 10, "effects": [{"type": "empire_modifier", "stat": "field_repair", "add": 0.1}]}], "result": "A broadcast of gun cameras and a single word: MINE. The crews cheer. The static goes quiet."},
+      {"label": "Jam it", "hint": "10 credits. Keep the public calm.", "cost": {"credits": 10},
+        "effects": [], "result": "Silence. The newsfeeds call it a solar artefact. Some people believe it."}
+    ]
+  },
+
+  "ice_echo": {
+    "name": "Echo Under the Ice",
+    "weight": 4,
+    "conditions": [{"type": "scale", "scale": "system"}, {"type": "story_step", "step": "exotic_matter"}],
+    "text": "The seismometers on the outer moons pick up a pulse, deep under the ice: regular as a clock, counting in primes. The exotic matter readings spike every time it beats.",
+    "choices": [
+      {"label": "Map the pulse", "hint": "+50 research.",
+        "effects": [{"type": "research", "amount": 50}], "result": "The pulse is an address, and the address is a vault. The survey teams want to go in."},
+      {"label": "Drill for the source", "hint": "40 credits. 50%: 4 exotic matter. Otherwise a development is shaken offline.", "cost": {"credits": 40}, "chance": 0.5,
+        "effects": [{"type": "resources", "exotic_matter": 4}], "result": "The drill comes up glowing violet.", "fail_effects": [{"type": "offline", "turns": 3}], "fail_result": "The ice answers the drill with a quake. Something on the surface breaks."}
+    ]
+  },
+
+  "front_defector": {
+    "name": "A Front Defector",
+    "weight": 3,
+    "conditions": [{"type": "scale", "scale": "system"}, {"type": "faction_alive", "faction": "separatists"}, {"type": "story_step", "step": "the_front_strikes"}],
+    "text": "A Front pilot surrenders at {planet} with her hands on her helmet and a shuttle full of stolen ore. She says she joined to free the colonies, not to rob them.",
+    "choices": [
+      {"label": "Grant her asylum", "hint": "Keep the ore: 5 rare elements and 25 credits.",
+        "effects": [{"type": "resources", "rare_elements": 5, "credits": 25}], "result": "She signs on as a freighter pilot. The ore goes into the smelters."},
+      {"label": "Send her back as our agent", "hint": "60%: +40 research from Front traffic. Otherwise they know, and they come.", "chance": 0.6,
+        "effects": [{"type": "research", "amount": 40}], "result": "For months, the Front's plans arrive on your desk a week before they happen.", "fail_effects": [{"type": "raiders", "count": 1, "faction": "separatists"}], "fail_result": "She is found out within a week. The Front wants revenge."},
+      {"label": "Hand her to the courts", "hint": "The rule of law (+10% credits for 8 turns).",
+        "effects": [{"type": "modifier", "id": "rule_of_law", "name": "Rule of law", "turns": 8, "effects": [{"type": "yield", "resource": "credits", "mul": 1.1}]}], "result": "A public trial. The inner worlds approve; the outer ones remember."}
+    ]
   }
 }

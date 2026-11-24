@@ -329,6 +329,8 @@ func _body_card(planet: Planet, b: Dictionary, ships: Array[Dictionary]) -> Cont
 			trait_lines.append("%s: %s" % [UiKit.color_tag(data.planet_traits[t]["name"], Palette.ACTIVE), data.planet_traits[t].get("description", "")])
 		_text(box, "\n".join(trait_lines), 12)
 	_text(box, deposit_lines(_engine, _viewer, planet, b), 12)
+	if EmpireRules.is_offline(_engine, b):
+		_text(box, UiKit.color_tag("Raided: offline for %d more turn(s), no yields or extraction." % EmpireRules.offline_turns(_engine, b), Palette.BAD), 12)
 	var built := PackedStringArray()
 	for building_id: String in b["buildings"]:
 		built.append(data.buildings[building_id]["name"])

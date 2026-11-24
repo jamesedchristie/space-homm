@@ -168,7 +168,7 @@ func _choose(e: GalaxyEngine, index: int) -> CommandResult:
 func test_events_content() -> void:
 	var data := DataRegistry.get_default()
 	assert_eq(data.errors.size(), 0, "\n".join(data.errors))
-	assert_true(data.events.size() >= 15 and data.events.size() <= 24, "%d events" % data.events.size())
+	assert_true(data.events.size() >= 15 and data.events.size() <= 40, "%d events" % data.events.size())
 	for id: String in data.events:
 		var def: Dictionary = data.events[id]
 		assert_true(def["choices"].size() >= 2 and def["choices"].size() <= 3, id)
