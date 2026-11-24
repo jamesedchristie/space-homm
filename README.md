@@ -143,7 +143,22 @@ map is one star system, generated from the seed.
   the worlds there become planet discs (impassable, they block line of sight), the sun's side is a wall of
   glare, the belt a band of asteroids and debris; you enter from the side you attacked from.
 
+- **Story.** Act 1 unfolds in milestones (first survey, first contact with each hostile, the exotic matter
+  find, ...) that bring events and three more squad missions: an **ice cave** under a frozen moon, a separatist
+  **listening post**, and the Vrask **scavenger nest**. Separatist militia and officers, Vrask drones, warriors
+  and broodmothers, and dormant precursor sentinels fight in them. The separatists are led by Marshal Idris
+  Kane, the Vrask by Skraa-Vel the Gnawer.
+
 Controls are the galaxy controls below; on this map **S** opens the body your selected ship is at.
+
+**Ship classes.** Warships come in three roles that counter each other like rock-paper-scissors:
+**strike craft** (interceptors, bombers) tear into **capital ships** (destroyers, cruisers, battleships),
+which crush **escorts** (corvettes, frigates, ion frigates), whose flak shreds strike craft. At equal cost the
+counter wins nearly every time, so a mixed fleet is safest. Specialists bend the rules: bombers torpedo
+stations, ion frigates scramble shields and systems. Build lists, the battle HUD and attack previews show each
+ship's role and what it is strong and weak against; the AI reads your fleets and builds the counter. Squads,
+heroes and drones have no class and are unaffected. Tables live in `data/tactical/roles.json`
+(`tools/simulate_battles.gd -- --matrix` prints the equal-cost win matrix).
 
 **Species.** Pick who you play on the New Campaign screen. All are humanoid; the differences
 are deliberately subtle:
