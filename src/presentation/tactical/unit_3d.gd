@@ -171,6 +171,29 @@ func setup(u: BattleUnit, data: DataRegistry, color: Color, style: String = "", 
 		_holders[i].visible = not _lost[i]
 
 
+## Station decks on the high-quality look: a soft team-tinted light over the
+## person (they stand out from the dark floor and pick up a team-coloured rim)
+## and a glowing team ring at their feet.
+func add_deck_light() -> void:
+	var lamp := OmniLight3D.new()
+	lamp.light_color = team_color.lerp(Color.WHITE, 0.55)
+	lamp.light_energy = 0.35
+	lamp.omni_range = 2.1
+	lamp.omni_attenuation = 1.4
+	lamp.light_specular = 0.6
+	lamp.light_volumetric_fog_energy = 0.0
+	lamp.position = Vector3(-0.35, 1.9, 0.25)
+	add_child(lamp)
+	for child in get_children():
+		var mi := child as MeshInstance3D
+		if mi != null and mi.mesh is TorusMesh and mi != _active_ring:
+			mi.material_override = _additive_material(team_color * 0.9)
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		elif mi != null and mi.mesh is CylinderMesh:
+			mi.material_override = _flat_material(Color(team_color, 0.07))
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
 func refresh(u: BattleUnit) -> void:
 	hull = u.hull
 	max_hull = maxi(1, u.max_hull())

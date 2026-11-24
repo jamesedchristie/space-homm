@@ -3,9 +3,19 @@ extends Node3D
 ## 3D combat effects: glowing bolts, beams, torpedoes, explosions with sparks
 ## and light flashes, shockwave rings. Additive, unshaded materials so they
 ## read as light. Each effect owns its material so it can fade independently.
+## On the high-quality look, shots also flash light at the muzzle and carry a
+## brighter, wider glow, so gunfire lights up dark station decks.
+
+var _hq := false
+
+
+func _ready() -> void:
+	_hq = BoardGeometry.high_quality()
 
 
 func play(kind: String, from: Vector3, to: Vector3, color: Color, blast_radius: float) -> void:
+	if _hq and kind in ["projectile", "beam", "slug", "pulse"]:
+		_muzzle(from, color)
 	match kind:
 		"beam":
 			await _beam(from, to, color, 0.035)
@@ -35,6 +45,34 @@ func play(kind: String, from: Vector3, to: Vector3, color: Color, blast_radius: 
 		_:
 			await _bolt(from, to, color, 0.045, 16.0)
 			_flash(to, 0.2, color)
+
+
+## High quality: a brief, bright pulse of light where a shot leaves the gun.
+func _muzzle(at: Vector3, color: Color) -> void:
+	var light := OmniLight3D.new()
+	light.light_color = color.lerp(Color(1.0, 0.9, 0.7), 0.4)
+	light.light_energy = 5.0
+	light.omni_range = 3.2
+	light.light_volumetric_fog_energy = 2.0
+	light.position = at
+	add_child(light)
+	var core := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.07
+	sphere.height = 0.14
+	sphere.radial_segments = 8
+	sphere.rings = 4
+	core.mesh = sphere
+	core.material_override = _additive(color.lightened(0.6) * 2.5)
+	core.position = at
+	add_child(core)
+	var tw := create_tween().set_parallel()
+	tw.tween_property(light, "light_energy", 0.0, 0.16).set_ease(Tween.EASE_IN)
+	tw.tween_property(core, "scale", Vector3.ONE * 2.0, 0.1)
+	tw.tween_property(core.material_override, "albedo_color", Color.BLACK, 0.12)
+	tw.chain().tween_callback(func() -> void:
+		light.queue_free()
+		core.queue_free())
 
 
 ## Muzzle flash: a small, quick flare.
@@ -231,8 +269,8 @@ func _bolt(from: Vector3, to: Vector3, color: Color, radius: float, speed: float
 	add_child(bolt)
 	var light := OmniLight3D.new()
 	light.light_color = color
-	light.light_energy = 1.2
-	light.omni_range = 1.4
+	light.light_energy = 1.2 if not _hq else 2.2
+	light.omni_range = 1.4 if not _hq else 2.6
 	bolt.add_child(light)
 	var tw := create_tween()
 	tw.tween_property(bolt, "position", to, maxf(0.12, from.distance_to(to) / speed))
