@@ -78,22 +78,26 @@ func set_objective(text: String) -> void:
 
 ## One chip per resource in the top bar: a coloured pip, the stockpile and the
 ## per-turn change, with a breakdown as the tooltip. Chips are created on
-## first use and keep their order.
-func set_resource_chip(id: String, color: Color, value: int, delta: int, tooltip: String) -> void:
+## first use and keep their order. Strategic resources (`diamond`) get a diamond pip
+## and a compact chip; `shown` false hides a chip (a strategic resource you neither
+## have nor produce).
+func set_resource_chip(id: String, color: Color, value: int, delta: int, tooltip: String, diamond := false,
+		shown := true) -> void:
 	if not _chips.has(id):
 		var chip := UiKit.panel(Color(0.06, 0.08, 0.13, 0.9), Color(color, 0.45))
 		chip.mouse_filter = Control.MOUSE_FILTER_STOP
 		var box := HBoxContainer.new()
-		box.add_theme_constant_override("separation", 5)
+		box.add_theme_constant_override("separation", 4 if diamond else 5)
 		chip.add_child(box)
 		var pip := Pip.new()
 		pip.color = color
-		pip.custom_minimum_size = Vector2(10, 10)
+		pip.diamond = diamond
+		pip.custom_minimum_size = Vector2(11, 11) if diamond else Vector2(10, 10)
 		pip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		box.add_child(pip)
-		var value_label := UiKit.label("", 14, Palette.TEXT)
+		var value_label := UiKit.label("", 13 if diamond else 14, Palette.TEXT)
 		box.add_child(value_label)
-		var delta_label := UiKit.label("", 12, Palette.TEXT_DIM)
+		var delta_label := UiKit.label("", 11 if diamond else 12, Palette.TEXT_DIM)
 		delta_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		box.add_child(delta_label)
 		_chip_row.add_child(chip)
@@ -104,6 +108,7 @@ func set_resource_chip(id: String, color: Color, value: int, delta: int, tooltip
 	dl.text = "%+d" % delta
 	dl.add_theme_color_override("font_color", Palette.BAD if delta < 0 else (Palette.GOOD.darkened(0.15) if delta > 0 else Palette.TEXT_DIM))
 	(c["panel"] as Control).tooltip_text = tooltip
+	(c["panel"] as Control).visible = shown
 
 
 ## Civ-style "needs your attention" list at the top left of the map: each
@@ -316,11 +321,20 @@ static func _flat_style(bg: Color) -> StyleBoxFlat:
 	return sb
 
 
-## A small round colour pip (resource chips).
+## A small colour pip (resource chips): round, or a diamond for strategic resources.
 class Pip:
 	extends Control
 	var color := Color.WHITE
+	var diamond := false
 
 	func _draw() -> void:
-		draw_circle(size / 2.0, minf(size.x, size.y) / 2.0, color)
-		draw_arc(size / 2.0, minf(size.x, size.y) / 2.0, 0, TAU, 16, Color(1, 1, 1, 0.35), 1.0, true)
+		var c := size / 2.0
+		var r := minf(size.x, size.y) / 2.0
+		if diamond:
+			var pts := PackedVector2Array([c + Vector2(0, -r), c + Vector2(r * 0.8, 0), c + Vector2(0, r), c + Vector2(-r * 0.8, 0)])
+			draw_colored_polygon(pts, color)
+			pts.append(pts[0])
+			draw_polyline(pts, Color(1, 1, 1, 0.4), 1.0, true)
+			return
+		draw_circle(c, r, color)
+		draw_arc(c, r, 0, TAU, 16, Color(1, 1, 1, 0.35), 1.0, true)

@@ -408,7 +408,7 @@
   },
   "exotic_physics": {
     "name": "Exotic Physics",
-    "description": "Containment fields for matter with negative energy: unlocks the Exotic Containment, which extracts a body's exotic matter.",
+    "description": "Unlocks the Exotic Containment: it extracts a body's exotic matter.",
     "era": 2,
     "cost": 100,
     "requires": ["scientific_method"],
@@ -540,7 +540,7 @@
   },
   "hyperdrive": {
     "name": "Hyperdrive",
-    "description": "Act 1 complete: your ships can leave the system (the galaxy opens in a later update). The first jump burns exotic matter and a tankful of volatiles.",
+    "description": "Wakes the jump points: Act 1 complete. The first jump burns exotic matter and volatiles.",
     "era": 3,
     "cost": 260,
     "scale": "system",

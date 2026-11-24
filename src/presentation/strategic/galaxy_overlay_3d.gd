@@ -36,7 +36,7 @@ func _draw() -> void:
 				items.append({"banner": pv, "at": at})
 				boxes.append(Rect2(at + Vector2(-w / 2.0, -16), Vector2(w, 22)))
 		else:
-			_add_text_item(items, boxes, pv, pv.label_height, pv.display_name, 12, Palette.TEXT_DIM)
+			_add_text_item(items, boxes, pv, pv.label_height, pv.display_name, 12, Palette.TEXT_DIM, _deposit_marks(pv))
 	for av: Anomaly3D in board.anomaly_views.values():
 		if av.visible:
 			_add_text_item(items, boxes, av, av.label_height, av.display_name, 11, Anomaly3D.COLOR.lightened(0.35))
@@ -72,6 +72,10 @@ func _draw() -> void:
 			_draw_tag(item["tag"], item["kind"], p)
 		else:
 			_text(p + Vector2(-70, 0), item["text"], 140, item["size"], item["color"])
+			var marks: Array = item.get("marks", [])
+			if not marks.is_empty():
+				var tw := ThemeDB.fallback_font.get_string_size(item["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, item["size"]).x
+				_draw_marks(marks, p + Vector2(tw / 2.0 + 6.0, -4.0))
 
 
 const BANNER_FONT := 12
@@ -130,7 +134,7 @@ func _tag_name_shown(pv: Planet3D) -> bool:
 
 
 func _tag_width(pv: Planet3D, _kind: String) -> float:
-	var w := 22.0
+	var w := 22.0 + _deposit_marks(pv).size() * MARK_STEP
 	if _tag_name_shown(pv):
 		w += ThemeDB.fallback_font.get_string_size(pv.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 6.0
 	return w
@@ -166,8 +170,11 @@ func _draw_tag(pv: Planet3D, _kind: String, p: Vector2) -> void:
 		draw_colored_polygon(PackedVector2Array([icon + Vector2(-3, -5), icon + Vector2(4, -3), icon + Vector2(-3, -1)]), ic)
 	else:
 		draw_circle(icon, 3.5, ic)
+	var marks := _deposit_marks(pv)
+	_draw_marks(marks, rect.position + Vector2(21.0, 8.0))
 	if _tag_name_shown(pv):
-		draw_string(font, rect.position + Vector2(20, 12), pv.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, c.lightened(0.5))
+		draw_string(font, rect.position + Vector2(20 + marks.size() * MARK_STEP, 12), pv.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11,
+				c.lightened(0.5))
 
 
 func _banner_width(pv: Planet3D) -> float:
@@ -232,13 +239,48 @@ func _draw_banner(pv: Planet3D, p: Vector2) -> void:
 
 
 func _add_text_item(items: Array[Dictionary], boxes: Array[Rect2], node: Node3D, height: float, text: String,
-		size: int, color: Color) -> void:
+		size: int, color: Color, marks: Array = []) -> void:
 	var p: Variant = _project(node, height)
 	if p == null:
 		return
-	var w := ThemeDB.fallback_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	items.append({"at": p, "text": text, "size": size, "color": color})
+	var w := ThemeDB.fallback_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + marks.size() * MARK_STEP * 2.0
+	items.append({"at": p, "text": text, "size": size, "color": color, "marks": marks})
 	boxes.append(Rect2(p + Vector2(-w / 2.0, -size), Vector2(w, size + 4)))
+
+
+## Horizontal space per deposit diamond.
+const MARK_STEP := 9.0
+
+
+## Strategic deposits the player knows of on a body of a system-scale map, as diamonds:
+## [{"color", "tapped"}] (tapped = extracted by its owner). Unsurveyed bodies show none.
+func _deposit_marks(pv: Planet3D) -> Array:
+	var out: Array = []
+	var e := board.engine
+	if not e.is_system_scale():
+		return out
+	var planet: Planet = e.state.planets.get(pv.planet_id)
+	if planet == null or planet.bodies.is_empty():
+		return out
+	var deposits := e.known_deposits(board.player_faction, planet, planet.bodies[0])
+	for k: String in deposits:
+		out.append({"color": DepositRules.color(e.data, k), "tapped": DepositRules.is_tapped(e.data, planet.bodies[0], k),
+				"richness": int(deposits[k])})
+	return out
+
+
+## A row of small diamonds from `at` (left centre): filled when tapped, an outline when not.
+func _draw_marks(marks: Array, at: Vector2) -> void:
+	var x := at.x
+	for m: Dictionary in marks:
+		var c: Color = m["color"]
+		var r := 3.0 + 0.6 * float(m["richness"])
+		var pts := PackedVector2Array([Vector2(x + r * 0.8, at.y - r), Vector2(x + r * 1.6, at.y), Vector2(x + r * 0.8, at.y + r),
+				Vector2(x, at.y)])
+		draw_colored_polygon(pts, Color(0, 0, 0, 0.6) if not m["tapped"] else c)
+		pts.append(pts[0])
+		draw_polyline(pts, c.lightened(0.2), 1.3, true)
+		x += MARK_STEP
 
 
 func _draw_fleet(fv: Fleet3D, p: Vector2) -> void:

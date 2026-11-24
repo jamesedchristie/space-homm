@@ -65,8 +65,13 @@ func show_tree(engine: GalaxyEngine, faction_id: String, interactive: bool) -> v
 	else:
 		var cost := ResearchRules.cost(engine, r["current"])
 		var turns := ceili(float(cost - int(r["progress"])) / maxf(1.0, per_turn))
-		_status.text = "Researching [b]%s[/b]  %d / %d  (+%d per turn, %d turn%s)" % [data.techs[r["current"]]["name"],
-				r["progress"], cost, per_turn, turns, "" if turns == 1 else "s"]
+		var missing := EmpireRules.afford_error(engine, faction_id, ResearchRules.resource_cost(engine, r["current"]))
+		if turns <= 0 and not missing.is_empty():
+			_status.text = "[b]%s[/b] is researched, %s: %s. It completes once they are in store." % [
+					data.techs[r["current"]]["name"], UiKit.color_tag("but waits", Palette.BAD), missing.to_lower()]
+		else:
+			_status.text = "Researching [b]%s[/b]  %d / %d  (+%d per turn, %d turn%s)" % [data.techs[r["current"]]["name"],
+					r["progress"], cost, per_turn, turns, "" if turns == 1 else "s"]
 
 	var layout := _layout(data, ResearchRules.tech_ids(engine))
 	var cells: Dictionary = layout["cells"]
@@ -195,6 +200,16 @@ func _card(engine: GalaxyEngine, faction_id: String, tech_id: String, tech: Dict
 			state_text = UiKit.color_tag("Locked", Palette.TEXT_DIM)
 		_:
 			state_text = UiKit.color_tag("Researching" if current else "Click to research", Palette.ACTIVE if current else Palette.SHIELDS)
+	# Resources the tech burns when it completes (Hyperdrive: exotic matter and volatiles).
+	var needs := ResearchRules.resource_cost(engine, tech_id)
+	if not needs.is_empty() and status != ResearchRules.KNOWN:
+		var parts := PackedStringArray()
+		for k: String in needs:
+			var have := int(engine.state.resources[faction_id].get(k, 0))
+			parts.append(UiKit.color_tag("◆%d/%d %s" % [mini(have, int(needs[k])), int(needs[k]), DepositRules.resource_name(engine.data, k).to_lower()],
+					DepositRules.color(engine.data, k) if have >= int(needs[k]) else Palette.BAD))
+		state_text += "  " + " ".join(parts)
+		card.tooltip_text += "\nCompletes only with %s in store (spent then)." % EmpireRules.cost_text(engine, needs)
 	var name_color := Palette.TEXT if status != ResearchRules.LOCKED else Palette.TEXT_DIM
 	text.text = "[b]%s[/b]   %s\n%s\n%s" % [UiKit.color_tag(tech.get("name", tech_id), name_color),
 			UiKit.color_tag("%d" % ResearchRules.cost(engine, tech_id), Palette.TEXT_DIM),
