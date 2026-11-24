@@ -32,6 +32,10 @@ var _marker_root: Node3D
 var _floor := ""
 var _floor_y := 0.0
 var _explored: Dictionary = {}
+## Station decks: the dressing (and, on the high-quality look, its fog-of-war mask).
+var _deck: DeckKit
+var _deck_hq := false
+var _mood: DeckMood
 
 var _reach: Array[Vector2i] = []
 var _targets: Array[Vector2i] = []
@@ -46,6 +50,8 @@ func setup(p_engine: BattleEngine, p_data: DataRegistry, floor_style: String) ->
 	teardown()
 	_floor = floor_style
 	_floor_y = DECK_HEIGHT if _floor == "deck" else 0.0
+	_deck_hq = _floor == "deck" and BoardGeometry.high_quality()
+	_mood = DeckMood.from_map(map_def)
 
 	_world = Node3D.new()
 	_world.name = "Board3D"
@@ -83,6 +89,7 @@ func setup(p_engine: BattleEngine, p_data: DataRegistry, floor_style: String) ->
 
 func teardown() -> void:
 	_glare_material = null
+	_deck = null
 	views.clear()
 	_props.clear()
 	marker_labels.clear()
@@ -119,8 +126,9 @@ func _unit_ground(u: BattleUnit) -> Vector3:
 # --- Scene construction -------------------------------------------------------
 
 func _build_environment() -> void:
-	# Station interiors keep their own lighting (tuned for the classic look) for now.
-	BoardGeometry.build_environment(_world, _floor != "deck", "deck" if _floor == "deck" else "battle")
+	# Station interiors: their own moody look on Forward+ (DeckMood), the classic
+	# lighting (dimmed to match) when the high-quality look is off.
+	BoardGeometry.build_environment(_world, _floor != "deck" or _deck_hq, "deck" if _floor == "deck" else "battle", _mood)
 	_rig = BoardCamera3D.new()
 	if _floor != "deck":
 		# Space: a lower view so ships at different heights read as a 3D formation.
@@ -137,7 +145,7 @@ func _build_board() -> void:
 	glass.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var polys: Array = []
 	if _floor == "deck":
-		DeckKit.build(self, _world)
+		_deck = DeckKit.build(self, _world, _deck_hq, _mood)
 	for c in grid.cells():
 		var terrain := grid.terrain_def(c)
 		var deco: String = terrain.get("decoration", "")
@@ -166,7 +174,8 @@ func _build_board() -> void:
 
 	BoardGeometry.mesh_node(_world, BoardGeometry.tile_material(false)).mesh = solid.commit()
 	BoardGeometry.mesh_node(_world, BoardGeometry.tile_material(true)).mesh = glass.commit()
-	BoardGeometry.mesh_node(_world, BoardGeometry.line_material()).mesh = BoardGeometry.grid_lines(polys, _floor_y + 0.005)
+	var lines: Material = _deck.grid_material() if _deck_hq else BoardGeometry.line_material()
+	BoardGeometry.mesh_node(_world, lines).mesh = BoardGeometry.grid_lines(polys, _floor_y + 0.005)
 
 
 ## Too close to the sun (a battle by the star on a system-scale map): a wall of searing light, soft
@@ -222,6 +231,8 @@ func add_unit(u: BattleUnit) -> void:
 					else ("raider" if team.get("role", "") == "barbarian" else ""))
 	view.position = _unit_ground(u)
 	view.face_angle(0.0 if u.team == 0 else PI)
+	if _deck_hq:
+		view.add_deck_light()
 	views[u.id] = view
 
 
@@ -513,8 +524,11 @@ func _redraw_overlays() -> void:
 		return
 	var im := {"v": [], "c": []}  # geometry buffer, committed below
 	var y := _floor_y + 0.02
-	for c in _reach:
-		BoardGeometry.fill_poly(im, _cell_poly(c, 1.0), Color(Palette.REACHABLE, 0.07 if BoardGeometry.high_quality() else 0.15), y)
+	if _deck_hq:
+		_reach_area(im, y)
+	else:
+		for c in _reach:
+			BoardGeometry.fill_poly(im, _cell_poly(c, 1.0), Color(Palette.REACHABLE, 0.07 if BoardGeometry.high_quality() else 0.15), y)
 	for c in _targets:
 		_fill_cell(im, c, y + 0.002, Color(Palette.TARGET, 0.32))
 	for c in _area:
@@ -530,6 +544,34 @@ func _redraw_overlays() -> void:
 	_overlay_mesh.mesh = BoardGeometry.commit(im)
 
 
+## Station decks on the high-quality look: the reachable area as a faint wash with a
+## crisp lit border around its outside edge (XCOM-style), so the dark, lamp-lit
+## floor stays readable instead of being veiled by a full tint.
+func _reach_area(im: Dictionary, y: float) -> void:
+	# Only over explored floor: unexplored cells are darkness (no outline giving the layout away).
+	var inside := {}
+	for c in _reach:
+		if not engine.state.fog_enabled or _explored.has(c):
+			inside[c] = true
+	var edge := Color(Palette.REACHABLE.r, Palette.REACHABLE.g, Palette.REACHABLE.b, 0.75)
+	for c: Vector2i in inside:
+		BoardGeometry.fill_poly(im, _cell_poly(c, 1.0), Color(Palette.REACHABLE, 0.035), y)
+		var center := world(c)
+		var poly := _cell_poly(c, 1.0)
+		var inner := _cell_poly(c, 0.94)
+		for i in poly.size():
+			var j := (i + 1) % poly.size()
+			var mid := (poly[i] + poly[j]) / 2.0
+			var across := mid * 2.0 - center
+			var nb := engine.state.grid.from_pixel(Vector2(across.x, across.z) / SCALE, GridMapView.CELL_SIZE)
+			if inside.has(nb):
+				continue
+			# A thin band just inside the edge.
+			for v in [poly[i], poly[j], inner[j], poly[i], inner[j], inner[i]]:
+				im["c"].append(edge)
+				im["v"].append(Vector3(v.x, y + 0.001, v.z))
+
+
 ## Props standing on a cell (hidden while it's unexplored, so fog doesn't leak them).
 var _props: Dictionary = {}
 
@@ -543,6 +585,11 @@ func set_fog(explored: Dictionary, visible_now: Dictionary) -> void:
 	for c: Vector2i in _props:
 		for n: Node3D in _props[c]:
 			n.visible = not engine.state.fog_enabled or explored.has(c)
+	if _deck_hq and _deck != null:
+		# The deck's own materials hide unexplored cells and dim the ones out of sight.
+		_deck.set_fog(explored, visible_now, engine.state.fog_enabled)
+		_fog_mesh.mesh = null
+		return
 	var im := {"v": [], "c": []}
 	for c in engine.state.grid.cells():
 		if not explored.has(c):

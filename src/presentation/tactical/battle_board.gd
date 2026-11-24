@@ -8,6 +8,9 @@ extends Node
 
 var engine: BattleEngine
 var data: DataRegistry
+## The battle map's definition (set by the screen before setup(); boards read
+## its look from it, e.g. a station deck's "mood").
+var map_def: Dictionary = {}
 
 
 func setup(p_engine: BattleEngine, p_data: DataRegistry, _floor_style: String) -> void:

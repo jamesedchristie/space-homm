@@ -359,7 +359,9 @@ the main menu returns. Press **F3** anywhere for a frame-rate readout.
   trooper, hero and boarder all build on `humanoid`. Add or reshape a model by editing JSON.
 - The UI theme is built in code (`src/presentation/shared/game_theme.gd`); colors live in `palette.gd`.
 - Ship sprites are set per unit in JSON (`visual.sprite`, with `{team}` replaced by the team's
-  color variant). Battle maps can set `backdrop` colors and `floor: "deck"` for interiors.
+  color variant). Battle maps can set `backdrop` colors and `floor: "deck"` for interiors; deck
+  maps can set a `mood` (lamp, accent and haze colours, colour grade, emergency lights, fires,
+  grime, cover theme) for the Forward+ look (see docs/architecture.md, "Station decks").
   Body types set `surface` colors for the planet shader.
 
 ## Tests and tools (headless, no editor needed)

@@ -26,8 +26,11 @@ static func supports_high_quality() -> bool:
 ## hq: the high-quality look (see high_quality()); only honoured on Forward+.
 ## kind: "battle" or "galaxy" (no global dust, a long fog range for the zoomed-out map:
 ## only FogVolumes such as nebulae add fog there).
-static func build_environment(parent: Node3D, hq: bool = false, kind: String = "battle") -> Environment:
+## mood: the station deck's look for kind "deck" on the high-quality path (DeckMood).
+static func build_environment(parent: Node3D, hq: bool = false, kind: String = "battle", mood: DeckMood = null) -> Environment:
 	if hq and high_quality():
+		if kind == "deck":
+			return _build_deck_environment(parent, mood if mood != null else DeckMood.new())
 		return _build_hq_environment(parent, kind)
 	var env_node := WorldEnvironment.new()
 	var env := Environment.new()
@@ -144,6 +147,76 @@ static func _build_hq_environment(parent: Node3D, kind: String = "battle") -> En
 	rim.rotation_degrees = Vector3(-20, 150, 0)
 	rim.light_energy = 0.6
 	rim.light_color = Color(0.45, 0.65, 1.0)
+	parent.add_child(rim)
+	return env
+
+
+## Forward+ station interior (XCOM-like): a dark void around the deck, low tinted
+## ambient so the room lamps (DeckKit) do the lighting, AgX tone mapping, strong
+## contact shadows (SSAO) and a touch of bounce light (SSIL), bloom on the light
+## strips and screens, volumetric fog for the haze volume, and a per-map colour
+## grade (DeckMood).
+static func _build_deck_environment(parent: Node3D, mood: DeckMood) -> Environment:
+	var env_node := WorldEnvironment.new()
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = mood.shadows * 0.35
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = mood.ambient
+	env.ambient_light_energy = mood.ambient_energy
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_BG
+	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	env.tonemap_exposure = 0.9 * mood.exposure
+	env.ssao_enabled = true
+	env.ssao_radius = 1.1
+	env.ssao_intensity = 3.2
+	env.ssao_power = 1.7
+	env.ssao_detail = 0.6
+	env.ssao_horizon = 0.08
+	env.ssao_light_affect = 0.15
+	env.ssil_enabled = true
+	env.ssil_radius = 2.5
+	env.ssil_intensity = 0.5
+	env.ssil_normal_rejection = 1.0
+	env.glow_enabled = true
+	env.glow_intensity = 0.85
+	env.glow_strength = 1.0
+	env.glow_bloom = 0.02
+	env.glow_hdr_threshold = 0.9
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
+	env.set_glow_level(0, 0.0)
+	env.set_glow_level(1, 1.0)
+	env.set_glow_level(2, 0.8)
+	env.set_glow_level(3, 0.6)
+	env.set_glow_level(4, 0.3)
+	env.volumetric_fog_enabled = true
+	env.volumetric_fog_density = 0.0  # only the deck's haze volume (DeckKit)
+	env.volumetric_fog_albedo = mood.haze
+	env.volumetric_fog_length = 48.0
+	env.volumetric_fog_detail_spread = 1.6
+	env.volumetric_fog_anisotropy = 0.45
+	env.volumetric_fog_ambient_inject = 0.0
+	env.volumetric_fog_sky_affect = 0.0
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 1.08 * mood.saturation
+	env.adjustment_contrast = 1.06
+	env.adjustment_color_correction = mood.grade_texture()
+	env_node.environment = env
+	parent.add_child(env_node)
+	# A faint cool key from above so forms read even between the lamps (no shadows:
+	# the lamps cast those), and a rim from behind to outline the people.
+	var key := DirectionalLight3D.new()
+	key.rotation_degrees = Vector3(-62, -30, 0)
+	key.light_energy = 0.08
+	key.light_color = mood.ambient.lerp(Color.WHITE, 0.6)
+	key.light_volumetric_fog_energy = 0.0
+	parent.add_child(key)
+	var rim := DirectionalLight3D.new()
+	rim.rotation_degrees = Vector3(-28, 160, 0)
+	rim.light_energy = 0.3
+	rim.light_color = mood.accent.lerp(Color.WHITE, 0.5)
+	rim.light_volumetric_fog_energy = 0.0
+	rim.light_specular = 0.0
 	parent.add_child(rim)
 	return env
 

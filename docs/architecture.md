@@ -1010,4 +1010,31 @@ a campaign names them, not in random sectors).
   billboard `star_corona.gdshader` (also in system battles); the system view uses
   `build_environment(..., "system")` and a shadowed point light at the star.
 - Desktop builds pick Forward+ (`rendering_method.pc`); the base setting stays Compatibility for the
-  web. Station decks keep the classic environment, dimmed on Forward+ to match.
+  web. On the classic look (Compatibility, or `battle_look == "classic"`) station decks keep the
+  classic environment and dressing, dimmed on Forward+ to match.
+- Station decks (high quality): `build_environment(parent, true, "deck", mood)` builds
+  `_build_deck_environment`: a dark void, low tinted ambient, AgX, strong SSAO, light SSIL, bloom
+  for light strips and screens, volumetric fog (only the deck's haze volume adds density) and a
+  per-channel colour grade. `DeckKit.build(board, parent, hq, mood)` then raises the walls
+  (`HQ_WALL_H`) with lit caps, adds wall screens, themed cover (`mood.props`: cargo, lab,
+  industrial, derelict, wreck; consoles, benches, specimen tanks, ore bins, pipes, lockers, debris,
+  all merged into one mesh per material), stencilled bay numbers, door lamps, and per-room ceiling
+  spot lamps (rooms = floor flood-filled between bulkheads and doors; at most `MAX_SHADOWED` cast
+  soft shadows), red pulsing emergency beacons with dimmed lamps, stuttering lamps and fires
+  (`DeckLightAnimator`, no allocations per frame). Surfaces use `deck_surface.gdshader`
+  (world-space grime, tread, seams, scuffs, scorch marks; `glow` for strips and screens), the haze
+  is one `FogVolume` with `deck_haze.gdshader`, grid lines use `deck_grid.gdshader`.
+- Deck fog of war (high quality): all three shaders read one RG8 mask texel per cell (R explored,
+  G visible now), written by `DeckKit.set_fog` from `BattleBoard3D.set_fog`. Unexplored cells are
+  discarded (nothing leaks from any camera angle; a dark slab under the deck fills the holes),
+  explored ones out of sight are dimmed; lamps, fires and door lamps are board props (hidden while
+  their cell is unexplored). The classic fog slab is not drawn. Reachable cells show as a faint
+  wash with a lit outer border (`_reach_area`) over explored floor only.
+- People on decks (high quality): `Unit3D.add_deck_light()` adds a soft team-tinted light over
+  each person and a glowing team ring. `Fx3D` (any high-quality board) flashes light at the muzzle
+  and gives bolts a brighter, wider light.
+- Map `"mood"` (deck maps, read by `DeckMood.from_map`, ignored by the classic look): `ambient`,
+  `ambient_energy`, `light` / `light_energy` (ceiling lamps), `accent` / `accent2` (strips,
+  screens, door lamps), `haze` / `haze_density`, `shadows` / `highlights` (colour grade),
+  `exposure`, `saturation`, `emergency` and `flicker` (0..1 shares of rooms / lamps), `fires`
+  (count), `grime`, `scorch` (share of cells), `props` (cover theme). Every key is optional.

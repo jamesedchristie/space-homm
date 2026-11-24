@@ -322,5 +322,24 @@
     "b": "#241a2c",
     "density": 0.25
   },
-  "floor": "deck"
+  "floor": "deck",
+  "mood": {
+    "ambient": "#1c3324",
+    "ambient_energy": 0.2,
+    "light": "#d6ffd8",
+    "light_energy": 0.95,
+    "accent": "#6dff8e",
+    "accent2": "#c8ff4a",
+    "haze": "#5c8a58",
+    "haze_density": 0.04,
+    "shadows": "#04160a",
+    "highlights": "#ecffe0",
+    "exposure": 1.0,
+    "saturation": 0.9,
+    "emergency": 0.3,
+    "flicker": 0.25,
+    "grime": 0.55,
+    "scorch": 0.05,
+    "props": "lab"
+  }
 }
