@@ -316,14 +316,14 @@ func _body_card(planet: Planet, b: Dictionary, ships: Array[Dictionary]) -> Cont
 	var def: Dictionary = data.body_types.get(b["type"], {})
 	var box := _card("")
 	var surface := Color(def.get("surface", {}).get("accent", "#aaaaaa"))
-	var traits := PackedStringArray()
-	for t: String in b["traits"]:
-		traits.append(UiKit.color_tag(data.planet_traits[t]["name"], Palette.ACTIVE))
+	var known := _engine.known_traits(_viewer, planet, b)
 	var text := "%s [b]%s[/b]   %s" % [UiKit.color_tag("●", surface), b["name"], UiKit.color_tag(def.get("name", b["type"]), Palette.TEXT_DIM)]
 	_text(box, text, 16)
-	if not traits.is_empty():
+	if not _engine.is_surveyed(_viewer, planet):
+		_text(box, UiKit.color_tag("Not surveyed: fly a ship to it (or next to it) to learn its traits.", Palette.TEXT_DIM), 12)
+	elif not known.is_empty():
 		var trait_lines := PackedStringArray()
-		for t: String in b["traits"]:
+		for t: String in known:
 			trait_lines.append("%s: %s" % [UiKit.color_tag(data.planet_traits[t]["name"], Palette.ACTIVE), data.planet_traits[t].get("description", "")])
 		_text(box, "\n".join(trait_lines), 12)
 	var built := PackedStringArray()
@@ -422,7 +422,7 @@ func _found_colony(entry: Dictionary) -> void:
 
 func _ships_card(planet: Planet, ships: Array[Dictionary]) -> Control:
 	var data := _engine.data
-	var box := _card("Ships in the system", Palette.TEXT)
+	var box := _card("Ships here" if _engine.is_system_scale() else "Ships in the system", Palette.TEXT)
 	if ships.is_empty():
 		_text(box, UiKit.color_tag("No civilian ships here. A colony of 2+ population builds Colony Ships; any colony builds Constructors (see Production).", Palette.TEXT_DIM), 12)
 	for e in ships:

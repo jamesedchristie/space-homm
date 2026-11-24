@@ -36,6 +36,10 @@ func _draw() -> void:
 	for dv: Discovery3D in board.discovery_views.values():
 		if dv.visible:
 			_add_text_item(items, boxes, dv, dv.label_height, dv.display_name, 10, dv.color.lightened(0.2))
+	if board.solar != null:
+		# The dormant jump gates at the edge of a system-scale map.
+		for gate in board.solar.gates:
+			_add_text_item(items, boxes, gate, 0.75, "Jump point (dormant)", 10, Color(0.5, 0.75, 0.85, 0.8))
 	for fv: Fleet3D in board.fleet_views.values():
 		if not fv.visible or not fv.is_inside_tree():
 			continue

@@ -20,6 +20,10 @@ const CLOUD_SHADER := preload("res://src/presentation/shaders/galaxy_cloud_cover
 const NEBULA_SHADER := preload("res://src/presentation/shaders/galaxy_nebula_layer.gdshader")
 ## Mask resolution (pixels per world unit) for the high-quality cloud cover and nebulae.
 const MASK_PPU := 5.0
+## System-scale maps (one star system, every body its own Planet): bodies sit near the middle of
+## their hex as one big sphere (Body3D), fleets beside them.
+const BODY_OFFSET := Vector3(-0.2, 0, -0.16)
+const SYSTEM_FLEET_OFFSET := Vector3(0.52, 0, 0.44)
 
 var camera: Camera3D
 var fleet_views: Dictionary = {}    # fleet id -> Fleet3D
@@ -43,6 +47,10 @@ var _explored_tex: ImageTexture
 var _cloud_mat: ShaderMaterial
 var _territory_key := ""
 
+## System-scale map: the sun, orbits and jump gates (SolarSystem3D); null on a galaxy map.
+var solar: SolarSystem3D
+var _fleet_offset := FLEET_OFFSET
+
 var _move: Array[Vector2i] = []
 var _attack: Array[Vector2i] = []
 var _path: Array[Vector2i] = []
@@ -61,7 +69,9 @@ func setup(p_engine: GalaxyEngine, p_data: DataRegistry, p_player_faction: Strin
 	_world.name = "Galaxy3D"
 	add_child(_world)
 	_hq = BoardGeometry.high_quality()
-	BoardGeometry.build_environment(_world, true, "galaxy")
+	var system_scale := engine.is_system_scale()
+	_fleet_offset = SYSTEM_FLEET_OFFSET if system_scale else FLEET_OFFSET
+	BoardGeometry.build_environment(_world, true, "solar" if system_scale else "galaxy")
 	_rig = BoardCamera3D.new()
 	_rig.pitch = deg_to_rad(55.0)
 	_rig.rotate_right_key = KEY_R
@@ -83,12 +93,18 @@ func setup(p_engine: GalaxyEngine, p_data: DataRegistry, p_player_faction: Strin
 	fog_mat.shader = FOG_SHADER
 	_fog_mesh = BoardGeometry.mesh_node(_world, fog_mat)
 	_fog_edge_mesh = BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material())
+	if system_scale:
+		solar = SolarSystem3D.new()
+		_world.add_child(solar)
+		solar.build(self)
 	for p: Planet in engine.state.planets.values():
-		var pv := Planet3D.new()
+		var pv: Planet3D = Body3D.new() if system_scale else Planet3D.new()
 		_world.add_child(pv)
 		pv.setup(p, data)
-		pv.position = world(p.cell) + PLANET_OFFSET
+		pv.position = body_position(p)
 		planet_views[p.id] = pv
+		if pv is Body3D:
+			(pv as Body3D).aim_light(solar.star_world)
 	_fx = Fx3D.new()
 	_world.add_child(_fx)
 
@@ -105,6 +121,7 @@ func setup(p_engine: GalaxyEngine, p_data: DataRegistry, p_player_faction: Strin
 func teardown() -> void:
 	fleet_views.clear()
 	planet_views.clear()
+	solar = null
 	anomaly_views.clear()
 	discovery_views.clear()
 	_fog_key = ""
@@ -128,6 +145,12 @@ func world(cell: Vector2i, y: float = 0.0) -> Vector3:
 	return Vector3(p.x, y, p.y)
 
 
+## Where a planet's view stands on the board (a system sits back-left in its hex; a body of a
+## system-scale map near the middle).
+func body_position(p: Planet) -> Vector3:
+	return world(p.cell) + (BODY_OFFSET if engine.is_system_scale() else PLANET_OFFSET)
+
+
 func _cell_poly(cell: Vector2i, inset: float = 1.0) -> PackedVector3Array:
 	var center := world(cell)
 	var out := PackedVector3Array()
@@ -145,6 +168,8 @@ func _build_board() -> void:
 	var rift := BoardGeometry.buffer()
 	for c in grid.cells():
 		var terrain := grid.terrain_def(c)
+		if grid.terrain_at(c) in ["star", "jump_point"]:
+			continue  # the sun and the dormant gates are SolarSystem3D's
 		if not terrain.get("passable", true):
 			# A rift: a dark well with a faint violet lip.
 			BoardGeometry.fill_poly(rift, _cell_poly(c, 1.0), Color(0.0, 0.0, 0.01, 0.92), -0.03)
@@ -168,7 +193,7 @@ func _build_board() -> void:
 					BoardGeometry.rocks(decor, world(c) + off, hash(c) + k * 31, 0.28, true)
 			else:
 				BoardGeometry.rocks(decor, world(c), hash(c), 0.6)
-		elif terrain.has("color") and terrain.get("move_cost", 1) > 1 and not _hq:
+		elif terrain.has("color") and terrain.get("move_cost", 1) > 1 and not _hq and grid.terrain_at(c) != "corona":
 			BoardGeometry.nebula_puffs(decor, world(c), Color(terrain["color"]).lightened(0.1), hash(c) + 7)
 		if decor.get_child_count() > 0:
 			_world.add_child(decor)
@@ -309,10 +334,10 @@ func sync(visible_now: Dictionary, explored: Dictionary, selected_fleet: String)
 			_world.add_child(view)
 			var faction := engine.state.faction(fleet.owner)
 			view.setup(fleet, faction["team"], data, fleet.owner == player_faction, faction.get("species", ""),
-					"raider" if faction.get("role", "") == "barbarian" else "")
+					Fleet.model_variant(faction))
 			fleet_views[fleet.id] = view
 		view.refresh(fleet, data, engine.fleet_speed(fleet))
-		view.position = world(fleet.cell) + FLEET_OFFSET
+		view.position = world(fleet.cell) + _fleet_offset
 		view.visible = engine.can_see_fleet(player_faction, fleet, visible_now)
 		view.set_selected(fleet.id == selected_fleet)
 	for p: Planet in engine.state.planets.values():
@@ -407,7 +432,7 @@ func move_fleet(fleet_id: String, path: Array) -> void:
 	view.visible = true
 	var points: Array[Vector3] = []
 	for i in range(1, path.size()):
-		points.append(world(path[i]) + FLEET_OFFSET)
+		points.append(world(path[i]) + _fleet_offset)
 	await view.move_along(points)
 
 

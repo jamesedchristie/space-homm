@@ -710,7 +710,9 @@ func _game_over() -> void:
 	var majors_left := s.factions.filter(func(f: Dictionary) -> bool:
 		return f.get("role", "major") == "major" and not s.is_eliminated(f["id"])).size()
 	var endings := {"science": "by ascension: the Ascension Gate was completed", "score": "by score at the turn limit",
-			"objective": "the objective was met", "peace": "by treaty", "max_turns": "at the turn limit"}
+			"objective": "the objective was met", "peace": "by treaty", "max_turns": "at the turn limit",
+			"act1": "Act 1 complete: Hyperdrive wakes the jump points, and the galaxy beyond awaits (in a later update)",
+			"tech": "by technology"}
 	var how: String = "your empire has fallen" if player_out else endings.get(s.victory_reason,
 			"by conquest" if majors_left <= 1 else "by treaty")
 	var lines := PackedStringArray(["The campaign is over after %d turns (%s)." % [s.turn_number, how], ""])
@@ -826,7 +828,8 @@ func _refresh_attention(human: bool) -> void:
 		items.append({"text": "%s is building nothing" % idle[i].name, "color": Palette.SHIELDS,
 				"action": func() -> void: _open_system(pid)})
 	if idle.size() > 3:
-		items.append({"text": "+%d more idle systems" % (idle.size() - 3), "color": Palette.SHIELDS, "action": _toggle_empire})
+		items.append({"text": "+%d more idle %s" % [idle.size() - 3, "bodies" if engine.is_system_scale() else "systems"],
+				"color": Palette.SHIELDS, "action": _toggle_empire})
 	for hero: Hero in engine.state.heroes.values():
 		if hero.owner == f and hero.status == Hero.READY and hero.fleet_id.is_empty() and not hero.planet_id.is_empty() \
 				and engine.state.planets.has(hero.planet_id):
@@ -860,14 +863,19 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 	elif _hover != null and _reach.has(_hover) and _hover != fleet.cell:
 		text = "Move here: %d of %d moves" % [_reach[_hover]["cost"], fleet.moves_left]
 	elif _hover != null and _hover == fleet.cell and _own_system_under_fleet() != null:
-		text = "Click again (or press S) to open the %s system" % _own_system_under_fleet().name
+		text = ("Click again (or press S) to open %s" if engine.is_system_scale() else "Click again (or press S) to open the %s system") \
+				% _own_system_under_fleet().name
 	else:
 		text = "%s: blue = move, red = attack. Move onto your own fleet to merge, D to detach ships. Right-click to deselect." % fleet.name
 		if _own_system_under_fleet() != null:
-			text += " S: open this system."
+			text += " S: open this body." if engine.is_system_scale() else " S: open this system."
 	if _hover != null:
 		var planet := engine.state.planet_at(_hover)
-		if planet != null:
+		if planet != null and engine.is_system_scale():
+			var bdef: Dictionary = data.body_types.get(planet.bodies[0]["type"], {}) if not planet.bodies.is_empty() else {}
+			text += "   ·   %s, %s%s" % [planet.name, bdef.get("name", "body").to_lower(),
+					"" if engine.is_surveyed(player_faction, planet) else " (not surveyed)"]
+		elif planet != null:
 			text += "   ·   %s system, %d bodies" % [planet.name, planet.bodies.size()]
 		var anomaly := engine.state.anomaly_at(_hover)
 		if not anomaly.is_empty() and engine.explored_cells(player_faction).has(_hover):
@@ -1081,12 +1089,15 @@ func _planet_info(planet: Planet) -> String:
 			line += " (pop %d/%d)" % [EmpireRules.pop(b), EmpireRules.pop_cap(engine, b, planet.owner)]
 		if not b["buildings"].is_empty():
 			line += ": " + ", ".join(b["buildings"].map(func(x: String) -> String: return data.buildings[x]["name"]))
-		if not b["traits"].is_empty():
-			line += "  " + UiKit.color_tag(", ".join(b["traits"].map(func(t: String) -> String: return data.planet_traits[t]["name"])), Palette.ACTIVE)
+		var known := engine.known_traits(player_faction, planet, b)
+		if not known.is_empty():
+			line += "  " + UiKit.color_tag(", ".join(known.map(func(t: String) -> String: return data.planet_traits[t]["name"])), Palette.ACTIVE)
+		elif not engine.is_surveyed(player_faction, planet):
+			line += "  " + UiKit.color_tag("not surveyed: fly a ship next to it", Palette.TEXT_DIM)
 		text += "\n" + line
 	for mp_id in planet.megaprojects:
 		text += "\n" + UiKit.color_tag("Wonder: %s" % data.megaprojects[mp_id]["name"], Palette.ACTIVE)
-	text += "\n" + UiKit.color_tag("Click your system or press S to open it.", Palette.TEXT_DIM)
+	text += "\n" + UiKit.color_tag("Click your %s or press S to open it." % ("body" if engine.is_system_scale() else "system"), Palette.TEXT_DIM)
 	var defenses := EmpireRules.defense_units(engine, planet).size()
 	if defenses > 0:
 		text += "\n" + UiKit.color_tag("Defended by %d gun(s): attackers always have to fight them." % defenses, Palette.BAD)
@@ -1194,6 +1205,14 @@ func _describe(e: Dictionary) -> String:
 				return ""
 			var body_name: String = s.planets[e["planet"]].body(e["body"]).get("name", "")
 			return UiKit.color_tag("   %s founded on %s (%s)" % ["Capital" if e["capital"] else "Colony", body_name, s.planets[e["planet"]].name], Palette.GOOD)
+		GalaxyEvents.BODY_SURVEYED:
+			if e["faction"] != player_faction:
+				return ""
+			var found := PackedStringArray()
+			for t: String in e.get("traits", []):
+				found.append(data.planet_traits.get(t, {}).get("name", t))
+			return UiKit.color_tag("   Surveyed %s: %s" % [s.planets[e["planet"]].name,
+					", ".join(found) if not found.is_empty() else "nothing special"], Palette.SHIELDS if found.is_empty() else Palette.ACTIVE)
 		GalaxyEvents.SYSTEM_CLAIMED:
 			if e["faction"] != player_faction:
 				return ""

@@ -11,11 +11,14 @@ var owned := false
 var _star_color := Color.WHITE
 var _bodies: Array[Dictionary] = []  # {"color", "r", "radius", "angle", "belt", "developed"}
 var _t := 0.0
+## One body of a system-scale map (the sun is a cell of its own): the world alone, bigger.
+var _single := false
 
 
-func setup(planet: Planet, data: DataRegistry) -> void:
+func setup(planet: Planet, data: DataRegistry, single_body: bool = false) -> void:
 	planet_id = planet.id
 	display_name = planet.name
+	_single = single_body and planet.bodies.size() == 1
 	_star_color = Color(data.star_types.get(planet.star, {}).get("color", "#ffd88a"))
 	var h := absi(hash(planet.id))
 	var n := planet.bodies.size()
@@ -41,6 +44,9 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	if _single:
+		_draw_single()
+		return
 	draw_arc(Vector2.ZERO, 18.0, 0, TAU, 48, Color(owner_color, 0.9 if owned else 0.3), 2.0 if owned else 1.0, true)
 	for b in _bodies:
 		draw_arc(Vector2.ZERO, b["radius"], 0, TAU, 32, Color(0.6, 0.75, 1.0, 0.15), 1.0, true)
@@ -60,4 +66,22 @@ func _draw() -> void:
 	var font := ThemeDB.fallback_font
 	draw_string_outline(font, Vector2(-60, -22), display_name, HORIZONTAL_ALIGNMENT_CENTER, 120, 11, 3, Color(0, 0, 0, 0.8))
 	draw_string(font, Vector2(-60, -22), display_name, HORIZONTAL_ALIGNMENT_CENTER, 120, 11,
+			owner_color.lightened(0.25) if owned else Palette.TEXT_DIM)
+
+
+func _draw_single() -> void:
+	var b: Dictionary = _bodies[0]
+	var r := 4.0 + float(b["r"]) * 2.2
+	draw_arc(Vector2.ZERO, r + 5.0, 0, TAU, 40, Color(owner_color, 0.9 if owned else 0.25), 2.0 if owned else 1.0, true)
+	if b["belt"]:
+		for k in 7:
+			var a: float = TAU * k / 7.0 + _t * 0.1
+			draw_circle(Vector2(cos(a), sin(a)) * r * 0.6, 2.0, Color(b["color"], 0.9))
+		draw_circle(Vector2.ZERO, 3.5, b["color"])
+	else:
+		draw_circle(Vector2.ZERO, r, b["color"].darkened(0.25))
+		draw_circle(Vector2(-r * 0.25, -r * 0.25), r * 0.6, Color(b["color"].lightened(0.2), 0.5))
+	var font := ThemeDB.fallback_font
+	draw_string_outline(font, Vector2(-60, -r - 8), display_name, HORIZONTAL_ALIGNMENT_CENTER, 120, 11, 3, Color(0, 0, 0, 0.8))
+	draw_string(font, Vector2(-60, -r - 8), display_name, HORIZONTAL_ALIGNMENT_CENTER, 120, 11,
 			owner_color.lightened(0.25) if owned else Palette.TEXT_DIM)

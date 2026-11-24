@@ -18,6 +18,8 @@ const STAR_SCALE := 0.45
 const GATE_POS := Vector3(-1.62, 0.5, 0.3)
 const SHIP_SIZE := 0.16
 const SHIP_SPEED := 1.1  # world units per second
+## A single body (system-scale maps) is drawn this much bigger than on the map.
+const BODY_VIEW_SCALE := 1.35
 
 ## Per body id: {"name": String, "info": String, "color": Color}: the label under the body.
 var labels: Dictionary = {}
@@ -53,6 +55,8 @@ var _gate: Node3D
 ## True right after a scene is built: ships already working somewhere appear there at once
 ## (only ships that show up later fly in through the gate).
 var _fresh_scene := false
+## A single body of a system-scale map (Body3D, close up) rather than a whole star system.
+var _single := false
 
 
 func _init() -> void:
@@ -97,6 +101,10 @@ func _build_scene(planet: Planet, engine: GalaxyEngine) -> void:
 	_ships.clear()
 	_scene_root = Node3D.new()
 	_viewport.add_child(_scene_root)
+	_single = engine.is_system_scale() and planet.bodies.size() == 1
+	if _single:
+		_build_body_scene(planet, engine)
+		return
 	if BoardGeometry.high_quality():
 		_build_hq_scene(planet, engine)
 		return
@@ -160,74 +168,88 @@ func _build_hq_scene(planet: Planet, engine: GalaxyEngine) -> void:
 	_after_scene()
 
 
+## One body of a system-scale map, close up: the world (Body3D) fills the view, lit from the side
+## its sun lies on (the sun itself is far off-screen), with its moons' and neighbours' light left
+## to the imagination. Ships hold station round it; new ones arrive from deep space on the left.
+func _build_body_scene(planet: Planet, engine: GalaxyEngine) -> void:
+	var hq := BoardGeometry.high_quality()
+	var star_def: Dictionary = engine.data.star_types.get(planet.star, {})
+	var star_color := Color(star_def.get("color", "#ffd88a"))
+	# Where the sun lies, seen from this body (map pixel space: x right, y down = world x, z).
+	var to_star := Vector3(-1, 0, -0.3)
+	var system: Dictionary = engine.campaign.get("system", {})
+	if system.has("at"):
+		var grid := engine.state.grid
+		var star_cell := grid.cell_from_layout(Vector2i(int(system["at"][0]), int(system["at"][1])))
+		var d := grid.to_pixel(star_cell, 1.0) - grid.to_pixel(planet.cell, 1.0)
+		if d.length() > 0.01:
+			to_star = Vector3(d.x, 0, d.y).normalized()
+	to_star = (to_star + Vector3(0, 0.45, 0)).normalized()
+	if hq:
+		BoardGeometry.build_environment(_scene_root, true, "system")
+	else:
+		var env_node := WorldEnvironment.new()
+		var env := Environment.new()
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = Color(0.008, 0.012, 0.03)
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = Color(0.28, 0.33, 0.5)
+		env.ambient_light_energy = 0.35
+		env.glow_enabled = true
+		env.glow_intensity = 0.5
+		env.glow_hdr_threshold = 1.3
+		env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+		env_node.environment = env
+		_scene_root.add_child(env_node)
+		BoardGeometry.space_scenery(_scene_root, Vector3.ZERO, Vector2(1.0, 1.0), absi(hash(planet.id)), true)
+	var sun := DirectionalLight3D.new()
+	sun.light_color = Color.WHITE.lerp(star_color, 0.4)
+	sun.light_energy = 2.2 if hq else 1.5
+	sun.shadow_enabled = hq
+	_scene_root.add_child(sun)
+	sun.look_at_from_position(to_star * 10.0, Vector3.ZERO, Vector3.UP)
+	var body := Body3D.new()
+	_system = body
+	_scene_root.add_child(body)
+	body.setup(planet, engine.data)
+	body.show_floor(false)
+	body.scale = Vector3.ONE * BODY_VIEW_SCALE
+	body.position = Vector3(0, -Body3D.LIFT * BODY_VIEW_SCALE, 0)
+	body.set_light_dir(to_star)
+	# A distant glint of the sun on the far side of the sky.
+	var glint := MeshInstance3D.new()
+	var gs := SphereMesh.new()
+	gs.radius = 0.12
+	gs.height = 0.24
+	glint.mesh = gs
+	glint.material_override = BoardGeometry.additive_material(star_color * 1.4)
+	glint.position = to_star * 9.0
+	_scene_root.add_child(glint)
+	_camera = Camera3D.new()
+	_camera.fov = 34
+	_scene_root.add_child(_camera)
+	_camera.look_at_from_position(Vector3(0, 1.9, 3.4), Vector3(0.15, 0.1, 0), Vector3.UP)
+	_after_scene()
+
+
 ## Shared by both looks: a small sun, the jump gate, and the ships placed at once.
 func _after_scene() -> void:
 	_system.set_star_scale(STAR_SCALE)
-	_gate = _build_gate()
-	_scene_root.add_child(_gate)
+	if not _single:
+		_gate = _build_gate()
+		_scene_root.add_child(_gate)
+	else:
+		_gate = null
 	_fresh_scene = true
 	_sync_ships()
 	_fresh_scene = false
 
 
-## The system's jump gate: a ring on pylons with a shimmering field. Ships come in
-## and leave the system through it.
+## The system's jump gate (JumpGate3D): ships come in and leave the system through it.
 func _build_gate() -> Node3D:
-	var gate := Node3D.new()
+	var gate := JumpGate3D.build(false)
 	gate.position = GATE_POS
 	gate.look_at_from_position(GATE_POS, Vector3(0, 0.4, 0), Vector3.UP)
-	var hull := ModelFactory.material("hull")
-	var dark := ModelFactory.material("dark")
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.2
-	torus.outer_radius = 0.255
-	torus.rings = 40
-	torus.ring_segments = 10
-	ring.mesh = torus
-	ring.material_override = hull
-	ring.rotation.x = PI / 2.0  # stand the ring up, facing the system
-	gate.add_child(ring)
-	# Four field emitters around the ring.
-	for k in 4:
-		var a := k * TAU / 4.0 + PI / 4.0
-		var lamp := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = 0.022
-		sm.height = 0.044
-		lamp.mesh = sm
-		lamp.material_override = BoardGeometry.additive_material(Color(0.35, 0.85, 1.0))
-		lamp.position = Vector3(cos(a), sin(a), 0.0) * 0.255
-		gate.add_child(lamp)
-		var pod := MeshInstance3D.new()
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.03
-		cyl.bottom_radius = 0.04
-		cyl.height = 0.06
-		pod.mesh = cyl
-		pod.material_override = dark
-		pod.position = Vector3(cos(a), sin(a), 0.0) * 0.235
-		pod.rotation.z = a - PI / 2.0
-		gate.add_child(pod)
-	var field := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = 0.2
-	disc.bottom_radius = 0.2
-	disc.height = 0.004
-	disc.radial_segments = 32
-	field.mesh = disc
-	field.material_override = BoardGeometry.additive_material(Color(0.06, 0.2, 0.32))
-	field.rotation.x = PI / 2.0
-	field.name = "Field"
-	gate.add_child(field)
-	var spin := Tumbler.new()
-	spin.spin = Vector3(0, 0, 0.25)
-	ring.add_child(spin)
-	var light := OmniLight3D.new()
-	light.light_color = Color(0.4, 0.8, 1.0)
-	light.light_energy = 0.8
-	light.omni_range = 0.8
-	gate.add_child(light)
 	return gate
 
 
@@ -287,8 +309,8 @@ func _target_for(m: Dictionary, uid: String) -> Vector3:
 	for i in mini(_bodies.size(), nodes.size()):
 		if _bodies[i]["id"] == body_id:
 			var n: Node3D = nodes[i]
-			var r := Planet3D._body_radius(_bodies[i], _data) * SYSTEM_SCALE * BODY_SCALE
-			if _bodies[i]["type"] == "asteroid_belt":
+			var r := _world_radius(_bodies[i])
+			if _bodies[i]["type"] == "asteroid_belt" and not _single:
 				var a := body_anchor(body_id)
 				var inner: Node3D = _system.get("_system")
 				var ring := 0.0
@@ -367,6 +389,13 @@ func ship_screen_pos(uid: String) -> Variant:
 
 # --- Geometry -------------------------------------------------------------------
 
+## A body's drawn radius in this view's world units.
+func _world_radius(b: Dictionary) -> float:
+	if _single:
+		return Body3D.body_radius(b, _data) * BODY_VIEW_SCALE
+	return Planet3D._body_radius(b, _data) * SYSTEM_SCALE * BODY_SCALE
+
+
 ## Screen position (in this control) and radius of a body, or {} when it can't be placed.
 func body_anchor(body_id: String) -> Dictionary:
 	if _system == null or _camera == null:
@@ -381,8 +410,8 @@ func body_anchor(body_id: String) -> Dictionary:
 	var node: Node3D = nodes[index]
 	var b: Dictionary = _bodies[index]
 	var world := node.global_position
-	var world_radius := Planet3D._body_radius(b, _data) * SYSTEM_SCALE * BODY_SCALE
-	if b["type"] == "asteroid_belt":
+	var world_radius := _world_radius(b)
+	if b["type"] == "asteroid_belt" and not _single:
 		# The belt is a ring: anchor on a fixed point of it.
 		var ring := 0.0
 		for o: Dictionary in _system.get("_orbiters"):

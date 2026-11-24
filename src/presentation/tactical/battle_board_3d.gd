@@ -157,6 +157,9 @@ func _build_board() -> void:
 				BoardGeometry.rocks(_world, world(c), hash(c), 0.6, true)
 			elif deco == "debris":
 				BoardGeometry.rocks(_world, world(c), hash(c), 0.5, true)
+			elif deco == "glare":
+				# Too close to the sun: searing plasma (a battle near the star on a system-scale map).
+				BoardGeometry.nebula_puffs(_world, world(c), Color(1.0, 0.55, 0.2), hash(c) + 3, 1.0)
 			if terrain.get("blocks_sight", false) and terrain.get("passable", true):
 				BoardGeometry.nebula_puffs(_world, world(c), Color(terrain.get("color", "#553377")), hash(c) + 7, 1.5)
 		polys.append(_cell_poly(c, 0.95))
@@ -190,7 +193,7 @@ func add_unit(u: BattleUnit) -> void:
 	_world.add_child(view)
 	var team := engine.state.team_info(u.team)
 	view.setup(u, data, Palette.team_color(u.team), team.get("species", ""), _ship_altitude(u),
-			String(team.get("model_variant", "")) if not String(team.get("model_variant", "")).is_empty() \
+			String(team.get("model_variant", "")) if team.has("model_variant") \
 					else ("raider" if team.get("role", "") == "barbarian" else ""))
 	view.position = _unit_ground(u)
 	view.face_angle(0.0 if u.team == 0 else PI)

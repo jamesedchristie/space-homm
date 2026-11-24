@@ -33,7 +33,7 @@ func setup(p_engine: GalaxyEngine, p_data: DataRegistry, p_player_faction: Strin
 	for p: Planet in engine.state.planets.values():
 		var pv := PlanetView.new()
 		planets_layer.add_child(pv)
-		pv.setup(p, data)
+		pv.setup(p, data, engine.is_system_scale())
 		pv.position = map_view.cell_center(p.cell) + PLANET_OFFSET
 		planet_views[p.id] = pv
 

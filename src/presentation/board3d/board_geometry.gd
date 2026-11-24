@@ -47,6 +47,10 @@ static func build_environment(parent: Node3D, hq: bool = false, kind: String = "
 	sun.light_energy = 1.25
 	sun.light_color = Color(1.0, 0.96, 0.9)
 	sun.shadow_enabled = true
+	if kind == "solar":
+		# The sun in the middle of the map does most of the lighting (SolarSystem3D).
+		sun.light_energy = 0.45
+		env.ambient_light_energy = 0.6
 	if kind == "deck" and supports_high_quality():
 		# Forward+ lights the same scene much brighter than the compatibility renderer the
 		# deck was tuned on: dim it to match (room lights and the glow strips carry it).
@@ -108,7 +112,7 @@ static func _build_hq_environment(parent: Node3D, kind: String = "battle") -> En
 		env.ssao_radius = 0.25
 		env.glow_intensity = 0.8
 		env.glow_hdr_threshold = 1.2
-	if kind == "galaxy":
+	if kind == "galaxy" or kind == "solar":
 		env.volumetric_fog_density = 0.0
 		env.volumetric_fog_length = 160.0
 		env.volumetric_fog_detail_spread = 1.5
@@ -129,6 +133,11 @@ static func _build_hq_environment(parent: Node3D, kind: String = "battle") -> En
 	sun.light_volumetric_fog_energy = 1.5
 	if kind == "system":
 		sun.light_energy = 0.25  # the star's own light does the work
+		sun.shadow_enabled = false
+	if kind == "solar":
+		# A system-scale map: the sun in the middle of the board lights it (SolarSystem3D).
+		env.ambient_light_energy = 0.9
+		sun.light_energy = 0.35
 		sun.shadow_enabled = false
 	parent.add_child(sun)
 	var rim := DirectionalLight3D.new()
