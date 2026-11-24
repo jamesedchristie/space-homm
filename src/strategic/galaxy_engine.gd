@@ -547,9 +547,17 @@ func location_name(cell: Vector2i) -> String:
 	return "deep space" if terrain.is_empty() else "the %s" % terrain.get("name", "void").to_lower()
 
 
-## "at Haven", "in deep space", "in the nebula": for sentences and titles.
+## "at Haven", "in deep space", "in the nebula": for sentences and titles. On a system-scale map,
+## open space next to a body is "near Terra".
 func location_phrase(cell: Vector2i) -> String:
-	return ("at %s" if state.planet_at(cell) != null else "in %s") % location_name(cell)
+	if state.planet_at(cell) != null:
+		return "at %s" % location_name(cell)
+	if is_system_scale() and state.grid.terrain_def(cell).is_empty():
+		for n in state.grid.neighbors(cell):
+			var near := state.planet_at(n)
+			if near != null:
+				return "near %s" % near.name
+	return "in %s" % location_name(cell)
 
 
 ## Scenario dictionary for BattleEngine.from_scenario() describing the
