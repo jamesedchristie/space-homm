@@ -82,6 +82,7 @@ func setup(p_engine: BattleEngine, p_data: DataRegistry, floor_style: String) ->
 
 
 func teardown() -> void:
+	_glare_material = null
 	views.clear()
 	_props.clear()
 	marker_labels.clear()
@@ -158,8 +159,7 @@ func _build_board() -> void:
 			elif deco == "debris":
 				BoardGeometry.rocks(_world, world(c), hash(c), 0.5, true)
 			elif deco == "glare":
-				# Too close to the sun: searing plasma (a battle near the star on a system-scale map).
-				BoardGeometry.nebula_puffs(_world, world(c), Color(1.0, 0.55, 0.2), hash(c) + 3, 1.0)
+				_glare(c)
 			if terrain.get("blocks_sight", false) and terrain.get("passable", true):
 				BoardGeometry.nebula_puffs(_world, world(c), Color(terrain.get("color", "#553377")), hash(c) + 7, 1.5)
 		polys.append(_cell_poly(c, 0.95))
@@ -167,6 +167,31 @@ func _build_board() -> void:
 	BoardGeometry.mesh_node(_world, BoardGeometry.tile_material(false)).mesh = solid.commit()
 	BoardGeometry.mesh_node(_world, BoardGeometry.tile_material(true)).mesh = glass.commit()
 	BoardGeometry.mesh_node(_world, BoardGeometry.line_material()).mesh = BoardGeometry.grid_lines(polys, _floor_y + 0.005)
+
+
+## Too close to the sun (a battle by the star on a system-scale map): a wall of searing light, soft
+## overlapping glows (the star corona shader on camera-facing quads) that bloom on the high-quality look.
+var _glare_material: ShaderMaterial
+
+
+func _glare(c: Vector2i) -> void:
+	if _glare_material == null:
+		_glare_material = ShaderMaterial.new()
+		_glare_material.shader = Planet3D.CORONA_SHADER
+		_glare_material.set_shader_parameter("corona_color", Color(1.0, 0.5, 0.18))
+		_glare_material.set_shader_parameter("intensity", 0.55 if BoardGeometry.high_quality() else 0.42)
+		_glare_material.set_shader_parameter("core", 0.12)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(c) + 3
+	for k in 2:
+		var glow := MeshInstance3D.new()
+		var quad := QuadMesh.new()
+		quad.size = Vector2.ONE * rng.randf_range(3.2, 4.2)
+		glow.mesh = quad
+		glow.material_override = _glare_material
+		glow.position = world(c) + Vector3(rng.randf_range(-0.35, 0.35), rng.randf_range(0.1, 0.6), rng.randf_range(-0.35, 0.35))
+		glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_world.add_child(glow)
 
 
 func _door(st: SurfaceTool, c: Vector2i) -> void:
