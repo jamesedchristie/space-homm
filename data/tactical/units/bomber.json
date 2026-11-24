@@ -1,0 +1,43 @@
+{
+  "id": "bomber",
+  "name": "Bomber",
+  "description": "Strike craft: stubby torpedo bombers that make runs on capital ships and stations. Fragile, and flak and interceptors eat them alive.",
+  "tags": [
+    "ship",
+    "small"
+  ],
+  "class": "strike",
+  "specialty": "bomber",
+  "stats": {
+    "max_hull": 80,
+    "max_shields": 30,
+    "armor": 1,
+    "initiative": 7,
+    "max_ap": 5
+  },
+  "abilities": [
+    "torpedo_run",
+    "evasive_maneuvers"
+  ],
+  "strategic": {
+    "speed": 4,
+    "sensor": 2,
+    "cost": {
+      "alloys": 30,
+      "credits": 30,
+      "volatiles": 3
+    },
+    "build_turns": 2,
+    "requires_tech": "strike_wings",
+    "upkeep": 1
+  },
+  "visual": {
+    "placeholder": "interceptor",
+    "sprite": "res://assets/kenney_space_shooter/ships/playerShip1_{team}.png",
+    "size": 0.85,
+    "model": "bomber",
+    "attack_style": "run",
+    "squadron": 4,
+    "craft_size": 0.4
+  }
+}

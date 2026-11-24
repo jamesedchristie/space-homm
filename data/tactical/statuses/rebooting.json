@@ -1,0 +1,7 @@
+{
+  "id": "rebooting",
+  "name": "Rebooting",
+  "description": "Systems coming back up after being scrambled: immune to scrambling until it has acted.",
+  "blocks": ["scrambled"],
+  "ai_value": 3
+}

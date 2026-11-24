@@ -97,6 +97,14 @@ func has_flag(flag: String) -> bool:
 	return false
 
 
+## True if one of its statuses makes it immune to this one ("blocks": [status ids]).
+func blocks_status(status_id: String) -> bool:
+	for s in statuses:
+		if status_id in s.def.get("blocks", []):
+			return true
+	return false
+
+
 func find_status(status_id: String) -> StatusInstance:
 	for s in statuses:
 		if s.id == status_id:

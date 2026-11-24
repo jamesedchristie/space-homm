@@ -1,20 +1,21 @@
 {
   "id": "cruiser",
   "name": "Cruiser",
-  "description": "Capital ship. Slow and enormously tough, with a spinal railgun, torpedo racks and heavy shields.",
+  "description": "Capital ship: slow and enormously tough, with a heavy railgun, torpedo racks and heavy shields. Crushes escorts; bombers are its bane.",
   "tags": [
     "ship",
     "large"
   ],
+  "class": "capital",
   "stats": {
-    "max_hull": 280,
+    "max_hull": 300,
     "max_shields": 120,
     "armor": 7,
     "initiative": 2,
-    "max_ap": 4
+    "max_ap": 6
   },
   "abilities": [
-    "railgun",
+    "heavy_railgun",
     "torpedo_salvo",
     "brace_shields"
   ],

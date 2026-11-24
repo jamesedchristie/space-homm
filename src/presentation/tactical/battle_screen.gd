@@ -513,7 +513,15 @@ func _preview_text(active: BattleUnit, target: Vector2i) -> String:
 			parts.append("-%d hull" % p["hull_damage"])
 		if p["heal"] > 0:
 			parts.append("+%d" % p["heal"])
+		var role_mul: float = p.get("role_mul", 1.0)
+		if role_mul != 1.0 and (p["shield_damage"] > 0 or p["hull_damage"] > 0):
+			# Ship class counters, e.g. "x1.6 vs capital ship" (bonus) or "x0.7 vs escort".
+			parts.append("x%s vs %s" % [RoleRules.mul_text(role_mul),
+					RoleRules.class_name_of(data, RoleRules.class_of(u.def)).to_lower()])
 		for st: Dictionary in p["statuses"]:
+			if st.get("immune", false):
+				parts.append("immune to " + EventFormatter.status_name(data, st["status"]))
+				continue
 			var chance := "" if st["chance"] >= 1.0 else " %d%%" % roundi(st["chance"] * 100)
 			parts.append(EventFormatter.status_name(data, st["status"]) + chance)
 		var friendly := " (FRIENDLY!)" if u.team == active.team and u != active else ""

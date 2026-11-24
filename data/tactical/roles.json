@@ -1,0 +1,79 @@
+{
+  "classes": {
+    "strike": {
+      "name": "Strike craft",
+      "plural": "strike craft",
+      "description": "Fighters and bombers: fast squadrons that tear into capital ships, but escorts' flak shreds them."
+    },
+    "escort": {
+      "name": "Escort",
+      "plural": "escorts",
+      "description": "Corvettes and frigates: flak and point defence that hunt strike craft, outgunned by capital ships."
+    },
+    "capital": {
+      "name": "Capital ship",
+      "plural": "capital ships",
+      "description": "Destroyers, cruisers and battleships: heavy guns and armour that crush escorts, but too slow to swat strike craft."
+    },
+    "station": {
+      "name": "Station",
+      "plural": "stations",
+      "description": "Fixed defences: no counters either way (bombers' torpedoes still hit them hard)."
+    },
+    "civilian": {
+      "name": "Civilian",
+      "plural": "civilian ships",
+      "description": "Unarmed or barely armed: no counters either way."
+    }
+  },
+  "specialties": {
+    "interceptor": {
+      "name": "Interceptor",
+      "description": "Dogfighter: hunts strike craft, bombers above all; little to fear from it for capital ships."
+    },
+    "bomber": {
+      "name": "Bomber",
+      "description": "Torpedo bomber: devastating against capital ships and stations, nearly harmless to escorts and other strike craft."
+    },
+    "flak": {
+      "name": "Flak",
+      "description": "Flak batteries: shred strike craft."
+    },
+    "ion": {
+      "name": "Ion",
+      "description": "Ion cannons scramble a target's systems (it loses its next turn) rather than kill it. Works on anything, best on capital ships."
+    }
+  },
+  "vs": {
+    "strike": {
+      "capital": 1.6,
+      "escort": 0.7
+    },
+    "escort": {
+      "strike": 1.3,
+      "capital": 0.7
+    },
+    "capital": {
+      "escort": 1.3,
+      "strike": 0.7
+    }
+  },
+  "specialty_vs": {
+    "interceptor": {
+      "strike": 1.6,
+      "capital": 0.9
+    },
+    "bomber": {
+      "capital": 2.0,
+      "station": 1.4,
+      "escort": 0.7,
+      "strike": 0.5
+    },
+    "flak": {
+      "strike": 1.4
+    },
+    "ion": {
+      "capital": 0.9
+    }
+  }
+}

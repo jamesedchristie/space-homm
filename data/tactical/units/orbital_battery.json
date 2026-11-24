@@ -6,6 +6,7 @@
     "station",
     "immobile"
   ],
+  "class": "station",
   "stats": {
     "max_hull": 70,
     "max_shields": 30,

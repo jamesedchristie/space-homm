@@ -1,11 +1,13 @@
 {
   "id": "interceptor",
   "name": "Interceptor",
-  "description": "Fast strike craft. Strips shields with pulse lasers and scrambles systems with EMP.",
+  "description": "Strike craft dogfighter: hunts other strike craft (bombers above all) with pulse lasers and EMP. Escorts' flak shreds it; capital ships shrug it off.",
   "tags": [
     "ship",
     "small"
   ],
+  "class": "strike",
+  "specialty": "interceptor",
   "stats": {
     "max_hull": 60,
     "max_shields": 40,

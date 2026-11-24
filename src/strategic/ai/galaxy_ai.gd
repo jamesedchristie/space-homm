@@ -47,15 +47,15 @@ const MEGAPROJECT_PRIORITY := ["ascension_gate", "grand_archive", "stellar_forge
 ## Techs in the order the AI likes them; anything not listed comes after, cheapest first.
 const RESEARCH_PRIORITY := ["hydroponics", "automated_mining", "trade_protocols", "deep_space_sensors", "reinforced_hulls",
 		"improved_drives", "colonial_medicine", "shield_harmonics", "terraforming", "orbital_defenses", "cryogenic_labs",
-		"scientific_method", "arcology_planning", "heavy_hulls", "galactic_commerce", "asteroid_refining", "logistics_corps",
-		"archival_science", "orbital_habitats", "targeting_computers", "stellar_engineering", "deflector_grids", "exotic_physics",
+		"scientific_method", "strike_wings", "arcology_planning", "heavy_hulls", "galactic_commerce", "asteroid_refining", "logistics_corps",
+		"archival_science", "orbital_habitats", "targeting_computers", "ion_weapons", "stellar_engineering", "deflector_grids", "exotic_physics",
 		"fleet_doctrine", "field_repairs", "deep_core_taps", "quantum_computing", "nanofabrication", "genetic_uplift",
-		"interstellar_banking", "ascension_theory", "capital_ships", "command_doctrine"]
+		"interstellar_banking", "ascension_theory", "capital_ships", "battleships", "command_doctrine"]
 ## In a campaign won by a tech (Solar Age: Hyperdrive), the research economy comes first, then the
 ## road to that tech, then everything else in the usual order.
 const GOAL_ECONOMY := ["automated_mining", "deep_space_sensors", "cryogenic_labs", "hydroponics", "scientific_method"]
 ## Researched first while a stronger enemy is at war with the AI.
-const MILITARY_TECHS := ["reinforced_hulls", "shield_harmonics", "targeting_computers", "heavy_hulls", "orbital_defenses"]
+const MILITARY_TECHS := ["reinforced_hulls", "shield_harmonics", "strike_wings", "targeting_computers", "heavy_hulls", "orbital_defenses", "ion_weapons"]
 ## Keep this much net credit income after paying for a new ship's upkeep.
 const UPKEEP_MARGIN := 2
 ## A rich empire (this much in stock) builds ships up to FLEET_BASE + FLEET_PER_COLONY per colony.
@@ -97,6 +97,11 @@ const RARE_LOW := 12
 const SYSTEM_CIVILIAN_RANGE := 99
 const SYSTEM_COLONY_SCORE := 4.0
 const COLONY_SCORE := 9.0
+## Ship classes (choose_warship): every role's floor share of the wanted mix, how much a
+## role the fleet is short of counts, and how much bigger hulls are preferred (exponent on hp).
+const MIX_FLOOR := 0.25
+const DEFICIT_WEIGHT := 2.0
+const SIZE_WEIGHT := 0.35
 
 var _turn_key := ""
 ## fleet id -> system id a civilian fleet is heading for (so two don't pick the same one).
@@ -146,23 +151,35 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 	var target: Variant = null
 
 	# 1. Attack something we can beat.
-	var best := 1 << 30
 	var my_strength := fleet.strength(data)
 	var attack_ratio := personality(engine, fleet.owner, "attack_ratio", ATTACK_RATIO)
 	var hunt_range := int(personality(engine, fleet.owner, "hunt_range", HUNT_RANGE))
+	var best_score := INF
 	for other: Fleet in s.fleets.values():
 		if not s.at_war(fleet.owner, other.owner) or not vis.has(other.cell):
 			continue
 		# A fleet parked at its own planet fights alongside the planet's platforms.
 		var their_strength := other.strength(data)
+		var their_ships: Array = other.ships.duplicate()
 		var at := s.planet_at(other.cell)
 		if at != null and at.owner == other.owner:
 			their_strength += defense_strength(engine, at)
-		if my_strength < their_strength * attack_ratio:
+			for unit_id in EmpireRules.defense_units(engine, at):
+				their_ships.append({"unit": unit_id})
+		# Ship classes: a fleet that counters the target (strike craft against capital
+		# ships, ...) fights above its weight, one that is countered below it.
+		var mine_eff := my_strength * RoleRules.matchup(data, fleet.ships, their_ships)
+		var theirs_eff := their_strength * RoleRules.matchup(data, their_ships, fleet.ships)
+		if mine_eff < theirs_eff * attack_ratio:
 			continue
 		var d := s.grid.distance(fleet.cell, other.cell)
-		if d < best and d <= hunt_range:
-			best = d
+		if d > hunt_range:
+			continue
+		# Nearest first, but a target this fleet counters counts as closer.
+		var edge := clampf(mine_eff / maxf(theirs_eff, 1.0), 1.0, 3.0)
+		var score := float(d) / edge
+		if score < best_score:
+			best_score = score
 			target = other.cell
 
 	# 1b. A rival at war with us is building the Ascension Gate: everything that can goes there.
@@ -250,7 +267,7 @@ func choose_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 		for p: Planet in s.planets.values():
 			if p.owner == fleet.owner or not s.at_war(fleet.owner, p.owner):
 				continue
-			if defense_strength(engine, p) > my_strength * attack_ratio:
+			if defense_strength(engine, p) > my_strength * _vs_defenses(engine, fleet, p) * attack_ratio:
 				continue
 			if role == "minor":
 				var capital := s.home_planet(fleet.owner)
@@ -392,6 +409,112 @@ func defense_strength(engine: GalaxyEngine, planet: Planet) -> float:
 	return total
 
 
+## How hard the fleet hits a system's defenses (ship class counters: bombers torpedo stations).
+func _vs_defenses(engine: GalaxyEngine, fleet: Fleet, planet: Planet) -> float:
+	var defenders: Array = []
+	for unit_id in EmpireRules.defense_units(engine, planet):
+		defenders.append({"unit": unit_id})
+	return RoleRules.matchup(engine.data, fleet.ships, defenders)
+
+
+# --- Ship classes: what to build -------------------------------------------------
+
+## Strength per ship class (RoleRules) of the warfleets of factions at war with this one
+## that it can see right now (it plays fair: no peeking through the fog).
+static func enemy_mix(engine: GalaxyEngine, faction_id: String) -> Dictionary:
+	var s := engine.state
+	var vis := engine.visible_cells(faction_id)
+	var ships: Array = []
+	for f: Fleet in s.fleets.values():
+		if f.owner != faction_id and s.at_war(faction_id, f.owner) and vis.has(f.cell):
+			ships.append_array(f.ships)
+	var mix := RoleRules.composition(engine.data, ships)
+	mix.erase("")
+	mix.erase("civilian")
+	return mix
+
+
+## Strength per ship class of the faction's own warships, counting ships in its queues.
+static func own_mix(engine: GalaxyEngine, faction_id: String) -> Dictionary:
+	var ships: Array = []
+	for f in engine.state.fleets_of(faction_id):
+		ships.append_array(f.ships)
+	for p in engine.state.planets_of(faction_id):
+		if p.queue.get("kind", "") == "unit":
+			ships.append({"unit": p.queue["item"]})
+	var mix := RoleRules.composition(engine.data, ships)
+	mix.erase("")
+	mix.erase("civilian")
+	return mix
+
+
+## Which warship to build from `unit_ids`, given the enemy's mix and our own (class ->
+## strength): units that counter what the enemy flies score higher, and so do roles the
+## fleet is short of compared with that counter mix (every role keeps a floor share, so
+## the navy stays mixed). Bigger hulls win ties (fleets hold at most six ships).
+## Pure, so tests can call it directly. "" if nothing fits.
+static func choose_warship(data: DataRegistry, unit_ids: Array, enemy: Dictionary, own: Dictionary) -> String:
+	if unit_ids.is_empty():
+		return ""
+	var foe := enemy.duplicate()
+	var foe_total := 0.0
+	for cls: String in foe:
+		foe_total += float(foe[cls])
+	if foe_total <= 0.0:
+		foe = {"strike": 1.0, "escort": 1.0, "capital": 1.0}  # nothing seen: a balanced guess
+		foe_total = 3.0
+	# Desired share of each role: a floor, plus the share of the enemy fleet it counters.
+	var available := {}
+	for id: String in unit_ids:
+		var cls := RoleRules.class_of(data.units.get(id, {}))
+		if cls in RoleRules.ROLES:
+			available[cls] = true
+	var desired := {}
+	var desired_total := 0.0
+	for role: String in available:
+		var beaten := ""
+		for target: String in RoleRules.COUNTER:
+			if RoleRules.COUNTER[target] == role:
+				beaten = target
+		desired[role] = MIX_FLOOR + float(foe.get(beaten, 0.0)) / foe_total
+		desired_total += float(desired[role])
+	var own_total := 0.0
+	for cls: String in own:
+		if cls in RoleRules.ROLES:
+			own_total += float(own[cls])
+	var best := ""
+	var best_score := -INF
+	for id: String in unit_ids:
+		var def: Dictionary = data.units.get(id, {})
+		var cls := RoleRules.class_of(def)
+		var counter := RoleRules.counter_value(data, def, foe)
+		var deficit := 0.0
+		if desired.has(cls):
+			var have := float(own.get(cls, 0.0)) / own_total if own_total > 0.0 else 0.0
+			deficit = float(desired[cls]) / desired_total - have
+		var stats: Dictionary = def.get("stats", {})
+		var size := pow(float(stats.get("max_hull", 1)) + float(stats.get("max_shields", 0)) * 0.5, SIZE_WEIGHT)
+		var score := counter * counter * (1.0 + DEFICIT_WEIGHT * clampf(deficit, -0.4, 1.0)) * size
+		if score > best_score:
+			best_score = score
+			best = id
+	return best
+
+
+## The warship option (from build_options) this faction should build now.
+func _pick_ship(engine: GalaxyEngine, faction_id: String, options: Array[Dictionary]) -> Dictionary:
+	if options.size() <= 1:
+		return options[0] if not options.is_empty() else {}
+	var ids: Array = []
+	for o in options:
+		ids.append(o["id"])
+	var pick := choose_warship(engine.data, ids, enemy_mix(engine, faction_id), own_mix(engine, faction_id))
+	for o in options:
+		if o["id"] == pick:
+			return o
+	return options[0]
+
+
 # --- Empire management --------------------------------------------------------
 
 ## Next research/production/diplomacy command for this turn, or null when done.
@@ -484,7 +607,7 @@ func choose_build(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 	var affordable_ships: Array[Dictionary] = ships.filter(func(o: Dictionary) -> bool:
 		return _can_support(engine, faction_id, o["id"], threatened))
 	if not affordable_ships.is_empty() and mine < theirs * 0.9 and (not saving or threatened):
-		return affordable_ships[0]
+		return _pick_ship(engine, faction_id, affordable_ships)
 	var civilian_option := _choose_civilian_build(engine, planet, saving)
 	if not civilian_option.is_empty():
 		return civilian_option
@@ -493,7 +616,7 @@ func choose_build(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 		var stock: Dictionary = engine.state.resources[faction_id]
 		if int(stock.get("credits", 0)) >= RICH_CREDITS + int(reserve.get("credits", 0)) \
 				and int(stock.get("alloys", 0)) >= RICH_ALLOYS + int(reserve.get("alloys", 0)):
-			return affordable_ships[0]
+			return _pick_ship(engine, faction_id, affordable_ships)
 	# Without any shipyard a faction can never rebuild its fleet: fix that first.
 	if buildings.has("shipyard"):
 		var any_yard := false
@@ -505,7 +628,7 @@ func choose_build(engine: GalaxyEngine, planet: Planet) -> Dictionary:
 		if buildings.has(b_id) and (not saving or b_id in SAVING_OK):
 			return buildings[b_id]
 	if not affordable_ships.is_empty() and mine < theirs * 1.5 and not saving:
-		return affordable_ships[0]
+		return _pick_ship(engine, faction_id, affordable_ships)
 	return {}
 
 

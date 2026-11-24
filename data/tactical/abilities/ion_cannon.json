@@ -1,0 +1,29 @@
+{
+  "id": "ion_cannon",
+  "name": "Ion Cannon",
+  "description": "A crackling ion beam that strips shields and scrambles the target's systems: it loses its next turn. Best against capital ships.",
+  "ap_cost": 2,
+  "cooldown": 3,
+  "target": "enemy",
+  "range": [
+    1,
+    4
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        8,
+        11
+      ],
+      "damage_type": "energy"
+    },
+    {
+      "type": "apply_status",
+      "status": "scrambled",
+      "duration": 1
+    }
+  ],
+  "fx": "beam"
+}

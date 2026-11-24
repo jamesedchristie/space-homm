@@ -1,0 +1,8 @@
+{
+  "id": "scrambled",
+  "name": "Scrambled",
+  "description": "Systems scrambled by an EMP or ion hit: loses its next turn. Afterwards it reboots and can't be scrambled again until it has acted.",
+  "flags": ["skip_turn"],
+  "then": {"status": "rebooting", "duration": 2},
+  "ai_value": -25
+}

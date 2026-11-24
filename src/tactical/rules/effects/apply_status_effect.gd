@@ -12,5 +12,9 @@ func apply(engine: BattleEngine, source: BattleUnit, target: BattleUnit, params:
 	engine.add_status(target, status_id, int(params.get("duration", 1)), source)
 
 
-func preview(_engine: BattleEngine, _source: BattleUnit, _target: BattleUnit, params: Dictionary, p: Dictionary) -> void:
-	p["statuses"].append({"status": params.get("status", ""), "chance": float(params.get("chance", 1.0))})
+func preview(_engine: BattleEngine, _source: BattleUnit, target: BattleUnit, params: Dictionary, p: Dictionary) -> void:
+	var status_id: String = params.get("status", "")
+	if target.blocks_status(status_id):
+		p["statuses"].append({"status": status_id, "chance": 0.0, "immune": true})
+		return
+	p["statuses"].append({"status": status_id, "chance": float(params.get("chance", 1.0))})

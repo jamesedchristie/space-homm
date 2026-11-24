@@ -1,0 +1,42 @@
+{
+  "id": "corvette",
+  "name": "Corvette",
+  "description": "Escort: a small, cheap flak boat that flies screen for the fleet. Shreds strike craft; capital ships brush it aside.",
+  "tags": [
+    "ship",
+    "small"
+  ],
+  "class": "escort",
+  "specialty": "flak",
+  "stats": {
+    "max_hull": 70,
+    "max_shields": 30,
+    "armor": 1,
+    "initiative": 6,
+    "max_ap": 5
+  },
+  "abilities": [
+    "flak_burst",
+    "pulse_lasers",
+    "evasive_maneuvers"
+  ],
+  "strategic": {
+    "speed": 4,
+    "sensor": 2,
+    "cost": {
+      "alloys": 25,
+      "credits": 20
+    },
+    "build_turns": 2,
+    "upkeep": 1
+  },
+  "visual": {
+    "placeholder": "interceptor",
+    "sprite": "res://assets/kenney_space_shooter/ships/playerShip1_{team}.png",
+    "size": 0.85,
+    "model": "corvette",
+    "attack_style": "broadside",
+    "squadron": 3,
+    "craft_size": 0.42
+  }
+}

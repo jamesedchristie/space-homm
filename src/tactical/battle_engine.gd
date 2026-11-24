@@ -219,7 +219,8 @@ func ability_error(unit_id: String, ability_id: String) -> String:
 
 
 ## Expected outcome of an ability, one entry per affected unit:
-## {unit, shield_damage, hull_damage, heal, statuses: [{status, chance}], lethal}
+## {unit, shield_damage, hull_damage, heal, statuses: [{status, chance}], lethal,
+##  role_mul (ship class counter multiplier of its damage, see RoleRules), cover}
 ## from_cell: preview as if the unit stood there (the AI weighing positions).
 func preview_ability(unit_id: String, ability_id: String, target_cell: Vector2i, from_cell: Variant = null) -> Array[Dictionary]:
 	var unit := state.get_unit(unit_id)
@@ -239,7 +240,7 @@ func preview_ability(unit_id: String, ability_id: String, target_cell: Vector2i,
 		for r in recipients:
 			if not by_unit.has(r.id):
 				var p := {"unit": r.id, "shields": r.shields, "shield_damage": 0, "hull_damage": 0,
-						"heal": 0, "statuses": [], "lethal": false}
+						"heal": 0, "statuses": [], "lethal": false, "role_mul": 1.0}
 				by_unit[r.id] = p
 				order.append(p)
 			effect.preview(self, unit, r, effect_def, by_unit[r.id])
@@ -330,6 +331,11 @@ func add_status(target: BattleUnit, status_id: String, duration: int, source: Ba
 	if def.is_empty():
 		push_error("BattleEngine: unknown status '%s'" % status_id)
 		return
+	# A status may make its bearer immune to others ("blocks": e.g. rebooting systems
+	# can't be scrambled again until the ship has acted).
+	if target.blocks_status(status_id):
+		emit({"type": BattleEvents.STATUS_RESISTED, "target": target.id, "status": status_id, "immune": true})
+		return
 	var existing := target.find_status(status_id)
 	if existing != null:
 		existing.remaining = maxi(existing.remaining, duration)
@@ -337,6 +343,10 @@ func add_status(target: BattleUnit, status_id: String, duration: int, source: Ba
 		target.statuses.append(StatusInstance.new(def, duration, source.id if source != null else ""))
 	emit({"type": BattleEvents.STATUS_APPLIED, "target": target.id, "status": status_id,
 			"duration": duration, "source": source.id if source != null else ""})
+	# ... and may bring another with it ("then": {"status", "duration"}).
+	var then: Dictionary = def.get("then", {})
+	if not then.is_empty():
+		add_status(target, str(then.get("status", "")), int(then.get("duration", 1)), source)
 
 
 # =============================================================================

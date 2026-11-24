@@ -23,6 +23,16 @@ const COVER_WEIGHT := 14.0
 ## Units tagged "rusher" (raiders, the infected) like hand to hand: melee abilities
 ## score this much higher for them, so they close in rather than hang back.
 const RUSHER_MELEE_BONUS := 1.5
+## Ship class counters (RoleRules): damage to a target this unit counters (x1.5) scores
+## 1 + ROLE_FOCUS * 0.5 times its value, so strike craft go for capital ships and flak for fighters.
+const ROLE_FOCUS := 0.6
+## A status that skips the target's turn is worth its ai_value at this max hull, scaled up
+## for bigger targets (x0.5 .. x3).
+const SKIP_TURN_HULL := 120.0
+## Escorts guarding capital ships: bonus for a firing position within ESCORT_RANGE of a
+## friendly capital ship while enemy strike craft are on the field.
+const ESCORT_GUARD := 8.0
+const ESCORT_RANGE := 2
 
 var _moved_turn_key := ""
 
@@ -113,12 +123,21 @@ func score_action(engine: BattleEngine, unit: BattleUnit, ability_id: String, ab
 		if other == unit and from_cell != unit.cell and ability.get("target", "") != "self":
 			continue
 		var harm: float = p["shield_damage"] * SHIELD_WEIGHT + p["hull_damage"]
+		# Ship class counters: the damage already includes the multiplier; lean further
+		# into targets this unit counters (and away from those it barely scratches).
+		var role_mul: float = p.get("role_mul", 1.0)
+		if other.team != unit.team and role_mul != 1.0:
+			harm *= maxf(0.2, 1.0 + ROLE_FOCUS * (role_mul - 1.0))
 		if p["lethal"] and p["hull_damage"] > 0:
 			harm += KILL_BONUS
 		var help: float = p["heal"] * HEAL_WEIGHT
 		for st: Dictionary in p["statuses"]:
 			if other.find_status(st["status"]) == null:
-				help += float(engine.data.statuses[st["status"]].get("ai_value", 0.0)) * st["chance"]
+				var value: float = float(engine.data.statuses[st["status"]].get("ai_value", 0.0)) * float(st["chance"])
+				# Losing a turn hurts a big ship more: scramble the capital ship, not the fighter.
+				if "skip_turn" in engine.data.statuses[st["status"]].get("flags", []) and other.team != unit.team:
+					value *= clampf(float(other.max_hull()) / SKIP_TURN_HULL, 0.5, 3.0)
+				help += value
 		var net := help - harm  # how good this is for `other`
 		if other.team != unit.team:
 			score -= net
@@ -163,10 +182,38 @@ func cover_safety(engine: BattleEngine, unit: BattleUnit, cell: Vector2i) -> flo
 	return safety
 
 
+## The friendly capital ships an escort should screen: only for escort-class units, and
+## only while the enemy has strike craft (the capital ships' bane) on the field.
+func escort_wards(engine: BattleEngine, unit: BattleUnit) -> Array[BattleUnit]:
+	var out: Array[BattleUnit] = []
+	if RoleRules.class_of(unit.def) != "escort":
+		return out
+	var threat := false
+	for e in engine.state.living_enemies_of(unit):
+		if RoleRules.class_of(e.def) == "strike" and (not engine.state.fog_enabled or engine.state.is_visible(unit.team, e.cell)):
+			threat = true
+			break
+	if not threat:
+		return out
+	for u in engine.state.living_units():
+		if u.team == unit.team and u != unit and RoleRules.class_of(u.def) == "capital":
+			out.append(u)
+	return out
+
+
+## Bonus for an escort standing at `cell`: close to a capital ship it screens.
+func escort_bonus(engine: BattleEngine, cell: Vector2i, wards: Array[BattleUnit]) -> float:
+	for w in wards:
+		if engine.state.grid.distance(cell, w.cell) <= ESCORT_RANGE:
+			return ESCORT_GUARD
+	return 0.0
+
+
 func _choose_move(engine: BattleEngine, unit: BattleUnit) -> Vector2i:
 	var reach := engine.reachable_cells(unit.id)
 	var best_cell := unit.cell
 	var best_score := MIN_SCORE
+	var wards := escort_wards(engine, unit)
 	for cell: Vector2i in reach:
 		if cell == unit.cell:
 			continue
@@ -174,6 +221,7 @@ func _choose_move(engine: BattleEngine, unit: BattleUnit) -> Vector2i:
 		var s: float = best_action(engine, unit, cell, unit.ap - cost)["score"] - 0.01 * cost
 		if s > 0.0:
 			s += cover_safety(engine, unit, cell)
+			s += escort_bonus(engine, cell, wards)
 		if s > best_score:
 			best_score = s
 			best_cell = cell

@@ -34,6 +34,8 @@ var _shield_value: Label
 var _hull_bar: ProgressBar
 var _hull_value: Label
 var _stats_label: Label
+## Ship class and counters: "Capital ship · strong vs escorts x1.3 · weak vs strike craft".
+var _role_label: Label
 var _status_label: Label
 var _ability_box: HFlowContainer
 var _end_turn_button: Button
@@ -95,12 +97,37 @@ func show_unit(unit: BattleUnit, data: DataRegistry) -> void:
 	_hull_value.text = "%d / %d" % [unit.hull, unit.max_hull()]
 	_stats_label.text = "AP %d / %d    Armor %d    Initiative %d" % [
 			unit.ap, unit.stat_i("max_ap"), unit.stat_i("armor"), unit.stat_i("initiative")]
+	var profile := RoleRules.profile(data, def)
+	_role_label.visible = not profile.is_empty()
+	if not profile.is_empty():
+		_role_label.text = "%s  ·  %s" % [profile["name"], RoleRules.summary(data, def)]
+		_role_label.tooltip_text = role_tooltip(data, def)
 	var tags := PackedStringArray()
 	for s in unit.statuses:
 		var label: String = s.def.get("name", s.id)
 		if not s.def.get("hidden", false):  # tech bonuses are listed in the Empire panel instead
 			tags.append(label if s.is_permanent() else "%s (%d)" % [label, s.remaining])
 	_status_label.text = "Status: " + (", ".join(tags) if not tags.is_empty() else "nominal")
+
+
+## Tooltip for a ship's class: what the class and its specialty do, and every counter with its multiplier.
+static func role_tooltip(data: DataRegistry, def: Dictionary) -> String:
+	var p := RoleRules.profile(data, def)
+	if p.is_empty():
+		return ""
+	var lines := PackedStringArray()
+	lines.append("%s: %s" % [RoleRules.class_name_of(data, p["class"]),
+			data.roles.get("classes", {}).get(p["class"], {}).get("description", "")])
+	if not str(p["specialty"]).is_empty():
+		var spec: Dictionary = data.roles.get("specialties", {}).get(p["specialty"], {})
+		lines.append("%s: %s" % [spec.get("name", p["specialty"]), spec.get("description", "")])
+	for e: Dictionary in p["strong"]:
+		lines.append("Deals x%s damage to %s" % [RoleRules.mul_text(e["mul"]), RoleRules.class_name_of(data, e["class"], true)])
+	for e: Dictionary in p["poor"]:
+		lines.append("Deals x%s damage to %s" % [RoleRules.mul_text(e["mul"]), RoleRules.class_name_of(data, e["class"], true)])
+	for e: Dictionary in p["weak"]:
+		lines.append("Takes x%s damage from %s" % [RoleRules.mul_text(e["mul"]), RoleRules.class_name_of(data, e["class"], true)])
+	return "\n".join(lines)
 
 
 ## entries: [{id, name, ap_cost, cooldown, enabled, reason, description, selected, hotkey}]
@@ -191,6 +218,10 @@ func _build() -> void:
 	info.add_child(hull_row[2])
 	_stats_label = _label("", 13, Palette.TEXT)
 	info.add_child(_stats_label)
+	_role_label = _label("", 12, Palette.ACTIVE)
+	_role_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	_role_label.clip_text = true
+	info.add_child(_role_label)
 	_status_label = _label("", 13, Palette.TEXT_DIM)
 	info.add_child(_status_label)
 

@@ -18,6 +18,8 @@ func preview(engine: BattleEngine, source: BattleUnit, target: BattleUnit, param
 	p["shield_damage"] += result["shield_damage"]
 	p["hull_damage"] += result["hull_damage"]
 	p["shields"] = shields_left - int(result["shield_damage"])
+	# Ship class counters (RoleRules): shown in the attack preview ("x1.5 vs capital ships").
+	p["role_mul"] = RoleRules.unit_multiplier(engine.data, source, target)
 
 
 func _scale(raw: float, source: BattleUnit, target: BattleUnit, engine: BattleEngine) -> float:
@@ -31,4 +33,6 @@ func _scale(raw: float, source: BattleUnit, target: BattleUnit, engine: BattleEn
 			and not engine.current_ability.get("melee", false):
 		var from: Vector2i = source.cell if engine.preview_from_cell == null else engine.preview_from_cell
 		cover *= CoverRules.evaluate(engine.state, from, target.cell)["multiplier"]
-	return raw * dealt * target.get_stat("damage_taken") * cover * engine.damage_scale
+	# Ship class counters (strike > capital > escort > strike), x1.0 for units without a class.
+	var role := RoleRules.unit_multiplier(engine.data, source, target)
+	return raw * dealt * target.get_stat("damage_taken") * cover * role * engine.damage_scale
