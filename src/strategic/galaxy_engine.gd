@@ -229,7 +229,13 @@ func submit(cmd: GalaxyCommand) -> CommandResult:
 	if not error.is_empty():
 		return CommandResult.failure(error)
 	if cmd is MoveFleetCommand:
+		# A move the player gives by hand replaces any standing order.
+		var moving: Fleet = state.fleets.get(cmd.fleet_id)
+		if moving != null:
+			moving.order = {}
 		_do_move(cmd)
+	elif cmd is OrderShipCommand:
+		_do_order(cmd)
 	elif cmd is EndFactionTurnCommand:
 		_end_faction_turn()
 	elif cmd is AssignHeroCommand:
@@ -305,6 +311,8 @@ func validate(cmd: GalaxyCommand) -> String:
 		return refusal
 	elif cmd is CivilianCommand:
 		return SystemRules.command_error(self, cmd)
+	elif cmd is OrderShipCommand:
+		return SystemRules.order_error(self, cmd)
 	elif cmd is DiplomacyCommand:
 		return _validate_diplomacy(cmd)
 	elif cmd is SplitFleetCommand:
@@ -1313,6 +1321,10 @@ func _begin_faction_turn() -> void:
 						"planet": planet.id if at_home else ""})
 	_update_explored()
 	emit({"type": GalaxyEvents.TURN_STARTED, "turn": state.turn_number, "faction": faction_id})
+	# Civilian ships on standing orders travel on and set to work.
+	for fleet in state.fleets_of(faction_id):
+		if not fleet.order.is_empty() and state.fleets.has(fleet.id):
+			_advance_order(fleet)
 	if not state.is_over:
 		var offered := EventRules.roll(self, faction_id)
 		if not offered.is_empty():
@@ -1663,6 +1675,156 @@ func _remove_ship(fleet: Fleet, ship: Dictionary) -> void:
 
 
 ## A deployed ship leaves for the galaxy map: joins the fleet in orbit, or forms a new one.
+# --- Standing orders (OrderShipCommand) -------------------------------------------
+
+func _do_order(cmd: OrderShipCommand) -> void:
+	var where := SystemRules.locate_ship(self, cmd.faction_id, cmd.ship_uid)
+	var target: Planet = state.planets[cmd.planet_id]
+	var item := cmd.item_id
+	if cmd.action == OrderShipCommand.JOB and item.is_empty():
+		item = SystemRules.default_job(self, cmd.faction_id, target.body(cmd.body_id))
+	var order := {"ship": cmd.ship_uid, "planet": cmd.planet_id, "body": cmd.body_id, "action": cmd.action, "item": item}
+	var fleet: Fleet = null
+	if where.has("planet"):
+		var here: Planet = where["planet"]
+		if here.id == target.id:
+			_execute_order(null, order)
+			return
+		fleet = _launch_civilian(here, where["ship"])
+	else:
+		fleet = where["fleet"]
+		if fleet.ships.size() > 1:
+			fleet = _detach_ship(fleet, cmd.ship_uid)
+	if fleet == null:
+		return
+	fleet.order = order
+	emit({"type": GalaxyEvents.ORDER_SET, "fleet": fleet.id, "ship": cmd.ship_uid, "planet": cmd.planet_id,
+			"body": cmd.body_id, "action": cmd.action, "item": item})
+	_advance_order(fleet)
+
+
+## A deployed ship takes off in a fleet of its own: on the system's cell if it's free, else on
+## a free neighbouring cell. null if there's no room.
+func _launch_civilian(planet: Planet, ship: Dictionary) -> Fleet:
+	var cell := planet.cell
+	if state.fleet_at(cell) != null:
+		var free: Variant = _free_neighbor(cell, ship["owner"])
+		if free == null:
+			return null
+		cell = free
+	planet.civilians.erase(ship)
+	var fleet := Fleet.new()
+	fleet.id = state.make_uid("fleet")
+	fleet.owner = ship["owner"]
+	fleet.cell = cell
+	fleet.name = ship["name"]
+	fleet.ships.append({"uid": ship["uid"], "unit": ship["unit"], "name": ship["name"], "hull": ship["hull"]})
+	fleet.moves_left = fleet_speed(fleet) if cell == planet.cell else maxi(fleet_speed(fleet) - 1, 0)
+	state.fleets[fleet.id] = fleet
+	emit({"type": GalaxyEvents.FLEET_CREATED, "fleet": fleet.id, "planet": planet.id})
+	emit({"type": GalaxyEvents.CIVILIAN_DEPARTED, "planet": planet.id, "ship": ship["uid"], "fleet": fleet.id})
+	return fleet
+
+
+## Splits one ship out of a fleet into a fleet of its own on a free neighbouring cell.
+func _detach_ship(fleet: Fleet, uid: String) -> Fleet:
+	var free: Variant = _free_neighbor(fleet.cell, fleet.owner)
+	if free == null:
+		return null
+	var ship: Dictionary = {}
+	for s in fleet.ships:
+		if s["uid"] == uid:
+			ship = s
+	fleet.ships.erase(ship)
+	var solo := Fleet.new()
+	solo.id = state.make_uid("fleet")
+	solo.owner = fleet.owner
+	solo.cell = free
+	solo.name = ship["name"]
+	solo.ships.append(ship)
+	solo.moves_left = maxi(mini(fleet.moves_left, fleet_speed(solo)) - state.grid.move_cost(free), 0)
+	state.fleets[solo.id] = solo
+	emit({"type": GalaxyEvents.FLEET_SPLIT, "fleet": fleet.id, "new_fleet": solo.id, "to": free})
+	return solo
+
+
+func _free_neighbor(cell: Vector2i, faction_id: String) -> Variant:
+	for c in state.grid.neighbors(cell):
+		if state.grid.is_passable(c) and state.fleet_at(c) == null:
+			var p := state.planet_at(c)
+			if p == null or p.owner.is_empty() or p.owner == faction_id:
+				return c
+	return null
+
+
+## Moves an order's fleet as far toward its target as it can this turn (around obstacles), and
+## carries the order out if it gets there.
+func _advance_order(fleet: Fleet) -> void:
+	var order := fleet.order
+	var target: Planet = state.planets.get(order.get("planet", ""))
+	if target == null:
+		_fail_order(fleet, "the target is gone")
+		return
+	if fleet.cell != target.cell and fleet.moves_left > 0:
+		var field := Pathfinding.distance_field(state.grid, [target.cell] as Array[Vector2i])
+		var reach := reachable_for(fleet.id)
+		var best := fleet.cell
+		var best_d: int = int(field.get(fleet.cell, 1 << 20))
+		for c: Vector2i in reach:
+			var d: int = int(field.get(c, 1 << 20))
+			if d < best_d or (d == best_d and c == target.cell):
+				best = c
+				best_d = d
+		if best != fleet.cell:
+			var uid: String = order["ship"]
+			var owner := fleet.owner
+			_do_move(MoveFleetCommand.new(owner, fleet.id, best))
+			if not state.fleets.has(fleet.id):
+				# Merged into a fleet waiting there, or lost: the order follows the ship if it survives.
+				var carrier: Fleet = null
+				for f in state.fleets_of(owner):
+					for s in f.ships:
+						if s["uid"] == uid:
+							carrier = f
+				if carrier == null:
+					return
+				fleet = carrier
+				fleet.order = order
+	if fleet.cell == target.cell:
+		_execute_order(fleet, order)
+
+
+## Carries the order out at the target (the ship is in a fleet there, or deployed there already).
+func _execute_order(fleet: Fleet, order: Dictionary) -> void:
+	var cmd := CivilianCommand.new(fleet.owner if fleet != null else _ship_owner(order), order["planet"], order["ship"],
+			CivilianCommand.JOB if order["action"] == OrderShipCommand.JOB else CivilianCommand.FOUND,
+			order["body"], order.get("item", ""))
+	var error := SystemRules.command_error(self, cmd)
+	if error.is_empty():
+		if fleet != null:
+			fleet.order = {}
+		_do_civilian(cmd)
+	elif error == "Can't afford it" and fleet != null:
+		pass  # waits at the site until the treasury allows
+	elif fleet != null:
+		_fail_order(fleet, error.to_lower())
+
+
+func _ship_owner(order: Dictionary) -> String:
+	var p: Planet = state.planets.get(order["planet"])
+	if p != null:
+		for c in p.civilians:
+			if c["uid"] == order["ship"]:
+				return c["owner"]
+	return ""
+
+
+func _fail_order(fleet: Fleet, reason: String) -> void:
+	emit({"type": GalaxyEvents.ORDER_FAILED, "fleet": fleet.id, "ship": fleet.order.get("ship", ""),
+			"planet": fleet.order.get("planet", ""), "reason": reason})
+	fleet.order = {}
+
+
 func _depart(planet: Planet, ship: Dictionary) -> void:
 	planet.civilians.erase(ship)
 	var fleet := state.fleet_at(planet.cell)

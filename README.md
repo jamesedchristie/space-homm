@@ -96,6 +96,14 @@ Three campaigns:
 - **The Drift (scenario)**: a short hand-made scenario: clear the raider dens out of the Drift. You
   start with your home colony already founded.
 
+**One-click orders.** Select a Constructor or Colony Ship (or click an "awaits orders" / "is idle" item
+in the attention list, or **Send to...** in a body's view) and hover a world: the hint says what it
+would do there ("Build Mining Base at Sol Belt A, 4 turns away"). Click, and the ship flies there on
+its own over as many turns as it takes and gets to work on arrival (a dotted course line shows where
+it's headed). Shift-click just moves; moving the ship by hand cancels its orders. On the system map
+only colonies (and enemy bases) carry full banners; mines, research stations and outposts show a
+small icon tag, with names when you hover or zoom in.
+
 ### Solar Age (Act 1 prototype)
 
 The game is becoming three acts: **Act 1** is your home star system at the start of your space age,

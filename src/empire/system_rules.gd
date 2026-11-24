@@ -149,3 +149,76 @@ static func development_targets(engine: GalaxyEngine, planet: Planet, faction_id
 		if not options.is_empty():
 			out.append({"body": b, "options": options})
 	return out
+
+
+# --- Standing orders (OrderShipCommand) -------------------------------------------
+
+## Where a faction's civilian ship is: {"planet": Planet, "ship": Dictionary} when deployed in a
+## system, {"fleet": Fleet, "ship": Dictionary} when riding in a fleet, {} if not found.
+static func locate_ship(engine: GalaxyEngine, faction_id: String, uid: String) -> Dictionary:
+	for p: Planet in engine.state.planets.values():
+		for c in p.civilians:
+			if c["uid"] == uid and c["owner"] == faction_id:
+				return {"planet": p, "ship": c}
+	for f in engine.state.fleets_of(faction_id):
+		for s in f.ships:
+			if s["uid"] == uid:
+				return {"fleet": f, "ship": s}
+	return {}
+
+
+## The development a constructor builds on `b` by default: the first fitting option that isn't a
+## bare outpost (mining base, research station, refinery...), else an outpost. "" if none fits.
+static func default_job(engine: GalaxyEngine, faction_id: String, b: Dictionary) -> String:
+	if b.is_empty():
+		return ""
+	var fallback := ""
+	for o in EmpireRules.constructor_options(engine, faction_id, b):
+		if not (o["reason"].is_empty() or o["reason"] == "Can't afford it"):
+			continue
+		if o["id"] == "outpost":
+			fallback = "outpost"
+			continue
+		return o["id"]
+	return fallback
+
+
+## What an order would do there, for hints: "Build Mining Base" / "Found a colony" / "" if nothing.
+static func order_label(engine: GalaxyEngine, faction_id: String, role: String, planet: Planet, b: Dictionary) -> String:
+	if role == "colony":
+		return "Found a colony" if found_error(engine, planet, b, faction_id).is_empty() else ""
+	if role == "constructor":
+		var item := default_job(engine, faction_id, b)
+		if item.is_empty() or not job_on_body(planet, b["id"]).is_empty() or not may_work_in(planet, faction_id):
+			return ""
+		return "Build %s" % engine.data.buildings[item].get("name", item)
+	return ""
+
+
+static func order_error(engine: GalaxyEngine, cmd: OrderShipCommand) -> String:
+	var where := locate_ship(engine, cmd.faction_id, cmd.ship_uid)
+	if where.is_empty():
+		return "No such ship"
+	var role := Fleet.role_of(engine.data, where["ship"]["unit"])
+	var planet: Planet = engine.state.planets.get(cmd.planet_id)
+	if planet == null:
+		return "No such system"
+	var b := planet.body(cmd.body_id)
+	if b.is_empty():
+		return "No such body"
+	if where.has("planet") and not where["ship"].get("job", {}).is_empty():
+		return "That ship is working"
+	match cmd.action:
+		OrderShipCommand.FOUND:
+			if role != "colony":
+				return "Only a Colony Ship can found a colony"
+			return found_error(engine, planet, b, cmd.faction_id)
+		OrderShipCommand.JOB:
+			if role != "constructor":
+				return "Only a Constructor can build developments"
+			var item := cmd.item_id if not cmd.item_id.is_empty() else default_job(engine, cmd.faction_id, b)
+			if item.is_empty():
+				return "Nothing a Constructor can build there"
+			var err := job_error(engine, planet, b, cmd.faction_id, item)
+			return "" if err == "Can't afford it" else err
+	return "Unknown order"

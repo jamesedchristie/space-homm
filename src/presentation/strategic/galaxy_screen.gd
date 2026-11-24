@@ -82,6 +82,9 @@ func _ready() -> void:
 	hud.roster.command_requested.connect(_on_roster_command)
 	hud.roster.closed.connect(_refresh)
 	hud.system_view.command_requested.connect(_on_system_command)
+	hud.system_view.send_ship_requested.connect(func(uid: String) -> void:
+		hud.system_view.close()
+		_start_send(uid))
 	hud.system_view.closed.connect(_refresh)
 	hud.research_pressed.connect(_toggle_tech_tree)
 	hud.minimap.jump_requested.connect(func(pixel: Vector2) -> void:
@@ -810,8 +813,19 @@ func _refresh_attention(human: bool) -> void:
 				items.append({"text": "Found %s with %s" % ["your capital" if not founded else "a colony at " + p.name, ship["name"]],
 						"color": Palette.GOOD, "action": func() -> void: _open_system(pid)})
 			elif entry["role"] == "constructor" and entry["deployed"] and not SystemRules.development_targets(engine, p, f).is_empty():
+				var idle_uid: String = ship["uid"]
 				items.append({"text": "%s is idle at %s" % [ship["name"], p.name], "color": Palette.ACTIVE,
-						"action": func() -> void: _open_system(pid)})
+						"action": func() -> void: _start_send(idle_uid)})
+	# Civilian ships riding in a fleet with nothing to do (system-scale maps: send them somewhere).
+	if engine.is_system_scale():
+		for fl in engine.state.fleets_of(f):
+			if not fl.order.is_empty() or not fl.is_civilian_only(data):
+				continue
+			for s in fl.ships:
+				if Fleet.role_of(data, s["unit"]) in ["colony", "constructor"]:
+					var send_uid: String = s["uid"]
+					items.append({"text": "%s awaits orders" % s["name"], "color": Palette.GOOD,
+							"action": func() -> void: _start_send(send_uid)})
 	var idle: Array[Planet] = []
 	for p: Planet in engine.state.planets_of(f):
 		if not p.queue.is_empty():
@@ -845,7 +859,10 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 		return "Autoplay: the AI plays every faction. Press A to take back control." if autoplay \
 				else "%s is moving..." % engine.state.current_faction()["name"]
 	var text := ""
-	if fleet == null:
+	var order_text := _order_hint()
+	if not order_text.is_empty():
+		text = order_text
+	elif fleet == null:
 		text = "Click one of your fleets. Tab: next fleet with moves. Space: end turn. V: 2D/3D. 3D: wheel zoom, Q/R rotate, arrows pan."
 	elif not _split_ships.is_empty():
 		text = "Click a highlighted neighbouring system for the detached ships. Esc or right-click cancels."
@@ -901,7 +918,7 @@ func _select_next_fleet() -> void:
 			start = i + 1
 	for i in own.size():
 		var f := own[(start + i) % own.size()]
-		if f.moves_left > 0:
+		if f.moves_left > 0 and f.order.is_empty():
 			selected_fleet = f.id
 			selected_planet = ""
 			selected_anomaly = ""
@@ -910,10 +927,93 @@ func _select_next_fleet() -> void:
 	selected_fleet = ""
 
 
+# --- One-click orders for civilian ships (OrderShipCommand) ------------------------
+
+## A ship picked with "Send to..." (or an idle-worker attention item): the next click on a world
+## sends it there. "" when not targeting.
+var _send_uid := ""
+
+
+func _start_send(uid: String) -> void:
+	_send_uid = uid
+	hud.log_line(UiKit.color_tag("Click a world for it to work on (Esc cancels).", Palette.TEXT_DIM))
+	_refresh()
+
+
+## The civilian ship an order would go to now: the one being sent, or the only colony ship /
+## constructor in the selected fleet. {} if none.
+func _order_ship() -> Dictionary:
+	if not _send_uid.is_empty():
+		var where := SystemRules.locate_ship(engine, player_faction, _send_uid)
+		return where.get("ship", {})
+	var fleet: Fleet = engine.state.fleets.get(selected_fleet)
+	if fleet == null or fleet.owner != player_faction or not fleet.is_civilian_only(data):
+		return {}
+	for s in fleet.ships:
+		if Fleet.role_of(data, s["unit"]) in ["colony", "constructor"]:
+			return s
+	return {}
+
+
+## What clicking `cell` would order: {"ship", "planet", "body", "action", "label"} or {}.
+## Only for bodies where the ship can do its job (found a colony / build something).
+func _order_at(cell: Variant) -> Dictionary:
+	if cell == null or engine == null:
+		return {}
+	var ship := _order_ship()
+	if ship.is_empty():
+		return {}
+	var planet := engine.state.planet_at(cell)
+	if planet == null or planet.bodies.size() != 1 and not engine.is_system_scale():
+		return {}
+	if planet == null or planet.bodies.is_empty():
+		return {}
+	var fleet: Fleet = engine.state.fleets.get(selected_fleet)
+	# Clicking the selected fleet's own cell keeps its old meaning (open the body).
+	if _send_uid.is_empty() and fleet != null and fleet.cell == cell:
+		return {}
+	var role := Fleet.role_of(data, ship["unit"])
+	var b: Dictionary = planet.bodies[0]
+	var label := SystemRules.order_label(engine, player_faction, role, planet, b)
+	if label.is_empty():
+		return {}
+	return {"ship": ship["uid"], "planet": planet.id, "body": b["id"], "label": label,
+			"action": OrderShipCommand.FOUND if role == "colony" else OrderShipCommand.JOB}
+
+
+func _order_hint() -> String:
+	var ship := _order_ship()
+	if ship.is_empty():
+		return ""
+	var order := _order_at(_hover)
+	if not order.is_empty():
+		var planet: Planet = engine.state.planets[order["planet"]]
+		var turns := _turns_to(planet.cell)
+		return "Click: %s at %s (%s)%s" % [order["label"], planet.name,
+				"here" if turns == 0 else ("%d turn%s away" % [turns, "" if turns == 1 else "s"]),
+				"" if not _send_uid.is_empty() else ". Shift-click just moves."]
+	if not _send_uid.is_empty():
+		return "Click a world for %s to work on. Esc or right-click cancels." % ship["name"]
+	return ""
+
+
+## Rough travel time for the order ship to `cell` (turns).
+func _turns_to(cell: Vector2i) -> int:
+	var where := SystemRules.locate_ship(engine, player_faction, _order_ship().get("uid", ""))
+	var from: Vector2i = where["fleet"].cell if where.has("fleet") else (where["planet"].cell if where.has("planet") else cell)
+	if from == cell:
+		return 0
+	var field := Pathfinding.distance_field(engine.state.grid, [cell] as Array[Vector2i])
+	var speed := 3
+	if where.has("fleet"):
+		speed = maxi(engine.fleet_speed(where["fleet"]), 1)
+	return ceili(float(field.get(from, 99)) / float(speed))
+
+
 func _ready_fleet_count() -> int:
 	var n := 0
 	for f in engine.state.fleets_of(player_faction):
-		if f.moves_left > 0:
+		if f.moves_left > 0 and f.order.is_empty():
 			n += 1
 	return n
 
@@ -955,6 +1055,11 @@ func _fleet_info(fleet: Fleet) -> String:
 	lines.append("[b]%s[/b]  %s" % [_fleet_name(fleet), UiKit.color_tag(faction["name"], Palette.TEXT_DIM)])
 	if fleet.owner == player_faction:
 		lines.append("Moves %d / %d   ·   Sensors %d" % [fleet.moves_left, engine.fleet_speed(fleet), engine.fleet_sensor(fleet)])
+		if not fleet.order.is_empty() and engine.state.planets.has(fleet.order["planet"]):
+			var target: Planet = engine.state.planets[fleet.order["planet"]]
+			var what := "found a colony" if fleet.order["action"] == OrderShipCommand.FOUND \
+					else "build %s" % data.buildings.get(fleet.order.get("item", ""), {}).get("name", "a development")
+			lines.append(UiKit.color_tag("Orders: %s at %s (moves on its own; a manual move cancels)" % [what, target.name], Palette.ACTIVE))
 	lines.append("")
 	for ship in fleet.ships:
 		var def: Dictionary = data.units[ship["unit"]]
@@ -1197,6 +1302,15 @@ func _describe(e: Dictionary) -> String:
 		GalaxyEvents.TURN_STARTED:
 			var f := s.faction(e["faction"])
 			return "\n[b]Turn %d[/b]  %s" % [e["turn"], UiKit.color_tag(f["name"], Palette.team_color(f["team"]))]
+		GalaxyEvents.ORDER_SET:
+			if not s.fleets.has(e["fleet"]) or s.fleets[e["fleet"]].owner != player_faction:
+				return ""
+			return "%s sets course for %s" % [s.fleets[e["fleet"]].name, s.planets[e["planet"]].name]
+		GalaxyEvents.ORDER_FAILED:
+			if not s.fleets.has(e["fleet"]) or s.fleets[e["fleet"]].owner != player_faction:
+				return ""
+			return UiKit.color_tag("%s: orders for %s dropped (%s)" % [s.fleets[e["fleet"]].name,
+					s.planets[e["planet"]].name if s.planets.has(e["planet"]) else "?", e["reason"]], Palette.BAD)
 		GalaxyEvents.PLANET_CAPTURED:
 			var f := s.faction(e["faction"])
 			return "%s captures %s" % [UiKit.color_tag(f["name"], Palette.team_color(f["team"])), s.planets[e["planet"]].name]
@@ -1432,7 +1546,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_ESCAPE:
-				if _split_ships.is_empty() and selected_fleet.is_empty() and selected_planet.is_empty() and selected_anomaly.is_empty():
+				if _send_uid.is_empty() and _split_ships.is_empty() and selected_fleet.is_empty() and selected_planet.is_empty() and selected_anomaly.is_empty():
 					_open_menu()
 				else:
 					_deselect()
@@ -1461,6 +1575,14 @@ func _on_left_click() -> void:
 		return
 	var cell: Vector2i = _hover
 	var fleet: Fleet = engine.state.fleets.get(selected_fleet)
+	if not _busy and _is_human_turn():
+		var order := _order_at(cell) if not Input.is_key_pressed(KEY_SHIFT) or not _send_uid.is_empty() else {}
+		if not order.is_empty():
+			_send_uid = ""
+			_submit(OrderShipCommand.new(player_faction, order["ship"], order["planet"], order["body"], order["action"]))
+			return
+		if not _send_uid.is_empty():
+			_send_uid = ""  # clicked somewhere no order fits: drop the targeting
 	if not _busy and _is_human_turn() and fleet != null and fleet.owner == player_faction:
 		if not _split_ships.is_empty():
 			if cell in engine.split_targets(fleet.id):
@@ -1562,6 +1684,10 @@ func _start_split() -> void:
 
 
 func _deselect() -> void:
+	if not _send_uid.is_empty():
+		_send_uid = ""
+		_refresh()
+		return
 	if not _split_ships.is_empty():
 		_split_ships.clear()
 		_refresh()

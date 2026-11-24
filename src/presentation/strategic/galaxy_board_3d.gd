@@ -484,6 +484,16 @@ func set_hover(cell: Variant) -> void:
 	_redraw_overlays()
 
 
+## The hovered cell (null if none): the overlay shows full names there.
+func hover_cell() -> Variant:
+	return _hover
+
+
+## Camera distance (zoom): labels get fuller as you zoom in.
+func zoom_distance() -> float:
+	return _rig.distance if _rig != null else 0.0
+
+
 func set_active_cell(cell: Variant) -> void:
 	_active = cell
 	_redraw_overlays()

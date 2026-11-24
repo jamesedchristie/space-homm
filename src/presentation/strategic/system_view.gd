@@ -10,6 +10,8 @@ extends PanelContainer
 ## with a Colony Ship, Esc or S closes.
 
 signal command_requested(cmd: GalaxyCommand)
+## "Send..." on an idle civilian ship: the galaxy screen lets you click a destination world.
+signal send_ship_requested(ship_uid: String)
 signal closed
 
 const SIDE_W := 400.0
@@ -455,6 +457,12 @@ func _ships_card(planet: Planet, ships: Array[Dictionary]) -> Control:
 			depart.tooltip_text = "Leave the system: joins the fleet in orbit or forms a new fleet to fly on the galaxy map"
 			depart.disabled = not _interactive or SystemRules.command_error(_engine, CivilianCommand.new(_viewer, planet.id, s["uid"], CivilianCommand.DEPART)) != ""
 			row.add_child(depart)
+			if e["role"] in ["colony", "constructor"]:
+				var uid: String = s["uid"]
+				var send := UiKit.button("Send to...", func() -> void: send_ship_requested.emit(uid))
+				send.tooltip_text = "Click a world on the map: the ship flies there on its own and gets to work"
+				send.disabled = not _interactive
+				row.add_child(send)
 		box.add_child(row)
 	return _finish(box)
 

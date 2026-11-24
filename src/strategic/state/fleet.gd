@@ -16,6 +16,9 @@ var ships: Array[Dictionary] = []
 var moves_left := 0
 ## Hook for step 3: the hero commanding this fleet.
 var hero_id := ""
+## A civilian ship's standing order (OrderShipCommand), carried by its own fleet:
+## {"ship", "planet", "body", "action": "job"|"found", "item"}; {} for none.
+var order: Dictionary = {}
 
 
 ## Slowest ship sets the pace.

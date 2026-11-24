@@ -39,7 +39,8 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 	var fleets := []
 	for f: Fleet in s.fleets.values():
 		fleets.append({"id": f.id, "name": f.name, "owner": f.owner, "cell": f.cell,
-				"ships": f.ships.duplicate(true), "moves_left": f.moves_left, "hero_id": f.hero_id})
+				"ships": f.ships.duplicate(true), "moves_left": f.moves_left, "hero_id": f.hero_id,
+				"order": f.order.duplicate(true)})
 	var heroes := []
 	for h: Hero in s.heroes.values():
 		heroes.append({"id": h.id, "name": h.name, "class_id": h.class_id, "owner": h.owner, "level": h.level,
@@ -150,6 +151,7 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 		f.ships.assign(f_d["ships"])
 		f.moves_left = f_d["moves_left"]
 		f.hero_id = f_d["hero_id"]
+		f.order = f_d.get("order", {})
 		s.fleets[f.id] = f
 	for h_d: Dictionary in d["heroes"]:
 		var h := Hero.new()

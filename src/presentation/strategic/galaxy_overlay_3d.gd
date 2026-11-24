@@ -21,7 +21,14 @@ func _draw() -> void:
 	for pv: Planet3D in board.planet_views.values():
 		if not pv.visible:
 			continue
-		if pv.owned:
+		var compact := _compact(pv)
+		if compact != "":
+			var at_c: Variant = _project(pv, pv.label_height)
+			if at_c != null:
+				var wc := _tag_width(pv, compact)
+				items.append({"tag": pv, "kind": compact, "at": at_c})
+				boxes.append(Rect2(at_c + Vector2(-wc / 2.0, -12), Vector2(wc, 16)))
+		elif pv.owned:
 			# Above the system, like a city banner.
 			var at: Variant = _project(pv, pv.label_height + 0.35)
 			if at != null:
@@ -49,6 +56,7 @@ func _draw() -> void:
 		var w := maxf(44.0, font.get_string_size(fv.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x)
 		items.append({"fleet": fv, "at": p})
 		boxes.append(Rect2(p + Vector2(-w / 2.0, -16), Vector2(w, 30)))
+	_draw_order_lines()
 	var offsets := LabelLayout.resolve(boxes)
 	for i in items.size():
 		var item: Dictionary = items[i]
@@ -60,11 +68,106 @@ func _draw() -> void:
 			_draw_fleet(item["fleet"], p)
 		elif item.has("banner"):
 			_draw_banner(item["banner"], p)
+		elif item.has("tag"):
+			_draw_tag(item["tag"], item["kind"], p)
 		else:
 			_text(p + Vector2(-70, 0), item["text"], 140, item["size"], item["color"])
 
 
 const BANNER_FONT := 12
+
+
+## A dotted course line from each of the player's ships on standing orders to its target.
+func _draw_order_lines() -> void:
+	var e := board.engine
+	for fv: Fleet3D in board.fleet_views.values():
+		if not fv.visible:
+			continue
+		var fleet: Fleet = e.state.fleets.get(fv.fleet_id)
+		if fleet == null or fleet.owner != board.player_faction or fleet.order.is_empty():
+			continue
+		var target: Planet = e.state.planets.get(fleet.order["planet"])
+		if target == null or not board.planet_views.has(target.id):
+			continue
+		var a: Variant = _project(fv, 0.3)
+		var b: Variant = _project(board.planet_views[target.id], 0.3)
+		if a == null or b == null:
+			continue
+		var from: Vector2 = a
+		var to: Vector2 = b
+		var length := from.distance_to(to)
+		var dir := (to - from) / maxf(length, 1.0)
+		var t := fmod(Time.get_ticks_msec() / 60.0, 14.0)
+		var d := t
+		while d < length - 6.0:
+			draw_line(from + dir * d, from + dir * minf(d + 7.0, length), Color(Palette.ACTIVE, 0.65), 2.0, true)
+			d += 14.0
+		draw_arc(to, 9.0, 0.0, TAU, 24, Color(Palette.ACTIVE, 0.85), 2.0, true)
+## Zoomed in closer than this (camera distance), compact tags show their names too.
+const TAG_NAME_ZOOM := 16.0
+
+
+## On a system-scale map only colonies (and enemy bases) carry a full banner; every other
+## claimed body gets a compact tag: "dev" (a development of yours or a rival's), "" = banner/text.
+func _compact(pv: Planet3D) -> String:
+	if not board.engine.is_system_scale() or not pv.owned:
+		return ""
+	var planet: Planet = board.engine.state.planets.get(pv.planet_id)
+	if planet == null or planet.has_colony():
+		return ""
+	var role: String = board.engine.state.faction(planet.owner).get("role", "major")
+	if role == "barbarian":
+		return ""  # dens keep their banner: they're what you're hunting
+	return "dev"
+
+
+func _tag_name_shown(pv: Planet3D) -> bool:
+	var planet: Planet = board.engine.state.planets.get(pv.planet_id)
+	var hover: Variant = board.hover_cell()
+	if planet != null and hover != null and hover == planet.cell:
+		return true
+	return board.zoom_distance() > 0.0 and board.zoom_distance() < TAG_NAME_ZOOM
+
+
+func _tag_width(pv: Planet3D, _kind: String) -> float:
+	var w := 22.0
+	if _tag_name_shown(pv):
+		w += ThemeDB.fallback_font.get_string_size(pv.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 6.0
+	return w
+
+
+## A compact tag: an owner-coloured chip with an icon for what stands there (pick = mining,
+## flask = research, drop = refinery, flag = outpost, star = anything else), the name when
+## hovered or zoomed in, and a red edge if blockaded.
+func _draw_tag(pv: Planet3D, _kind: String, p: Vector2) -> void:
+	var planet: Planet = board.engine.state.planets.get(pv.planet_id)
+	if planet == null:
+		return
+	var font := ThemeDB.fallback_font
+	var w := _tag_width(pv, _kind)
+	var rect := Rect2(p + Vector2(-w / 2.0, -12), Vector2(w, 16))
+	var c := pv.owner_color
+	draw_rect(rect.grow(1.0), Color(0, 0, 0, 0.55))
+	draw_rect(rect, Color(c.darkened(0.75), 0.9))
+	draw_rect(rect, Color(c, 0.6) if planet.blockade.is_empty() else Palette.BAD, false, 1.0)
+	var icon := rect.position + Vector2(10, 8)
+	var ic := c.lightened(0.45)
+	var buildings: Array[String] = planet.buildings
+	if "mining_base" in buildings:
+		draw_line(icon + Vector2(-4, 4), icon + Vector2(3, -3), ic, 1.6)
+		draw_line(icon + Vector2(0, -5), icon + Vector2(5, 0), ic, 2.2)
+	elif "research_station" in buildings:
+		draw_colored_polygon(PackedVector2Array([icon + Vector2(-2, -5), icon + Vector2(2, -5), icon + Vector2(5, 4), icon + Vector2(-5, 4)]), ic)
+	elif "gas_refinery" in buildings:
+		draw_circle(icon + Vector2(0, 1.5), 3.5, ic)
+		draw_colored_polygon(PackedVector2Array([icon + Vector2(-3, 0), icon + Vector2(0, -6), icon + Vector2(3, 0)]), ic)
+	elif "outpost" in buildings:
+		draw_line(icon + Vector2(-3, 5), icon + Vector2(-3, -5), ic, 1.5)
+		draw_colored_polygon(PackedVector2Array([icon + Vector2(-3, -5), icon + Vector2(4, -3), icon + Vector2(-3, -1)]), ic)
+	else:
+		draw_circle(icon, 3.5, ic)
+	if _tag_name_shown(pv):
+		draw_string(font, rect.position + Vector2(20, 12), pv.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, c.lightened(0.5))
 
 
 func _banner_width(pv: Planet3D) -> float:
