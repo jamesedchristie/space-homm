@@ -1,11 +1,12 @@
 {
   "id": "destroyer",
   "name": "Destroyer",
-  "description": "Heavy warship. Slow, thickly armored, and carries twin torpedo racks.",
+  "description": "Capital ship: slow and thickly armoured, with a heavy railgun and twin torpedo racks. Crushes escorts; strike craft get under its guns.",
   "tags": [
     "ship",
     "large"
   ],
+  "class": "capital",
   "stats": {
     "max_hull": 190,
     "max_shields": 80,
@@ -14,7 +15,7 @@
     "max_ap": 4
   },
   "abilities": [
-    "railgun",
+    "heavy_railgun",
     "torpedo_salvo",
     "brace_shields"
   ],

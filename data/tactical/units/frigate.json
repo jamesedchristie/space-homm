@@ -1,11 +1,13 @@
 {
   "id": "frigate",
   "name": "Frigate",
-  "description": "Workhorse warship. Heavy armor, a spinal railgun and a torpedo rack.",
+  "description": "Escort frigate: armoured, with a railgun and flak batteries that shred strike craft. Outgunned by capital ships.",
   "tags": [
     "ship",
     "medium"
   ],
+  "class": "escort",
+  "specialty": "flak",
   "stats": {
     "max_hull": 120,
     "max_shields": 60,
@@ -15,7 +17,7 @@
   },
   "abilities": [
     "railgun",
-    "torpedo_salvo",
+    "flak_burst",
     "brace_shields"
   ],
   "strategic": {

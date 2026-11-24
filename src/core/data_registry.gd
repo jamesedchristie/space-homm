@@ -24,6 +24,8 @@ var units: Dictionary = {}
 var abilities: Dictionary = {}
 var statuses: Dictionary = {}
 var damage_types: Dictionary = {}
+## Ship classes and counters (data/tactical/roles.json, see RoleRules).
+var roles: Dictionary = {}
 var terrain: Dictionary = {}
 var maps: Dictionary = {}
 var scenarios: Dictionary = {}
@@ -86,6 +88,8 @@ func load_from(root: String) -> bool:
 	_load_dir(root.path_join("scenarios"), scenarios)
 	_load_keyed_file(root.path_join("tactical/damage_types.json"), damage_types)
 	_load_keyed_file(root.path_join("tactical/terrain.json"), terrain)
+	var role_data: Variant = JsonUtil.load_file(root.path_join("tactical/roles.json"))
+	roles = role_data if role_data is Dictionary else {}
 	_load_keyed_file(root.path_join("strategic/terrain.json"), galaxy_terrain)
 	_load_keyed_file(root.path_join("strategic/body_types.json"), body_types)
 	_load_keyed_file(root.path_join("strategic/star_types.json"), star_types)
@@ -126,6 +130,9 @@ func validate() -> PackedStringArray:
 			if not abilities.has(ability_id):
 				_err("unit '%s': unknown ability '%s'" % [id, ability_id])
 
+	for message in RoleRules.validate(self):
+		_err(message)
+
 	for id: String in abilities:
 		var def: Dictionary = abilities[id]
 		var target: String = def.get("target", "enemy")
@@ -137,6 +144,12 @@ func validate() -> PackedStringArray:
 
 	for id: String in statuses:
 		_validate_effects("status '%s'" % id, statuses[id].get("on_turn_start", []))
+		var then: Dictionary = statuses[id].get("then", {})
+		if not then.is_empty() and not statuses.has(then.get("status", "")):
+			_err("status '%s': unknown status '%s' in then" % [id, then.get("status", "")])
+		for blocked: String in statuses[id].get("blocks", []):
+			if not statuses.has(blocked):
+				_err("status '%s': blocks unknown status '%s'" % [id, blocked])
 
 	for id: String in maps:
 		var def: Dictionary = maps[id]

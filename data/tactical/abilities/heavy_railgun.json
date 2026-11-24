@@ -1,0 +1,24 @@
+{
+  "id": "heavy_railgun",
+  "name": "Heavy Railgun",
+  "description": "A capital ship's main battery: a long-range kinetic slug that punches through armour.",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    6
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        24,
+        30
+      ],
+      "damage_type": "kinetic"
+    }
+  ],
+  "fx": "projectile"
+}

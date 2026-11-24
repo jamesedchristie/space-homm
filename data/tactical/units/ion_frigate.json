@@ -1,0 +1,43 @@
+{
+  "id": "ion_frigate",
+  "name": "Ion Frigate",
+  "description": "Escort specialist: an ion cannon scrambles a ship's systems so it loses its next turn, best used on capital ships. A railgun for everything else.",
+  "tags": [
+    "ship",
+    "medium"
+  ],
+  "class": "escort",
+  "specialty": "ion",
+  "stats": {
+    "max_hull": 95,
+    "max_shields": 55,
+    "armor": 2,
+    "initiative": 5,
+    "max_ap": 4
+  },
+  "abilities": [
+    "ion_cannon",
+    "railgun",
+    "brace_shields"
+  ],
+  "strategic": {
+    "speed": 3,
+    "sensor": 2,
+    "cost": {
+      "alloys": 55,
+      "credits": 55
+    },
+    "build_turns": 3,
+    "requires_tech": "ion_weapons",
+    "upkeep": 2
+  },
+  "visual": {
+    "placeholder": "frigate",
+    "sprite": "res://assets/kenney_space_shooter/ships/playerShip2_{team}.png",
+    "size": 1.0,
+    "model": "ion_frigate",
+    "attack_style": "broadside",
+    "squadron": 3,
+    "craft_size": 0.48
+  }
+}

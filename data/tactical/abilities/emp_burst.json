@@ -1,7 +1,7 @@
 {
   "id": "emp_burst",
   "name": "EMP Burst",
-  "description": "Close-range electromagnetic pulse. The target loses its next turn.",
+  "description": "Close-range electromagnetic pulse: the target is scrambled and loses its next turn (then it reboots and can't be scrambled again until it has acted).",
   "ap_cost": 3,
   "cooldown": 4,
   "target": "enemy",
@@ -9,7 +9,7 @@
   "requires_los": true,
   "effects": [
     {"type": "damage", "amount": 6, "damage_type": "energy"},
-    {"type": "apply_status", "status": "disabled", "duration": 1}
+    {"type": "apply_status", "status": "scrambled", "duration": 1}
   ],
   "fx": "pulse"
 }

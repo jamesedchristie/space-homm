@@ -1,0 +1,42 @@
+{
+  "id": "battleship",
+  "name": "Battleship",
+  "description": "Capital ship: the biggest hull afloat. A keel-length spinal lance, heavy railguns and armour nothing small can scratch. Crushes escorts; bombers are its bane.",
+  "tags": [
+    "ship",
+    "large"
+  ],
+  "class": "capital",
+  "stats": {
+    "max_hull": 460,
+    "max_shields": 180,
+    "armor": 9,
+    "initiative": 2,
+    "max_ap": 6
+  },
+  "abilities": [
+    "spinal_lance",
+    "heavy_railgun",
+    "brace_shields"
+  ],
+  "strategic": {
+    "speed": 2,
+    "sensor": 3,
+    "cost": {
+      "alloys": 210,
+      "credits": 180,
+      "rare_elements": 28
+    },
+    "build_turns": 7,
+    "requires_tech": "battleships",
+    "upkeep": 5
+  },
+  "visual": {
+    "placeholder": "destroyer",
+    "sprite": "res://assets/kenney_space_shooter/ships/playerShip3_{team}.png",
+    "size": 1.8,
+    "model": "battleship",
+    "attack_style": "spinal",
+    "craft_size": 1.0
+  }
+}

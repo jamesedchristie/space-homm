@@ -196,7 +196,7 @@ func test_third_era_needs_six_second_era_techs() -> void:
 func test_tech_tree_content() -> void:
 	var data := DataRegistry.get_default()
 	assert_eq(data.errors.size(), 0, "\n".join(data.errors))
-	assert_true(data.techs.size() >= 28 and data.techs.size() <= 34, "28-34 techs (%d)" % data.techs.size())
+	assert_true(data.techs.size() >= 28 and data.techs.size() <= 40, "28-40 techs (%d)" % data.techs.size())
 	assert_eq(data.eras.size(), 3)
 	var per_era := {1: 0, 2: 0, 3: 0}
 	for id: String in data.techs:

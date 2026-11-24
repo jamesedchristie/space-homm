@@ -1,0 +1,26 @@
+{
+  "id": "flak_burst",
+  "name": "Flak Burst",
+  "description": "A wall of fragmentation shells over a small area: explosive damage to every enemy in it (none to friends). Flak shreds strike craft (x1.8).",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "cell",
+  "range": [
+    1,
+    3
+  ],
+  "radius": 1,
+  "affects": "enemies",
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        6,
+        9
+      ],
+      "damage_type": "explosive"
+    }
+  ],
+  "fx": "projectile"
+}

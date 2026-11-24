@@ -502,6 +502,10 @@ func _option_row(planet: Planet, options: Array) -> HFlowContainer:
 	row.add_theme_constant_override("h_separation", 6)
 	for o: Dictionary in options:
 		var label := "%s  ·  %s, %dt" % [o["name"], EmpireRules.cost_text(_engine, o["cost"]), o["turns"]]
+		# Warships say what they are for: "Bomber (strike craft, vs capital ships) · ...".
+		var role := RoleRules.hint(_engine.data, _engine.data.units.get(o["id"], {})) if o["kind"] == "unit" else ""
+		if not role.is_empty() and RoleRules.class_of(_engine.data.units[o["id"]]) != "civilian":
+			label = "%s (%s)  ·  %s, %dt" % [o["name"], role, EmpireRules.cost_text(_engine, o["cost"]), o["turns"]]
 		var b := UiKit.button(label, func() -> void:
 			command_requested.emit(QueueBuildCommand.new(planet.owner, planet.id, o["kind"], o["id"], o["body"])))
 		var desc := ""
@@ -512,6 +516,9 @@ func _option_row(planet: Planet, options: Array) -> HFlowContainer:
 				desc = _engine.data.megaprojects[o["id"]].get("description", "")
 			_:
 				desc = _engine.data.units[o["id"]].get("description", "")
+				var summary := RoleRules.summary(_engine.data, _engine.data.units[o["id"]])
+				if not summary.is_empty() and RoleRules.class_of(_engine.data.units[o["id"]]) != "civilian":
+					desc = "%s: %s\n%s" % [RoleRules.profile(_engine.data, _engine.data.units[o["id"]])["name"], summary, desc]
 				var pop_cost := int(_engine.data.units[o["id"]].get("strategic", {}).get("pop_cost", 0))
 				if pop_cost > 0:
 					desc += "\nCosts %d population." % pop_cost

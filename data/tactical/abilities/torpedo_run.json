@@ -1,0 +1,24 @@
+{
+  "id": "torpedo_run",
+  "name": "Torpedo Run",
+  "description": "Close in and launch heavy torpedoes at one ship. Devastating against capital ships (x1.8) and stations (x1.4), wasted on small fry.",
+  "ap_cost": 3,
+  "cooldown": 0,
+  "target": "enemy",
+  "range": [
+    1,
+    4
+  ],
+  "requires_los": true,
+  "effects": [
+    {
+      "type": "damage",
+      "amount": [
+        24,
+        30
+      ],
+      "damage_type": "explosive"
+    }
+  ],
+  "fx": "torpedo"
+}

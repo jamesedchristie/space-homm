@@ -74,6 +74,21 @@
     ],
     "era": 1
   },
+  "strike_wings": {
+    "name": "Strike Wings",
+    "description": "Torpedo bomber squadrons: strike craft that make runs on capital ships and stations. Unlocks the Bomber.",
+    "cost": 55,
+    "requires": [
+      "improved_drives"
+    ],
+    "effects": [
+      {
+        "type": "unlock_unit",
+        "unit": "bomber"
+      }
+    ],
+    "era": 1
+  },
   "heavy_hulls": {
     "name": "Heavy Hulls",
     "description": "Unlocks the Destroyer.",
@@ -88,6 +103,21 @@
       }
     ],
     "era": 2
+  },
+  "ion_weapons": {
+    "name": "Ion Weapons",
+    "description": "Ion cannons that scramble a ship's systems for a turn. Unlocks the Ion Frigate.",
+    "era": 2,
+    "cost": 100,
+    "requires": [
+      "shield_harmonics"
+    ],
+    "effects": [
+      {
+        "type": "unlock_unit",
+        "unit": "ion_frigate"
+      }
+    ]
   },
   "targeting_computers": {
     "name": "Targeting Computers",
@@ -431,6 +461,21 @@
       {
         "type": "unlock_unit",
         "unit": "cruiser"
+      }
+    ]
+  },
+  "battleships": {
+    "name": "Battleships",
+    "description": "Keel-length spinal lances and armour belts a metre thick. Unlocks the Battleship.",
+    "era": 3,
+    "cost": 240,
+    "requires": [
+      "capital_ships"
+    ],
+    "effects": [
+      {
+        "type": "unlock_unit",
+        "unit": "battleship"
       }
     ]
   },

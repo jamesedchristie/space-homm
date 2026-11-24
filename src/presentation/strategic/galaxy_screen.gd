@@ -1206,7 +1206,9 @@ func _fleet_info(fleet: Fleet) -> String:
 		var def: Dictionary = data.units[ship["unit"]]
 		var max_hull := int(def["stats"]["max_hull"])
 		var hull_color := Palette.HULL if ship["hull"] > max_hull * 0.5 else Palette.BAD
-		lines.append("%s  %s  %s" % [ship["name"], UiKit.color_tag(def.get("name", ""), Palette.TEXT_DIM),
+		# The ship's class (strike / escort / capital): what it counters, see RoleRules.
+		var role := RoleRules.hint(data, def)
+		lines.append("%s  %s  %s" % [ship["name"], UiKit.color_tag(def.get("name", "") + ("" if role.is_empty() else " (%s)" % role), Palette.TEXT_DIM),
 				UiKit.color_tag("%d/%d" % [ship["hull"], max_hull], hull_color)])
 	var planet := engine.state.planet_at(fleet.cell)
 	if planet != null and planet.owner == fleet.owner:
