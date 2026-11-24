@@ -5,6 +5,7 @@ extends SceneTree
 ## and at least one battle and one mission went through the battle screen
 ## (whoever wins: in The Drift scenario a loss ends with no winner).
 ##   godot --headless --path . -s res://tools/smoke_campaign.gd
+## Another campaign: -- --campaign=solar_age
 
 var _game: Node
 var _frames := 0
@@ -25,14 +26,18 @@ func _process(_delta: float) -> bool:
 	var galaxy: Node = _game.galaxy
 	if _frames == 3:
 		galaxy.rng_seed = 7
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--campaign="):
+				galaxy.campaign_id = arg.trim_prefix("--campaign=")
 		galaxy.watch_battles = true
 		galaxy.autoplay = true
 		galaxy.start_campaign()
 		# Ready Reyes for the derelict (recommended level 2) so the AI flies the
 		# mission and the mission round trip is exercised too.
-		var reyes: Hero = galaxy.engine.state.heroes["reyes"]
-		reyes.level = 2
-		reyes.xp = HeroProgression.xp_for_level(galaxy.engine.data, 2)
+		var reyes: Hero = galaxy.engine.state.heroes.get("reyes")
+		if reyes != null:
+			reyes.level = 2
+			reyes.xp = HeroProgression.xp_for_level(galaxy.engine.data, 2)
 	if _game.battle != null and _game.battle != _last_battle:
 		_last_battle = _game.battle
 		_battles_seen += 1

@@ -245,7 +245,7 @@ each human turn. Bump `GalaxySave.VERSION` and migrate in `from_dict()` when the
 changes. Version 3 added colony population and growth (inside the bodies), megaprojects on
 systems, temporary modifiers, the event log and pending event, and why the game ended. Version 4
 adds the system layer: `Planet.civilians` (deployed ships with their jobs), `blockade` and `capital`;
-older saves are refused.
+older saves are refused. Version 5 adds `surveyed` (system-scale campaigns).
 
 ### The system layer: civilian ships, claiming, conquest
 
@@ -304,6 +304,96 @@ build when there is work for them (`_choose_civilian_build`), transports when at
 has colonies. Civilian-only fleets travel to their goal (`_civilian_goal`), avoid visible warships and
 fall back home when threatened; a warfleet that took a settler along splits it off towards its goal.
 Every command is validated with the engine before it is submitted.
+
+### System-scale campaigns (Act 1: Solar Age)
+
+The game is being restructured into acts: Act 1 is the player's home star system, Acts 2 and 3 a
+galaxy of systems joined by hyperlanes. Map levels: galaxy (later: a lane graph) -> **system map** (a
+hex map of one system) -> battles fought on the system map where the ships are -> squad missions on
+bodies. Phase 1 delivers the system map for the home system only, by reusing `GalaxyEngine` as it is
+with a **system-scale campaign**: the campaign's hex grid *is* the system's space and **every body is
+its own `Planet` with exactly one body**. So bodies are claimed one by one (Civ tiles), and every
+existing mechanic (colony ships, constructor jobs, queues, growth, upkeep, events, research, the AI,
+saves, assaults, plunder) works per body without new rules.
+
+- **Flag.** `"scale": "system"` on the campaign (`GalaxyEngine.scale()` / `is_system_scale()`). A few
+  rules read it: battles use `LocalBattleMap`, the star and corona are charted for everyone from the start,
+  techs with a `"scale"` are only offered in matching campaigns (`ResearchRules.offered`), and the AI
+  treats every body as in reach (`SYSTEM_CIVILIAN_RANGE`), settles marginal worlds
+  (`SYSTEM_COLONY_SCORE`) and sends idle warfleets to survey (`_unsurveyed_target`).
+- **Layout generator.** `SystemLayout` (`src/strategic/system_layout.gd`, pure, deterministic) turns a
+  template's `"system_generate"` block into an ordinary campaign definition (like `GalaxyGenerator` for
+  sectors; `GalaxyEngine.from_campaign` picks it, saves keep the generated definition). The star sits in
+  the centre cell (`star` terrain, impassable) ringed by `corona` (3 moves). Orbits are circles in hex
+  widths from the star (`pixel_distance`): each orbit picks a free cell within half a hex of its circle,
+  keeps `GAP` steps from every other body group and places moons on free neighbours of their planet; a
+  belt orbit is an arc of `asteroid_belt` terrain with belt bodies spread along it. Optional orbits roll
+  `chance`; a failed attempt retries (then with a smaller gap). Bodies are named after the home star
+  (`species.names.home_star` / `homeworld` via `SpeciesNaming`): numerals outwards, moons lettered after
+  their planet (`"moon_of"` in the planet def), belt bodies lettered. Then: the homeworld (owned, settled,
+  starting buildings, first in the planet list so it is the owner's home planet), dens for the barbarian
+  factions (`"where": "moon" | "belt" | "outermost"`, as far from home as possible, at least
+  `DEN_HOME_DISTANCE`), dormant `jump_point` terrain on edge cells spread round the system, fleets (`"at":
+  "home" | "near_home" | "den"`), deployed civilians (`"home_moon"`), heroes, anomalies (`"outer_moon"` /
+  `"outer_space"`) and discoveries. The output's `"system"` entry (`star`, `name`, `at`, `orbits`,
+  `belt`) is for the presentation. Content validation generates two seeds.
+- **Survey.** With `"survey": true`, a major power learns a body's traits once one of its ships has been
+  at or next to it, it holds the body or has ships working there (`GalaxyEngine._update_survey`, run from
+  `_reveal_around` and `_update_explored`; `GalaxyState.surveyed` per faction, `BODY_SURVEYED` events).
+  `is_surveyed()` / `known_traits()` answer for the UI and the AI (which only values traits it knows).
+- **Tech victory.** `"victory": {"tech": "hyperdrive", "tech_reason": "act1"}`: the first major power to
+  research it wins (`GalaxyEngine._run_economy`). With a tech goal a lone major power doesn't win by
+  default (`_check_eliminations` only ends the game when no major power is left). `VictoryRules.tech_goal`,
+  `tech_progress` (research spent along the road) and a `tech` entry in `progress()`. Hyperdrive is a
+  final-era tech with `"scale": "system"`; `"research_cost_mul"` scales the shared tree per campaign
+  (`ResearchRules.cost`) instead of rebalancing it, and the AI researches the economy, then the road to
+  the goal (`GalaxyAI.GOAL_ECONOMY`, `VictoryRules.tech_path`).
+- **Hostiles.** Separatists and scavengers are ordinary barbarian factions (dens, `spawn_every`,
+  plunder, den loot) at peace with each other. `barbarian.fleet_name` names their raider packs; a faction's
+  `"ship_variant": "species"` makes a barbarian fly its species' own designs instead of the salvaged
+  `raider` variant (`Fleet.model_variant`, used by `Fleet3D` and battle teams' `model_variant`).
+- **Saves.** Version 5 adds `surveyed`; older saves load with nothing surveyed.
+
+**Presentation.** `GalaxyBoard3D` on a system-scale campaign builds a `SolarSystem3D` (the sun in the
+centre cell: high quality, `star_surface` with two billboard coronas and a shadow-casting `OmniLight3D`;
+classic, an emissive core with additive halos and an unshadowed light; faint orbit circles through the
+bodies and round the giants for their moons, drawn just above the fog so the layout always reads; a dusty
+band along the belt; dormant `JumpGate3D`s facing the sun at the jump points) and draws each Planet as a
+`Body3D` (a `Planet3D` subclass: one sphere sized by the body type, atmosphere shell, finer gas-giant
+rings, city lights on colonies, a rock cluster for belt bodies, the owner's ring; `aim_light()` points
+the shader's night side away from the sun). Orbital structures for buildings come from
+`OrbitalStructures` (shared with `Planet3D` and the system view), the jump gate from `JumpGate3D`
+(shared with `SystemMap`). Environment kind `"solar"` dims the board's sun so the star does the
+lighting. Fleets sit at `SYSTEM_FLEET_OFFSET` beside the bodies. Banners, territory, fog, the high-quality
+cloud cover and nebula layers (the belt shows as asteroid dust) work unchanged. `SystemMap` opens a
+one-body Planet of a system-scale map as a close-up of that world (`_build_body_scene`: the body big in
+the middle, lit from the side its sun lies on, no gate; ships hold station round it). `PlanetView` (2D)
+draws a single body. Galaxy screen strings switch "system" to "body" where cheap; the body card hides
+traits until surveyed.
+
+### Local battle maps (system-scale campaigns)
+
+`LocalBattleMap` (`src/tactical/maps/local_battle_map.gd`) builds the tactical map of a battle in a
+system-scale campaign from the **local area** round the battle cell. `describe(engine, cell, from_cell,
+defended)` collects the strategic cells within 3 (terrain, the body on each, the star's offset, the cell
+the attacker came from, the defended body); `build(data, desc)` (pure, deterministic, testable without an
+engine) expands it onto an 18x13 tactical hex grid: every tactical cell maps to the strategic hex it lies
+in at `PATCH` tactical hexes per strategic hex (same orientation), so the battle cell's patch is the
+middle of the map and its neighbours ring it.
+
+- A body becomes a disc in the middle of its patch (1, 3 or 7 `planet` hexes by size; a belt body is
+  three `asteroid` hexes), with open space cleared round it.
+- The star and corona (other than at the battle cell) become impassable `glare` (blocks sight).
+- Belt cells become `asteroid` and `debris`; nebulae and storms patches of `nebula`; off-map cells open.
+- Deployment: the attacker's six slots are the open cells nearest the map edge in the direction it came
+  from (west by default); a defender holding the battle cell's body deploys in a crescent round it facing
+  the attacker, otherwise near the centre. Pockets nobody can reach are filled in; the result passes
+  `SystemBattleMap.check` (with `MIN_OPEN`, as glare and planets take more room) or another layout is
+  tried (thinner belts, then bodies only, then open space).
+- Output is the `SystemBattleMap` format (`bodies` for `SystemScenery3D`, `star.dir` towards the real sun,
+  `deployment.west`/`east`), plus `"local": true`. `GalaxyEngine.pending_battle_scenario` uses it for every
+  battle when `is_system_scale()`; other campaigns keep `SystemBattleMap` and the terrain maps.
+  `BattleBoard3D` draws glare as hot plasma puffs.
 
 ### System battle maps
 
@@ -880,6 +970,10 @@ types, resources, units and buildings.
 
 **Campaign** additions: `"events": true`, `"victory": {"eliminate": faction, "science": bool, "score": bool, "peace": bool}`,
 faction `"ai": {"war_ratio": n}`, and a body's `"pop": n` for starting colonies.
+System-scale campaigns add `"scale": "system"`, `"system_generate"` (see SystemLayout), `"survey": true`,
+`"research_cost_mul"`, `"victory": {"tech": id, "tech_reason": text}`, faction `"ship_variant": "species"`
+and barbarian `"fleet_name"`. Techs may carry `"scale"`; discoveries `"listed_only": true` (only placed where
+a campaign names them, not in random sectors).
 
 ## Conventions
 

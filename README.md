@@ -31,6 +31,9 @@ and Mass Effect-style hero missions, all built on **one shared tactical engine**
   ships cost **upkeep**, the tech tree has 32 techs in three **eras**, five **megaprojects**
   (wonders) can be built, there are three ways to win (conquest, **science**, **score**) and
   twenty **galactic events** ask you to make choices.
+- **Act 1 prototype (in progress):** **Solar Age**, a campaign that plays entirely inside your
+  home star system at the dawn of your space age (see [Solar Age](#solar-age-act-1-prototype)).
+  Later acts open the galaxy: systems joined by hyperlanes, each one a map like this.
 - **Step 6 (done):** the system layer. Inside a star system you work on a **system map**:
   **Colony Ships** found colonies, **Constructors** build developments on the bodies, and nothing is
   claimed by flying a fleet in. Every system fights back, colonies need **Troop Transports** (or fall
@@ -83,7 +86,8 @@ The 3D map opens on the area you've explored; zoom out with the wheel to see the
 Battle and mission offers show the **auto-resolve odds** (from a dozen simulated runs) so you
 can decide whether to fight it yourself.
 
-Two campaigns:
+Three campaigns:
+- **Solar Age (Act 1 prototype)**: your home system, one body at a time (below).
 - **Random Sector** (the main game): a new generated sector every game. You and two AI empires
   (the Vel'tari Concord and the Kesh Dominion) compete for the stars; raiders prey on everyone;
   the Free Traders deal with whoever treats them well. Enter a seed to replay a sector. Every major
@@ -91,6 +95,41 @@ Two campaigns:
   **Constructor**: found your capital first (the attention list at the top left points you there).
 - **The Drift (scenario)**: a short hand-made scenario: clear the raider dens out of the Drift. You
   start with your home colony already founded.
+
+### Solar Age (Act 1 prototype)
+
+The game is becoming three acts: **Act 1** is your home star system at the start of your space age,
+Acts 2 and 3 a galaxy of systems joined by hyperlanes (later updates). *Solar Age* is Act 1: the whole
+map is one star system, generated from the seed.
+
+- **The system.** The sun blazes in the middle (impassable, ringed by a corona that costs 3 moves).
+  Around it, on circular orbits: two inner rocky worlds, your **homeworld** (a colony of 3 with a
+  shipyard and a defense platform) and its moon, one or two marginal worlds (desert or arctic) for a
+  Colony Ship, an **asteroid belt** (an arc of slow terrain with two or three big belt bodies to mine),
+  one or two **gas giants** with ice moons, and a dwarf planet in the cold outer dark. Your species
+  names it: humans live on Terra round Sol (Sol I, Sol II, Sol V a, Sol Belt B, ...).
+- **Every body is claimed on its own**, like a Civ tile: fly a Constructor to it (a mining base on
+  rocks and belts, a research station on ice and gas giants, a refinery on a gas giant, or a plain
+  outpost), or a Colony Ship to a habitable world. Each claimed body has its own orbital battery and
+  its owner's banner. Click a body you hold (or a ship parked on one, then **S**) to open it: a close-up
+  of that one world with your ships in orbit and its build options.
+- **Survey.** A body's traits (rich deposits, ruins, subsurface ocean, ...) stay hidden until one of your
+  ships has been at or next to it. The bodies themselves are charted (you have telescopes), and so is the
+  sun; the rest of the system is fog until you fly out.
+- **Hostiles.** The **Free Colonies Front** (human separatists) hold a fortified base on an outer moon and
+  the **Vrask Scavengers** (alien salvagers) a lair on the far side. Both send small raider packs that
+  plunder your outposts (credits stolen, a development wrecked) for as long as their bases stand. Storm a
+  base to take it and its loot. They never negotiate.
+- **Finds.** Derelict probes, comets, an old station and a dead hulk drift between the orbits; a derelict
+  station on an outer moon (and sometimes a wreck field) are squad missions for a commanded fleet.
+- **Goal.** Research **Hyperdrive** (the final era of the tech tree: era gates still apply) to wake the
+  dormant **jump points** at the edge of the map. That ends Act 1 with a win; losing everything is a
+  defeat. 150 turns. The Empire panel's Victory tab shows your road to Hyperdrive.
+- **Battles happen where the ships are.** The battle map is the local area round the fight, blown up:
+  the worlds there become planet discs (impassable, they block line of sight), the sun's side is a wall of
+  glare, the belt a band of asteroids and debris; you enter from the side you attacked from.
+
+Controls are the galaxy controls below; on this map **S** opens the body your selected ship is at.
 
 **Species.** Pick who you play on the New Campaign screen. All are humanoid; the differences
 are deliberately subtle:
@@ -329,10 +368,12 @@ godot --headless --path . -s res://tools/simulate_battles.gd -- --scenario=first
 
 # balance: play whole campaigns AI-vs-AI
 godot --headless --path . -s res://tools/simulate_campaign.gd -- --campaign=the_drift --runs=50
+godot --headless --path . -s res://tools/simulate_campaign.gd -- --campaign=solar_age --runs=12 --verbose
 
 # smoke tests of the real screens (AI on all sides)
 godot --headless --path . -s res://tools/smoke_battle_screen.gd
 godot --headless --path . -s res://tools/smoke_campaign.gd
+godot --headless --path . -s res://tools/smoke_campaign.gd -- --campaign=solar_age
 ```
 
 On macOS the binary is `/Applications/Godot.app/Contents/MacOS/Godot`; alias it to `godot`.
@@ -349,6 +390,12 @@ CI runs the tests and both smoke tests on every push (`.github/workflows/tests.y
 - **New status:** `data/tactical/statuses/<id>.json` with `modifiers`, `flags` and/or `on_turn_start` effects.
 - **New battle map:** `data/tactical/maps/<id>.json`, with `deployment.west`/`east` if galaxy battles use it.
   (Battles at star systems ignore these and use a generated system map, see `SystemBattleMap`.)
+- **System-scale campaign:** a campaign with `"system_generate"` (see `solar_age.json`) is generated by
+  `SystemLayout` as one star system: orbits (`radius` in hexes from the star, `type`, `moons`, `chance`,
+  belts with `arc` and `belt_bodies`), dens, jump points, discoveries, fleets, civilians, heroes and
+  missions. `"survey": true` hides traits until surveyed; `"victory": {"tech": id}` wins by research;
+  `"research_cost_mul"` scales the shared tech tree for the campaign. A tech with `"scale": "system"`
+  only exists in such campaigns.
 - **New campaign:** `data/strategic/campaigns/<id>.json` (map, factions, planets, fleets). `"start":
   "colony_ship"` (with `"start_ships"`) makes generated major powers begin unclaimed with settlers instead of
   owning their homes; systems can list `"civilians"` to start with ships deployed.
