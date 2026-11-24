@@ -32,7 +32,8 @@ and Mass Effect-style hero missions, all built on **one shared tactical engine**
   (wonders) can be built, there are three ways to win (conquest, **science**, **score**) and
   twenty **galactic events** ask you to make choices.
 - **Act 1 prototype (in progress):** **Solar Age**, a campaign that plays entirely inside your
-  home star system at the dawn of your space age (see [Solar Age](#solar-age-act-1-prototype)).
+  home star system at the dawn of your space age (see [Solar Age](#solar-age-act-1-prototype)), now with
+  **strategic resources** (volatiles, rare elements, exotic matter) dug from deposits on particular bodies.
   Later acts open the galaxy: systems joined by hyperlanes, each one a map like this.
 - **Step 6 (done):** the system layer. Inside a star system you work on a **system map**:
   **Colony Ships** found colonies, **Constructors** build developments on the bodies, and nothing is
@@ -121,18 +122,23 @@ map is one star system, generated from the seed.
   outpost), or a Colony Ship to a habitable world. Each claimed body has its own orbital battery and
   its owner's banner. Click a body you hold (or a ship parked on one, then **S**) to open it: a close-up
   of that one world with your ships in orbit and its build options.
-- **Survey.** A body's traits (rich deposits, ruins, subsurface ocean, ...) stay hidden until one of your
-  ships has been at or next to it. The bodies themselves are charted (you have telescopes), and so is the
-  sun; the rest of the system is fog until you fly out.
+- **Survey.** A body's traits (rich deposits, ruins, subsurface ocean, ...) and strategic deposits stay hidden
+  until one of your ships has been at or next to it ("Deposits: ?"). The bodies themselves are charted (you have
+  telescopes), and so is the sun; the rest of the system is fog until you fly out.
+- **Strategic resources** (see below): volatiles lie close to home, rare elements a little farther out, and
+  exotic matter in exactly one place, out in the contested dark next to a hostile base. Hyperdrive burns 16
+  exotic matter and 30 volatiles, so you have to get out there, hold it and extract it.
 - **Hostiles.** The **Free Colonies Front** (human separatists) hold a fortified base on an outer moon and
   the **Vrask Scavengers** (alien salvagers) a lair on the far side. Both send small raider packs that
   plunder your outposts (credits stolen, a development wrecked) for as long as their bases stand. Storm a
   base to take it and its loot. They never negotiate.
 - **Finds.** Derelict probes, comets, an old station and a dead hulk drift between the orbits; a derelict
   station on an outer moon (and sometimes a wreck field) are squad missions for a commanded fleet.
-- **Goal.** Research **Hyperdrive** (the final era of the tech tree: era gates still apply) to wake the
-  dormant **jump points** at the edge of the map. That ends Act 1 with a win; losing everything is a
-  defeat. 150 turns. The Empire panel's Victory tab shows your road to Hyperdrive.
+- **Goal.** Research **Hyperdrive** (the final era of the tech tree: era gates still apply; it needs Exotic
+  Physics) to wake the dormant **jump points** at the edge of the map. It completes only with its exotic matter
+  and volatiles in store (until then the research waits at 100%, and the research chip says what's missing).
+  That ends Act 1 with a win; losing everything is a defeat. 150 turns. The Empire panel's Victory tab shows
+  your road to Hyperdrive and the stock it needs.
 - **Battles happen where the ships are.** The battle map is the local area round the fight, blown up:
   the worlds there become planet discs (impassable, they block line of sight), the sun's side is a wall of
   glare, the belt a band of asteroids and debris; you enter from the side you attacked from.
@@ -164,6 +170,26 @@ them, never negotiate and can't win, and clearing a den pays loot. The Free Trad
 find out what's there: resources, research, a free ship, star charts, an item, or now and then
 a trap. Bodies in unclaimed systems may roll **traits** (rich deposits, ancient ruins, rare
 gases, vast continents, subsurface ocean, hostile biosphere) that pay once you develop them.
+
+**Strategic resources.** Besides credits, alloys and research there are three strategic resources, found
+only in certain places, so different worlds have different advantages. They are stockpiled like alloys
+(top bar chips with diamond pips appear once you have or produce some; the tooltip says where they come
+from and what they're for) and spent by costs:
+
+| Resource | Found on | Extracted by | Needed for |
+| --- | --- | --- | --- |
+| **Volatiles** (ice, helium-3) | ice moons, gas giants, arctic and ocean worlds, icy asteroids | Gas Refinery, the new **Ice Mine**, a Mining Base on an icy asteroid, a colony on its own world | Colony Ships, Hydroponic Farms, Orbital Habitats, the Galactic Exchange, Hyperdrive fuel |
+| **Rare Elements** | volcanic worlds, asteroid belts, some barren rocks and deserts | Mining Base (or a colony on its own world) | Destroyers, Cruisers, Defense Platforms, Planetary Shields, the Stellar Forge, Fleet Command Nexus, Ascension Gate |
+| **Exotic Matter** | very rare: anomalous moons and rocks, deep belt pockets | **Exotic Containment** (needs the Exotic Physics tech; may be built over another development) | Hyperdrive, the Ascension Gate |
+
+Every body has 0-2 **deposits** with a richness of 1-3 (shown as pips: "◆ Rare Elements ●●○"), rolled by body
+type. A development that extracts a deposit yields its richness per turn on top of its normal yield (a
+Mining Base on rare elements x2: +4 alloys and +2 rare elements). A body's view lists its deposits, what taps
+them or would, and the Constructor's buttons say what each development would extract there; by default a
+Constructor builds the extractor that taps the body's best deposit (its one-click order too). On the system map, surveyed
+bodies carry small diamonds in the resource colours (filled when tapped). Can't-afford reasons name the
+missing resource ("Not enough rare elements (8 needed, 3 in store)"). In the galaxy-scale campaigns strategic
+costs are halved (`"strategic_cost_mul": 0.5`) and every power's home system has a modest starter deposit.
 
 **Star systems.** The map's systems each have a star and a few bodies: habitable worlds
 (terran, ocean, desert, arctic), rocks (barren, volcanic), asteroid belts, gas giants and ice
@@ -408,7 +434,10 @@ CI runs the tests and both smoke tests on every push (`.github/workflows/tests.y
   "colony_ship"` (with `"start_ships"`) makes generated major powers begin unclaimed with settlers instead of
   owning their homes; systems can list `"civilians"` to start with ships deployed.
 - **Galaxy terrain, stars, bodies:** `data/strategic/terrain.json`, `star_types.json`,
-  `body_types.json` (category, size, colony slots, bonus yields, shader colours), `planet_traits.json`.
+  `body_types.json` (category, size, colony slots, bonus yields, strategic `deposits` tables, shader colours),
+  `planet_traits.json`. Strategic resources: `kind: "strategic"` in `data/empire/resources.json`; any `cost` may
+  name them, buildings `extracts` them (`needs_deposit`, `replaces`), techs may have `cost_resources`, campaign
+  bodies may list `deposits` and a campaign `strategic_cost_mul`.
 - **Heroes:** classes, items, traits and XP thresholds in `data/heroes/`; named heroes, starting
   inventory and anomalies in the campaign file.
 - **Economy:** `data/empire/` (resources, buildings with `on: [body categories]` or
