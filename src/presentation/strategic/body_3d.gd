@@ -46,7 +46,20 @@ func setup(planet: Planet, data: DataRegistry) -> void:
 				torus.inner_radius = r * 1.3
 				torus.outer_radius = r * 1.62
 				var ring_mat := (child as MeshInstance3D).material_override as StandardMaterial3D
-				ring_mat.albedo_color.a = 0.28
+				ring_mat.albedo_color = Color(ring_mat.albedo_color.darkened(0.15), 0.2)
+				ring_mat.cull_mode = BaseMaterial3D.CULL_BACK  # one layer of the flattened tube, not four
+				# A second, narrower band inside: a hint of the ring's structure.
+				var inner := MeshInstance3D.new()
+				var band := TorusMesh.new()
+				band.inner_radius = r * 1.16
+				band.outer_radius = r * 1.27
+				band.rings = 48
+				inner.mesh = band
+				inner.material_override = BoardGeometry.flat_material(Color(ring_mat.albedo_color, 0.14))
+				(inner.material_override as StandardMaterial3D).cull_mode = BaseMaterial3D.CULL_BACK
+				inner.scale = (child as MeshInstance3D).scale
+				inner.rotation = (child as MeshInstance3D).rotation
+				node.add_child(inner)
 		_surface_materials.append(node.material_override as ShaderMaterial)
 		_add_atmosphere(node, b, data, r)
 		# A slow spin (radius 0: Planet3D._process turns it in place).
