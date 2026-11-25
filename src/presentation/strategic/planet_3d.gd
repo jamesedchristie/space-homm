@@ -17,6 +17,7 @@ var planet_id := ""
 var display_name := ""
 var owner_color := Palette.NEUTRAL
 var owned := false
+var _scanned := true
 ## Height of the name label above the board.
 var label_height := 0.85
 
@@ -115,15 +116,19 @@ func show_floor(on: bool) -> void:
 		n.visible = on
 
 
-func refresh(planet: Planet, state: GalaxyState) -> void:
-	owned = not planet.owner.is_empty()
-	owner_color = Palette.team_color(state.faction(planet.owner)["team"]) if owned else Palette.NEUTRAL
+## `known`: the owner as the viewer knows it (GalaxyEngine.known_owner; "?" = never scouted);
+## `scanned`: whether the viewer has seen what's built there.
+func refresh(planet: Planet, state: GalaxyState, known: String = "\u0000", scanned: bool = true) -> void:
+	var owner_id := planet.owner if known == "\u0000" else known
+	_scanned = scanned
+	owned = owner_id not in ["", "?"]
+	owner_color = Palette.team_color(state.faction(owner_id)["team"]) if owned else Palette.NEUTRAL
 	_owner_ring.albedo_color = Color(owner_color, 0.85) if owned else Color(owner_color, 0.22)
 	_glow.albedo_color = Color(owner_color, 0.04 if BoardGeometry.high_quality() else 0.1) if owned else Color(0, 0, 0, 0)
 	for i in mini(_markers.size(), planet.bodies.size()):
 		if _markers[i] == null:
 			continue
-		var developed: bool = not planet.bodies[i]["buildings"].is_empty()
+		var developed: bool = scanned and not planet.bodies[i]["buildings"].is_empty()
 		(_markers[i].material_override as StandardMaterial3D).albedo_color = Color(owner_color, 0.16) if developed and owned else Color(1, 1, 1, 0)
 	_refresh_structures(planet)
 
@@ -133,9 +138,9 @@ func refresh(planet: Planet, state: GalaxyState) -> void:
 ## stations, rigs for mining, ring stations for refineries and trade hubs.
 ## Rebuilt only when buildings or the owner change.
 func _refresh_structures(planet: Planet) -> void:
-	var parts := PackedStringArray([planet.owner])
+	var parts := PackedStringArray([planet.owner, str(_scanned)])
 	for b: Dictionary in planet.bodies:
-		parts.append(",".join(PackedStringArray(b["buildings"])))
+		parts.append(",".join(PackedStringArray(b["buildings"])) if _scanned else "")
 	var key := "|".join(parts)
 	if key == _structures_key:
 		return
@@ -146,7 +151,7 @@ func _refresh_structures(planet: Planet) -> void:
 			if child.is_in_group("structure"):
 				child.queue_free()
 		var b: Dictionary = planet.bodies[i]
-		var buildings: Array = b["buildings"]
+		var buildings: Array = b["buildings"] if _scanned else []
 		if _surface_materials[i] != null:
 			_surface_materials[i].set_shader_parameter("city_lights", 1.0 if "colony" in buildings else 0.0)
 		var r := _body_radii[i]

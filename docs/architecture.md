@@ -231,8 +231,7 @@ hexes (chance `extra` each) for loops. The hexes on each lane's line stay open; 
 becomes `void` terrain (impassable, not drawn), so movement, pathfinding, fog, battles and the AI
 need no lane-specific code. Fleets and mission sites are placed on lane cells; terrain blobs only
 land on lanes (slow lanes) and rifts are skipped. The output's `"lanes"` (`[[planet id, planet id]]`)
-is for the presentation (`GalaxyEngine.has_lanes()` / `lanes()`). Every system cell starts explored
-for everyone (charted). **Gates:** `Planet.gate == "relic"` (`relic_gate` on the generated planet,
+is for the presentation (`GalaxyEngine.has_lanes()` / `lanes()`). Systems are charted for everyone without being explored (see Intel). **Gates:** `Planet.gate == "relic"` (`relic_gate` on the generated planet,
 `_place_relic_gates` spreads them far from homes) or a `jump_gate` building (tech
 `gate_engineering`, scale `galaxy`); `GalaxyEngine.gate_kind()` / `gate_destinations(fleet)`: from a
 relic gate to every other relic gate, from a Jump Gate to every other gate of the same owner, if the
@@ -261,6 +260,15 @@ would save up, the first affordable building in `BUILD_PRIORITY`), automated shi
 colony `_best_job` / `_best_colony_body` offers where they stand and otherwise fly where
 `_civilian_destination` sends them, explorers head for the nearest reachable uncharted cell (or
 unsurveyed body) no stronger enemy guards.
+
+**Intel** (`GalaxyEngine.intel_level` / `known_owner` / `last_seen`): "charted" (not explored: name,
+star, lanes), "scanned" (explored: developments; owner as last seen), "surveyed" (campaigns with
+`"survey": true`, now including Random Sector: deposits and traits), "live" (visible now, or your own).
+`GalaxyState.intel` (faction -> planet id -> {owner, turn}, saved) is written by `_record_intel` whenever
+vision is updated (`_update_explored`, `_reveal_around`). The presentation draws systems from what the
+player knows: `Planet3D.refresh(planet, state, known_owner, scanned)` (owner ring, banner, orbital
+structures), territory, the minimap and the system card. The engine and AI still play on the true
+state.
 
 **Act 1 -> Act 2** (`ActTransition`, pure): after a Solar Age win (`can_continue`), `act2_campaign`
 builds a campaign definition from the Random Sector template with the player's empire carried over:

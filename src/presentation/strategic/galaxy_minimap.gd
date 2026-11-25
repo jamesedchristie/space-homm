@@ -93,8 +93,9 @@ func _draw() -> void:
 		draw_circle(p, cell_r, col)
 	for p: Planet in s.planets.values():
 		var at := _to_mini(s.grid.to_pixel(p.cell, GridMapView.CELL_SIZE))
-		var owned := not p.owner.is_empty()
-		var col := Palette.team_color(s.faction(p.owner)["team"]) if owned else Palette.NEUTRAL
+		var known := engine.known_owner(player_faction, p, _visible) if not _visible.is_empty() else p.owner
+		var owned := known not in ["", "?"]
+		var col := Palette.team_color(s.faction(known)["team"]) if owned else Palette.NEUTRAL
 		if owned:
 			draw_circle(at, cell_r * 1.9, Color(col, 0.25))
 		draw_circle(at, maxf(2.4, cell_r * 1.15), col if owned else Color(col, 0.8))

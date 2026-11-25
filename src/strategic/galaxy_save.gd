@@ -91,7 +91,7 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 			"opinions": s.opinions.duplicate(true),
 			"met": s.met.duplicate(true),
 			"peace_offers": s.peace_offers.duplicate(true),
-			"trade_pacts": s.trade_pacts.duplicate(), "raided": s.raided.duplicate(),
+			"trade_pacts": s.trade_pacts.duplicate(), "raided": s.raided.duplicate(), "intel": s.intel.duplicate(true),
 			"modifiers": s.modifiers.duplicate(true),
 			"event_log": s.event_log.duplicate(true),
 			"pending_event": s.pending_event.duplicate(true),
@@ -207,6 +207,7 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 	s.opinions = d["opinions"]
 	s.peace_offers = d.get("peace_offers", {})
 	s.trade_pacts = d.get("trade_pacts", {})
+	s.intel = d.get("intel", {})
 	s.raided = d.get("raided", {})
 	if d.has("met"):
 		s.met = d["met"]

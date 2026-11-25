@@ -38,11 +38,34 @@ func test_fleets_only_move_along_lanes() -> void:
 			assert_ne(s.grid.terrain_at(c), "void")
 
 
-func test_systems_are_charted_from_the_start() -> void:
+func test_intel_levels() -> void:
 	var e := _sector()
-	var player: String = e.state.factions[0]["id"]
-	for p: Planet in e.state.planets.values():
-		assert_true(e.explored_cells(player).has(p.cell), "%s should be charted" % p.name)
+	var s := e.state
+	var player: String = s.factions[0]["id"]
+	var home: Planet = s.planets_of(player)[0] if not s.planets_of(player).is_empty() else null
+	# A rival's home far away: charted only, owner unknown.
+	var rival: Planet = s.planets_of("kesh")[0] if not s.planets_of("kesh").is_empty() else null
+	if rival == null:
+		for p: Planet in s.planets.values():
+			if not p.capital.is_empty() and p.capital["faction"] == "kesh":
+				rival = p
+	rival.owner = "kesh"
+	assert_eq(e.intel_level(player, rival), "charted")
+	assert_eq(e.known_owner(player, rival), "?")
+	# Scout it: live, then out of sight it is remembered as last seen.
+	var scout: Fleet = s.fleets_of(player)[0]
+	var old_cell := scout.cell
+	scout.cell = rival.cell + Vector2i(0, 0)
+	e._reveal_around(scout)
+	assert_eq(e.intel_level(player, rival), "live")
+	assert_eq(e.known_owner(player, rival), "kesh")
+	scout.cell = old_cell
+	assert_true(e.intel_level(player, rival) in ["scanned", "surveyed"])
+	assert_eq(e.last_seen(player, rival), s.turn_number)
+	rival.owner = "veltari"  # changes hands out of sight
+	assert_eq(e.known_owner(player, rival), "kesh", "you only know what you last saw")
+	if home != null:
+		assert_eq(e.intel_level(player, home), "live")
 
 
 func test_jump_through_a_relic_gate() -> void:

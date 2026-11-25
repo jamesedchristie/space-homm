@@ -27,6 +27,7 @@ var _faction_label: Label
 var _chips: Dictionary = {}
 var _chip_row: HBoxContainer
 var _research_button: Button
+var _research_bar: SelectionCard._Bar
 var _attention: VBoxContainer
 var _attention_key := "-"
 var _end_turn_button: Button
@@ -153,8 +154,11 @@ func set_attention(items: Array[Dictionary]) -> void:
 
 ## The research chip: what's being researched (or a prompt to choose).
 ## Clicking it opens the tech tree.
-func set_research_chip(text: String, color: Color, tooltip: String, needs_choice: bool) -> void:
+func set_research_chip(text: String, color: Color, tooltip: String, needs_choice: bool, progress: float = -1.0) -> void:
 	_research_button.text = text
+	_research_bar.visible = progress >= 0.0
+	_research_bar.frac = clampf(progress, 0.0, 1.0)
+	_research_bar.queue_redraw()
 	_research_button.tooltip_text = tooltip
 	_research_button.add_theme_color_override("font_color", Palette.ACTIVE if needs_choice else color)
 	_research_button.add_theme_color_override("font_hover_color", Palette.ACTIVE if needs_choice else color.lightened(0.3))
@@ -166,7 +170,7 @@ func set_end_turn_enabled(enabled: bool) -> void:
 
 ## How many of your fleets can still move this turn (Next Fleet button).
 func set_ready_fleets(count: int, enabled: bool) -> void:
-	_next_fleet_button.text = "Next Fleet (%d)" % count if count > 0 else "All moved"
+	_next_fleet_button.text = "Next (%d)" % count if count > 0 else "All moved"
 	_next_fleet_button.disabled = not enabled or count == 0
 
 
@@ -231,12 +235,17 @@ func _build() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	top.add_child(row)
-	_turn_label = UiKit.header("Turn 1", 16, Palette.ACTIVE)
-	row.add_child(_turn_label)
-	_faction_label = UiKit.header("", 15, Palette.TEXT)
-	row.add_child(_faction_label)
+	# Turn number over the faction's name: one narrow block instead of two wide labels.
+	var turn_box := VBoxContainer.new()
+	turn_box.add_theme_constant_override("separation", -4)
+	turn_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(turn_box)
+	_turn_label = UiKit.header("Turn 1", 15, Palette.ACTIVE)
+	turn_box.add_child(_turn_label)
+	_faction_label = UiKit.label("", 11, Palette.TEXT)
 	_faction_label.clip_text = true
-	_faction_label.custom_minimum_size = Vector2(175, 0)
+	_faction_label.custom_minimum_size = Vector2(110, 0)
+	turn_box.add_child(_faction_label)
 	_chip_row = HBoxContainer.new()
 	_chip_row.add_theme_constant_override("separation", 6)
 	row.add_child(_chip_row)
@@ -249,17 +258,34 @@ func _build() -> void:
 	_research_button.add_theme_stylebox_override("hover", _flat_style(Color(0.1, 0.13, 0.2, 0.95)))
 	_research_button.add_theme_stylebox_override("pressed", _flat_style(Color(0.1, 0.13, 0.2, 0.95)))
 	row.add_child(_research_button)
+	_research_bar = SelectionCard._Bar.new()
+	_research_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_research_bar.color = Color(0.45, 0.75, 1.0)
+	_research_button.add_child(_research_bar)
+	_research_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_research_bar.offset_top = -9
+	_research_bar.offset_bottom = -1
+	_research_bar.offset_left = 8
+	_research_bar.offset_right = -8
 	var empire_button := UiKit.button("Empire", func() -> void: empire_pressed.emit())
 	empire_button.tooltip_text = "Systems, research, diplomacy and victory (E)"
 	row.add_child(empire_button)
 	var heroes_button := UiKit.button("Heroes", func() -> void: heroes_pressed.emit())
 	heroes_button.tooltip_text = "Gear, levels and fleet commanders (H)"
 	row.add_child(heroes_button)
-	_next_fleet_button = UiKit.button("Next Fleet", func() -> void: next_fleet_pressed.emit())
+	_next_fleet_button = UiKit.button("Next", func() -> void: next_fleet_pressed.emit())
 	_next_fleet_button.tooltip_text = "Select your next fleet that can still move this turn (Tab)"
 	row.add_child(_next_fleet_button)
 	_end_turn_button = UiKit.button("End Turn", func() -> void: end_turn_pressed.emit())
 	_end_turn_button.tooltip_text = "End your turn (Space)"
+	# The main action: a bright button that stands out from the rest of the bar.
+	for state_name in ["normal", "hover", "pressed"]:
+		var sb := _flat_style(Color(0.85, 0.62, 0.12, 0.95) if state_name == "normal" else Color(1.0, 0.75, 0.2, 1.0))
+		sb.set_corner_radius_all(4)
+		_end_turn_button.add_theme_stylebox_override(state_name, sb)
+	_end_turn_button.add_theme_stylebox_override("disabled", _flat_style(Color(0.2, 0.2, 0.24, 0.9)))
+	_end_turn_button.add_theme_color_override("font_color", Color(0.08, 0.06, 0.02))
+	_end_turn_button.add_theme_color_override("font_hover_color", Color(0.05, 0.04, 0.0))
 	row.add_child(_end_turn_button)
 	var menu_button := UiKit.button("Menu", func() -> void: menu_pressed.emit())
 	menu_button.tooltip_text = "Save, load, settings (Esc)"

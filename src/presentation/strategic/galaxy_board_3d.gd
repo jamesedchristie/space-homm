@@ -221,19 +221,21 @@ func _build_lanes() -> void:
 		var pa := world(a.cell, y)
 		var pb := world(b.cell, y)
 		var trim := (pb - pa).normalized() * 0.55  # stop short of the systems themselves
-		BoardGeometry.ribbon(buf, pa + trim, pb - trim, 0.42, Color(0.35, 0.6, 1.0, 0.07))
-		BoardGeometry.ribbon(buf, pa + trim, pb - trim, 0.16, Color(0.45, 0.75, 1.0, 0.16))
-		BoardGeometry.ribbon(buf, pa + trim, pb - trim, 0.05, Color(0.75, 0.9, 1.0, 0.55))
+		BoardGeometry.ribbon(buf, pa + trim, pb - trim, 0.24, Color(0.35, 0.6, 1.0, 0.06))
+		BoardGeometry.ribbon(buf, pa + trim, pb - trim, 0.09, Color(0.45, 0.75, 1.0, 0.2))
+		BoardGeometry.ribbon(buf, pa + trim, pb - trim, 0.035, Color(0.8, 0.92, 1.0, 0.75))
 	BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material()).mesh = BoardGeometry.commit(buf)
 
 
 ## Civ-style borders: each owned system claims its hex and the ring around it
 ## (nearest system wins), drawn as a faint wash with a crisp edge in the
 ## owner's color. Rebuilt only when ownership changes.
-func _draw_territory() -> void:
+func _draw_territory(visible_now: Dictionary = {}) -> void:
 	var owners := PackedStringArray()
+	var known := {}  # planet id -> owner as the player knows it (intel)
 	for p: Planet in engine.state.planets.values():
-		owners.append(p.id + "=" + p.owner + ":" + engine.gate_kind(p))
+		known[p.id] = engine.known_owner(player_faction, p, visible_now) if not visible_now.is_empty() else p.owner
+		owners.append(p.id + "=" + str(known[p.id]) + ":" + engine.gate_kind(p))
 	var key := ",".join(owners)
 	if key == _territory_key or _territory_mesh == null:
 		return
@@ -241,7 +243,8 @@ func _draw_territory() -> void:
 	var grid := engine.state.grid
 	var claim: Dictionary = {}  # cell -> [owner, distance]
 	for p: Planet in engine.state.planets.values():
-		if p.owner.is_empty():
+		var p_owner: String = known[p.id]
+		if p_owner in ["", "?"]:
 			continue
 		for c in grid.cells():
 			if not grid.terrain_def(c).get("passable", true):
@@ -250,7 +253,7 @@ func _draw_territory() -> void:
 			if d > 1:
 				continue
 			if not claim.has(c) or d < int(claim[c][1]):
-				claim[c] = [p.owner, d]
+				claim[c] = [p_owner, d]
 	var buf := BoardGeometry.buffer()
 	for c: Vector2i in claim:
 		var owner: String = claim[c][0]
@@ -271,8 +274,8 @@ func _draw_territory() -> void:
 	# Gates: a gold ring round a relic gate, a cyan one round a Jump Gate (above the cloud cover).
 	for p: Planet in engine.state.planets.values():
 		var kind := engine.gate_kind(p)
-		if kind.is_empty():
-			continue
+		if kind.is_empty() or (kind == "jump" and str(known[p.id]) == "?"):
+			continue  # a Jump Gate shows once you've scouted the system
 		var ring_color := Color(1.0, 0.8, 0.35, 0.85) if kind == "relic" else Color(0.4, 0.95, 1.0, 0.85)
 		var ring := BoardGeometry.disc(world(p.cell, FOG_HEIGHT + 0.04), 0.78, 24)
 		BoardGeometry.outline(buf, ring, FOG_HEIGHT + 0.04, 0.06, ring_color)
@@ -352,7 +355,7 @@ func _update_explored_mask(explored: Dictionary, visible_now: Dictionary) -> voi
 
 func sync(visible_now: Dictionary, explored: Dictionary, selected_fleet: String) -> void:
 	_set_fog(explored, visible_now)
-	_draw_territory()
+	_draw_territory(visible_now)
 	for id: String in fleet_views.keys():
 		if not engine.state.fleets.has(id):
 			fleet_views[id].queue_free()
@@ -371,7 +374,8 @@ func sync(visible_now: Dictionary, explored: Dictionary, selected_fleet: String)
 		view.visible = engine.can_see_fleet(player_faction, fleet, visible_now)
 		view.set_selected(fleet.id == selected_fleet)
 	for p: Planet in engine.state.planets.values():
-		planet_views[p.id].refresh(p, engine.state)
+		planet_views[p.id].refresh(p, engine.state, engine.known_owner(player_faction, p, visible_now),
+				engine.intel_level(player_faction, p, visible_now) != "charted")
 		# Planets are charted: unexplored ones rest on top of the fog.
 		planet_views[p.id].position.y = 0.0 if explored.has(p.cell) else FOG_HEIGHT
 	for id: String in anomaly_views.keys():
@@ -477,7 +481,9 @@ func destroy_fleet(fleet_id: String) -> void:
 
 
 func refresh_planet(planet_id: String) -> void:
-	planet_views[planet_id].refresh(engine.state.planets[planet_id], engine.state)
+	var planet: Planet = engine.state.planets[planet_id]
+	planet_views[planet_id].refresh(planet, engine.state, engine.known_owner(player_faction, planet),
+			engine.intel_level(player_faction, planet) != "charted")
 
 
 func float_text_at_fleet(fleet_id: String, text: String, color: Color) -> void:

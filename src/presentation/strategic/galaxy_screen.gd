@@ -558,14 +558,14 @@ func _refresh_resources() -> void:
 				Palette.BAD, "%s is researched, but it completes only with the resources in store: %s. Research points keep banking." % [
 				data.techs[r["current"]]["name"], waiting], false)
 	elif String(r["current"]).is_empty():
-		hud.set_research_chip("Choose research  (+%d)" % per_turn, color,
+		hud.set_research_chip("Choose research", color,
 				"Nothing is being researched: points are banked until you choose (%d banked). Click or press T." % r["progress"], true)
 	else:
 		var cost := ResearchRules.cost(engine, r["current"])
 		var turns := ceili(float(cost - int(r["progress"])) / maxf(1.0, per_turn))
-		hud.set_research_chip("%s  %d/%d · %dt" % [data.techs[r["current"]]["name"], r["progress"], cost, turns], color,
+		hud.set_research_chip("%s · %d turn%s" % [data.techs[r["current"]]["name"], turns, "" if turns == 1 else "s"], color,
 				"Researching %s: %d of %d (+%d per turn, %d turn(s) left). Click or press T for the tech tree." % [
-				data.techs[r["current"]]["name"], r["progress"], cost, per_turn, turns], false)
+				data.techs[r["current"]]["name"], r["progress"], cost, per_turn, turns], false, float(r["progress"]) / maxf(cost, 1.0))
 
 
 ## Tooltip for a strategic resource chip: stock and income, the bodies it comes from, where it is
@@ -1410,16 +1410,39 @@ func _anomaly_card(a: Dictionary) -> Dictionary:
 
 
 func _planet_card(planet: Planet) -> Dictionary:
+	var level := engine.intel_level(player_faction, planet, _visible)
+	var who := engine.known_owner(player_faction, planet, _visible)
 	var owner := "Unclaimed"
 	var color := Palette.NEUTRAL
-	if not planet.owner.is_empty():
-		var f := engine.state.faction(planet.owner)
+	if who == "?":
+		owner = "Owner unknown"
+	elif not who.is_empty():
+		var f := engine.state.faction(who)
 		owner = f["name"]
 		color = Palette.team_color(f["team"])
 	var star: Dictionary = data.star_types.get(planet.star, {})
 	var card := {"title": planet.name, "subtitle": "%s · %s" % [owner, star.get("name", "")], "subtitle_color": color,
 			"pills": _resource_pills(EmpireRules.planet_yields(engine, planet)) if planet.owner == player_faction else [],
 			"section": "Bodies" if planet.bodies.size() > 1 else "Body", "rows": [], "notes": [], "actions": []}
+	if planet.owner != player_faction:
+		var seen := engine.last_seen(player_faction, planet)
+		card["pills"].append({
+			"live": {"text": "Live", "color": Palette.GOOD, "tooltip": "In sensor range now: what you see is current."},
+			"surveyed": {"text": "Surveyed · turn %d" % seen, "color": Palette.ACTIVE,
+					"tooltip": "Deposits and traits are known. The owner and developments are as last seen on turn %d." % seen},
+			"scanned": {"text": "Scanned · turn %d" % seen if seen >= 0 else "Scanned", "color": Palette.SHIELDS,
+					"tooltip": "Developments and owner as last seen. Fly a ship to or next to it to survey deposits and traits."},
+			"charted": {"text": "Charted", "color": Palette.TEXT_DIM,
+					"tooltip": "On the star charts only: send a ship within sensor range to learn who holds it and what's there."},
+		}[level])
+	if level == "charted":
+		card.erase("section")
+		card["rows"] = []
+		card["notes"].append({"text": "Uncharted territory: scout it to learn who holds it and what's there."})
+		match engine.gate_kind(planet):
+			"relic":
+				card["pills"].append({"text": "Relic gate", "color": Color(1.0, 0.8, 0.35), "tooltip": "Fleets here can jump to any other relic gate."})
+		return card
 	match engine.gate_kind(planet):
 		"relic":
 			card["pills"].append({"text": "Relic gate", "color": Color(1.0, 0.8, 0.35), "tooltip": "Fleets here can jump to any other relic gate."})

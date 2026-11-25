@@ -96,8 +96,8 @@ func setup(planet: Planet, data: DataRegistry) -> void:
 	_floor.append(glow)
 
 
-func refresh(planet: Planet, state: GalaxyState) -> void:
-	super.refresh(planet, state)
+func refresh(planet: Planet, state: GalaxyState, known: String = "\u0000", scanned: bool = true) -> void:
+	super.refresh(planet, state, known, scanned)
 	# Unclaimed bodies keep only a whisper of a ring (the map has a lot of them).
 	if not owned:
 		_owner_ring.albedo_color = Color(owner_color, 0.08)

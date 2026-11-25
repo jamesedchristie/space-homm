@@ -70,7 +70,8 @@ func sync(visible_now: Dictionary, explored: Dictionary, selected_fleet: String)
 		view.visible = engine.can_see_fleet(player_faction, fleet, visible_now)
 		view.set_selected(fleet.id == selected_fleet)
 	for p: Planet in engine.state.planets.values():
-		planet_views[p.id].refresh(p, engine.state)
+		planet_views[p.id].refresh(p, engine.state, engine.known_owner(player_faction, p, visible_now),
+				engine.intel_level(player_faction, p, visible_now) != "charted")
 	for id: String in anomaly_views.keys():
 		if not engine.state.anomalies.has(id):
 			anomaly_views[id].queue_free()
@@ -124,7 +125,9 @@ func destroy_fleet(fleet_id: String) -> void:
 
 
 func refresh_planet(planet_id: String) -> void:
-	planet_views[planet_id].refresh(engine.state.planets[planet_id], engine.state)
+	var planet: Planet = engine.state.planets[planet_id]
+	planet_views[planet_id].refresh(planet, engine.state, engine.known_owner(player_faction, planet),
+			engine.intel_level(player_faction, planet) != "charted")
 
 
 func float_text_at_fleet(fleet_id: String, text: String, color: Color) -> void:

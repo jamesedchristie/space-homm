@@ -154,13 +154,8 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 			if s.grid.terrain_at(c) in ["star", "corona"]:
 				for f in s.factions:
 					s.explored[f["id"]][c] = true
-	if engine.has_lanes():
-		# The lane network is charted from the start: every system is on everyone's map and the
-		# lanes are drawn between them; what lies along a lane (finds, mission sites) and what is
-		# there now (fleets) still needs scouting.
-		for p: Planet in s.planets.values():
-			for f in s.factions:
-				s.explored[f["id"]][p.cell] = true
+	# Lane maps: the network is charted from the start (intel_level "charted"): systems and lanes are
+	# on everyone's map; who holds them and what is there needs scouting.
 	s.permadeath = def.get("permadeath", false)
 	for r: Dictionary in def.get("relations", []):
 		var pair: Array = r["factions"]
@@ -450,6 +445,55 @@ func visible_cells(faction_id: String) -> Dictionary:
 		for c in state.grid.cells_within(p.cell, EmpireRules.planet_sensor(self, p) + bonus):
 			vis[c] = true
 	return vis
+
+
+# --- Intel -------------------------------------------------------------------------
+## What a faction knows of a system, from least to most:
+##   "charted"  - it exists: name, star, lanes (every system is on the map from the start)
+##   "scanned"  - a ship or colony of yours has had it in sensor range: its bodies and developments,
+##                and its owner as last seen (GalaxyState.intel)
+##   "surveyed" - (campaigns with surveys) a ship has been at or next to it: deposits and traits
+##   "live"     - in sensor range now (or yours): the current owner, fleets and battles
+const INTEL_LEVELS := ["charted", "scanned", "surveyed", "live"]
+
+
+## Pass the faction's visible cells when calling this for many systems (it computes them otherwise).
+func intel_level(faction_id: String, planet: Planet, vis: Dictionary = {}) -> String:
+	if planet.owner == faction_id and not faction_id.is_empty():
+		return "live"
+	if vis.is_empty():
+		vis = visible_cells(faction_id)
+	if vis.has(planet.cell):
+		return "live"
+	if not explored_cells(faction_id).has(planet.cell):
+		return "charted"
+	if campaign.get("survey", false) and is_surveyed(faction_id, planet):
+		return "surveyed"
+	return "scanned"
+
+
+## Who the faction believes owns the system: the real owner when live, the owner as last seen when
+## scanned, "?" when only charted.
+func known_owner(faction_id: String, planet: Planet, vis: Dictionary = {}) -> String:
+	var level := intel_level(faction_id, planet, vis)
+	if level == "live":
+		return planet.owner
+	var seen: Dictionary = state.intel.get(faction_id, {}).get(planet.id, {})
+	if not seen.is_empty():
+		return str(seen["owner"])
+	return "?" if level == "charted" else planet.owner
+
+
+## The turn the faction last had eyes on the system (-1: never).
+func last_seen(faction_id: String, planet: Planet) -> int:
+	return int(state.intel.get(faction_id, {}).get(planet.id, {}).get("turn", -1))
+
+
+func _record_intel(faction_id: String, cells: Dictionary) -> void:
+	var book: Dictionary = state.intel.get_or_add(faction_id, {})
+	for p: Planet in state.planets.values():
+		if cells.has(p.cell):
+			book[p.id] = {"owner": p.owner, "turn": state.turn_number}
 
 
 ## "system" for a system-scale campaign (the hex map is one star system and every body is its own
@@ -2256,8 +2300,11 @@ func _do_diplomacy(cmd: DiplomacyCommand) -> void:
 
 func _reveal_around(fleet: Fleet) -> void:
 	var explored: Dictionary = state.explored[fleet.owner]
+	var seen := {}
 	for c in state.grid.cells_within(fleet.cell, fleet_sensor(fleet)):
 		explored[c] = true
+		seen[c] = true
+	_record_intel(fleet.owner, seen)
 	_update_survey(fleet.owner)
 
 
@@ -2295,8 +2342,10 @@ func _update_survey(only_faction: String = "") -> void:
 func _update_explored() -> void:
 	for f in state.factions:
 		var explored: Dictionary = state.explored[f["id"]]
-		for c: Vector2i in visible_cells(f["id"]):
+		var vis := visible_cells(f["id"])
+		for c: Vector2i in vis:
 			explored[c] = true
+		_record_intel(f["id"], vis)
 	_update_survey()
 	_detect_contacts()
 

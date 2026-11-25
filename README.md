@@ -95,9 +95,13 @@ Three campaigns:
   power starts in its (still unclaimed) home system with its warfleet, a **Colony Ship** and a
   **Constructor**: found your capital first (the attention list at the top left points you there).
   The sector is a **hyperlane network**: systems are joined by lanes and ships travel only along them
-  (the dark between them is impassable void), so chokepoints and junctions matter. Every system is
-  **charted** from the start and the lanes are drawn between them; what lies along a lane (salvage,
-  mission sites) and where the fleets are still needs scouting. Three ancient **relic gates** (gold
+  (the dark between them is impassable void), so chokepoints and junctions matter. What you know of a system has
+  four **intel levels**, shown on its card: **charted** (every system and lane is on your star charts
+  from the start, but not who holds it), **scanned** (one of your ships or colonies has had it in sensor
+  range: its developments and its owner *as last seen*, with the turn), **surveyed** (a ship has been at or
+  next to it: deposits and traits) and **live** (in sensor range now). Systems you haven't scouted show no
+  owner colours on the map, and one that changed hands out of sight keeps its old colours until you look
+  again. Three ancient **relic gates** (gold
   rings) link to each other: a fleet at one can jump to any other in one move (it ends the fleet's move).
   Research **Gate Engineering** to build **Jump Gates** (cyan rings) in your colonies: your own railroad,
   linking all your gates the same way. Hover a highlighted gate to see where a jump goes.

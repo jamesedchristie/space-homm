@@ -30,11 +30,12 @@ func setup(planet: Planet, data: DataRegistry, single_body: bool = false) -> voi
 				"angle": float((h >> (i * 3)) % 628) / 100.0, "belt": b["type"] == "asteroid_belt", "developed": false})
 
 
-func refresh(planet: Planet, state: GalaxyState) -> void:
-	owned = not planet.owner.is_empty()
-	owner_color = Palette.team_color(state.faction(planet.owner)["team"]) if owned else Palette.NEUTRAL
+func refresh(planet: Planet, state: GalaxyState, known: String = "\u0000", scanned: bool = true) -> void:
+	var owner_id := planet.owner if known == "\u0000" else known
+	owned = owner_id not in ["", "?"]
+	owner_color = Palette.team_color(state.faction(owner_id)["team"]) if owned else Palette.NEUTRAL
 	for i in mini(_bodies.size(), planet.bodies.size()):
-		_bodies[i]["developed"] = not planet.bodies[i]["buildings"].is_empty()
+		_bodies[i]["developed"] = scanned and not planet.bodies[i]["buildings"].is_empty()
 	queue_redraw()
 
 

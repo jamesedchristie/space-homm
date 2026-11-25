@@ -60,6 +60,8 @@ var met: Dictionary = {}
 ## "from>to" -> {"from", "to", "turn", "status": "pending"|"refused"}: peace offers AI factions
 ## made to player-run ones (see DiplomacyRules.pending_offer). Refused ones stay for the cooldown.
 var peace_offers: Dictionary = {}
+## Intel: faction -> {planet id: {"owner", "turn"}}, what it last saw of each system (GalaxyEngine.intel_level).
+var intel: Dictionary = {}
 ## Trade agreements between powers: relation key -> turn signed (TradeRules).
 var trade_pacts: Dictionary = {}
 ## planet id -> turn it was last raided (one raid per system per turn).
