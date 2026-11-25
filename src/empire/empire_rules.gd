@@ -158,7 +158,7 @@ static func trade_income(engine: GalaxyEngine, faction_id: String) -> int:
 		if base > 0:
 			base += int(modifier(engine, faction_id, "trade_income"))
 		total += base
-	return total
+	return total + TradeRules.pacts_income(engine, faction_id)
 
 
 ## Per-turn income. "credits" is net of ship upkeep; "gross_credits" and "upkeep"

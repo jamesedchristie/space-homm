@@ -266,6 +266,17 @@
         ]
       },
       {
+        "name": "Foreman",
+        "owner": "patrol",
+        "at": "near_home",
+        "ships": [
+          {
+            "unit": "constructor",
+            "name": "Foreman"
+          }
+        ]
+      },
+      {
         "name": "Pioneer",
         "owner": "patrol",
         "at": "near_home",
@@ -301,14 +312,6 @@
             "name": "Hrask"
           }
         ]
-      }
-    ],
-    "civilians": [
-      {
-        "unit": "constructor",
-        "name": "Foreman",
-        "owner": "patrol",
-        "at": "home_moon"
       }
     ],
     "heroes": [

@@ -60,6 +60,10 @@ var met: Dictionary = {}
 ## "from>to" -> {"from", "to", "turn", "status": "pending"|"refused"}: peace offers AI factions
 ## made to player-run ones (see DiplomacyRules.pending_offer). Refused ones stay for the cooldown.
 var peace_offers: Dictionary = {}
+## Trade agreements between powers: relation key -> turn signed (TradeRules).
+var trade_pacts: Dictionary = {}
+## planet id -> turn it was last raided (one raid per system per turn).
+var raided: Dictionary = {}
 ## faction id -> [{"id", "name", "turns": int left, "effects": [tech-style effects]}]: temporary
 ## modifiers (from galactic events) that count like tech effects while they last.
 var modifiers: Dictionary = {}
@@ -180,6 +184,8 @@ func at_war(a: String, b: String) -> bool:
 
 func set_relation(a: String, b: String, status: String) -> void:
 	relations[relation_key(a, b)] = {"status": status, "since": turn_number}
+	if status == "war":
+		trade_pacts.erase(relation_key(a, b))  # war ends any trade
 
 
 func has_met(a: String, b: String) -> bool:

@@ -134,10 +134,10 @@ func test_constructor_claims_an_empty_system_as_an_outpost() -> void:
 	e.submit(EndFactionTurnCommand.new("b"))
 	assert_eq(middle.owner, "a", "finished: the system is an outpost of a")
 	assert_true("research_station" in middle.bodies[0]["buildings"])
-	assert_true(middle.civilians[0]["job"].is_empty(), "idle again")
+	assert_true(middle.civilians.is_empty(), "its work done, the constructor takes off again")
 
 
-func test_constructor_takes_job_after_job_and_stays() -> void:
+func test_constructor_takes_off_after_its_job() -> void:
 	var e := _world([["a", "test_dummy", 1, 2], ["b", "test_dummy", 9, 0]], {"home_a": [_ship("constructor", "a", "Jack")]})
 	var home: Planet = e.state.planets["home_a"]
 	var jack: String = home.civilians[0]["uid"]
@@ -147,8 +147,10 @@ func test_constructor_takes_job_after_job_and_stays() -> void:
 	_end_round(e)
 	_end_round(e)
 	assert_true("mining_base" in home.bodies[1]["buildings"])
-	assert_eq(home.civilians.size(), 1, "the constructor is still there")
-	assert_true(e.submit(CivilianCommand.new("a", "home_a", jack, CivilianCommand.JOB, home.bodies[2]["id"], "gas_refinery")).ok,
+	assert_eq(home.civilians.size(), 0, "its work done, the constructor takes off again")
+	var where := SystemRules.locate_ship(e, "a", jack)
+	assert_true(where.has("fleet"), "back on the map as a unit")
+	assert_true(e.submit(OrderShipCommand.new("a", jack, "home_a", home.bodies[2]["id"], OrderShipCommand.JOB, "gas_refinery")).ok,
 			"and takes another job")
 
 

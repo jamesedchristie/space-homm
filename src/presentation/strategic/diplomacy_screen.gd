@@ -244,6 +244,27 @@ func show_result(events: Array[Dictionary], error: String = "") -> void:
 		"threat":
 			key = "you_declare_war"
 			mood = "angry"
+		"trade":
+			key = "farewell"
+			mood = "grim"
+			for e in events:
+				if e["type"] == GalaxyEvents.TRADE_SIGNED:
+					key = "gift"
+					mood = "pleased"
+					note = "Trade agreement signed: +%d credits a turn for as long as the peace holds." % TradeRules.pact_income(_engine, _player, _other)
+				elif e["type"] == GalaxyEvents.TRADE_REFUSED:
+					note = str(e.get("reason", ""))
+		"cancel_trade":
+			key = "offer_declined"
+			mood = "angry"
+			note = "The trade agreement is over."
+		"market":
+			key = "gift"
+			mood = "pleased"
+			for e in events:
+				if e["type"] == GalaxyEvents.MARKET_DEAL:
+					note = "%s %d %s for %d credits." % ["Bought" if int(e["amount"]) > 0 else "Sold", absi(int(e["amount"])),
+							DepositRules.resource_name(_engine.data, e["resource"]).to_lower(), absi(int(e["credits"]))]
 	_say(key, mood, note)
 	_state = "menu" if kind not in ["accept", "refuse"] else "after"
 	if not LeaderRules.negotiates(faction):
@@ -398,6 +419,35 @@ func _menu_choices(faction: Dictionary, credits: int) -> void:
 		gift_tip = "Not enough credits."
 	_choice("Send a gift (%d credits)." % DiplomacyRules.GIFT_CREDITS, do_gift,
 			_can_act and credits >= DiplomacyRules.GIFT_CREDITS, gift_tip)
+	var s := _engine.state
+	if not war and faction.get("role", "major") == "major" and s.faction(_player).get("role", "major") == "major":
+		if TradeRules.has_pact(s, _player, _other):
+			_choice("End our trade agreement (+%d credits a turn now)." % TradeRules.pact_income(_engine, _player, _other), func() -> void:
+				_awaiting = "cancel_trade"
+				command_requested.emit(DiplomacyCommand.new(_player, _other, "cancel_trade")), _can_act, "They will take it badly." if _can_act else wait_tip)
+		else:
+			var trade_tip := "Both sides earn credits every turn while at peace. They sign if they like you enough (opinion %d+)." % TradeRules.PACT_OPINION
+			_choice("Propose a trade agreement.", func() -> void:
+				_awaiting = "trade"
+				command_requested.emit(DiplomacyCommand.new(_player, _other, "propose_trade")), _can_act and faction.get("controller", "") != "player",
+				trade_tip if _can_act else wait_tip)
+	if not war and faction.get("market", false):
+		for k in DepositRules.strategic(_engine.data):
+			var price := TradeRules.price(_engine, k)
+			if price <= 0:
+				continue
+			var have := int(s.resources[_player].get(k, 0))
+			var lot := 10
+			var resource := DepositRules.resource_name(_engine.data, k).to_lower()
+			_choice("Sell %d %s (+%d credits)." % [lot, resource, price * lot], func() -> void:
+				_awaiting = "market"
+				command_requested.emit(MarketCommand.new(_player, k, -lot)), _can_act and have >= lot,
+				"You have %d." % have if _can_act else wait_tip)
+			var buy := -TradeRules.deal_credits(_engine, k, 5)
+			_choice("Buy 5 %s (%d credits)." % [resource, buy], func() -> void:
+				_awaiting = "market"
+				command_requested.emit(MarketCommand.new(_player, k, 5)), _can_act and credits >= buy,
+				"" if _can_act else wait_tip)
 	if not war:
 		_choice("Declare war.", ask_war, _can_act, "" if _can_act else wait_tip)
 	_choice("Farewell.", func() -> void: close())

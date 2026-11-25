@@ -136,6 +136,10 @@ func decide(engine: GalaxyEngine) -> GalaxyCommand:
 		var detach := _detach_workers(engine, fleet)
 		if detach != null:
 			return detach
+		# Blockading an enemy system without troops: strip it while we wait.
+		if engine.raid_error(faction_id, fleet.id).is_empty():
+			_done[fleet.id] = true
+			return RaidCommand.new(faction_id, fleet.id)
 		_done[fleet.id] = true
 		var dest := _civilian_destination(engine, fleet) if fleet.is_civilian_only(engine.data) \
 				else choose_destination(engine, fleet)
@@ -583,7 +587,29 @@ func _empire_command(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
 			return QueueBuildCommand.new(faction_id, planet.id, choice["kind"], choice["id"], choice.get("body", ""))
 	if not _diplomacy_done:
 		_diplomacy_done = true
-		return _diplomacy(engine, faction_id)
+		var deal := _diplomacy(engine, faction_id)
+		if deal != null:
+			return deal
+		return _market_command(engine, faction_id)
+	return null
+
+
+## Market (TradeRules): sell a strategic resource piled far beyond any need; buy one the goal is
+## short of when the treasury is flush.
+const MARKET_SURPLUS := 150
+func _market_command(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
+	if TradeRules.market_for(engine, faction_id).is_empty():
+		return null
+	var stock: Dictionary = engine.state.resources[faction_id]
+	var need := _need_of(engine, faction_id)
+	for k in DepositRules.strategic(engine.data):
+		var have := int(stock.get(k, 0))
+		if need.has(k) and int(stock.get("credits", 0)) > 400:
+			var cmd := MarketCommand.new(faction_id, k, 5)
+			if engine.validate(cmd).is_empty():
+				return cmd
+		elif have > MARKET_SURPLUS and not need.has(k):
+			return MarketCommand.new(faction_id, k, -(have - MARKET_SURPLUS / 2))
 	return null
 
 
@@ -1282,6 +1308,11 @@ func _diplomacy(engine: GalaxyEngine, faction_id: String) -> GalaxyCommand:
 				return DiplomacyCommand.new(faction_id, other, "offer_peace")
 		elif s.opinion(faction_id, other) <= -40 and mine > theirs * 1.5:
 			return DiplomacyCommand.new(faction_id, other, "declare_war")
+		elif rival_major and f["controller"] != "player" and not runaway and not racing \
+				and not TradeRules.has_pact(s, faction_id, other) and s.has_met(faction_id, other) \
+				and TradeRules.pact_refusal(engine, other, faction_id).is_empty() \
+				and s.opinion(faction_id, other) >= TradeRules.PACT_OPINION:
+			return DiplomacyCommand.new(faction_id, other, "propose_trade")
 		elif runaway and mine > theirs * 0.6 and s.turn_number - int(s.relation(faction_id, other)["since"]) >= 10:
 			return DiplomacyCommand.new(faction_id, other, "declare_war")
 		elif rival_major and racing and mine > theirs * 0.5 and VictoryRules.science_progress(engine, faction_id) < SCIENCE_ALARM:

@@ -77,6 +77,11 @@ func _ready() -> void:
 	for e in data.errors:
 		push_error("Content: " + e)
 	hud.end_turn_pressed.connect(_on_end_turn_pressed)
+	hud.card_action.connect(func(id: String) -> void:
+		if id == "open_planet" and not selected_planet.is_empty():
+			_open_system(selected_planet)
+		else:
+			_on_card_action(id))
 	hud.next_fleet_pressed.connect(func() -> void:
 		if not _busy and _is_human_turn() and not hud.system_view.visible:
 			_select_next_fleet()
@@ -856,7 +861,7 @@ func _game_over() -> void:
 		title = ending.get("title", title)
 		lines.insert(0, ending.get("text", ""))
 		lines.insert(1, "")
-	var options: Array = [{"id": "new", "label": "New campaign"}, {"id": "menu", "label": "Main menu"}]
+	var options: Array[Dictionary] = [{"id": "new", "label": "New campaign"}, {"id": "menu", "label": "Main menu"}]
 	var act2 := not autoplay and ActTransition.can_continue(engine, player_faction)
 	if act2:
 		options.push_front({"id": "act2", "label": "Continue to Act 2"})
@@ -925,13 +930,13 @@ func _refresh() -> void:
 	board.set_selected_fleet(selected_fleet)
 
 	if fleet != null:
-		hud.set_info(_fleet_info(fleet))
+		hud.show_card(_fleet_card(fleet))
 	elif s.anomalies.has(selected_anomaly):
-		hud.set_info(_anomaly_info(s.anomalies[selected_anomaly]))
+		hud.show_card(_anomaly_card(s.anomalies[selected_anomaly]))
 	elif s.planets.has(selected_planet):
-		hud.set_info(_planet_info(s.planets[selected_planet]))
+		hud.show_card(_planet_card(s.planets[selected_planet]))
 	else:
-		hud.set_info(UiKit.color_tag("Select a fleet or planet.", Palette.TEXT_DIM))
+		hud.show_card({"title": "Nothing selected", "notes": [{"text": "Click a fleet or a system. Tab: next fleet that can move."}]})
 	hud.set_hint(_hint_text(human, fleet if mine else null))
 	_refresh_attention(human)
 
@@ -1021,7 +1026,7 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 		text = "Click a highlighted neighbouring system for the detached ships. Esc or right-click cancels."
 	elif _hover != null and _reach.has(_hover) and engine.state.fleet_at(_hover) != null \
 			and engine.state.fleet_at(_hover).owner == player_faction and _hover != fleet.cell:
-		text = "Join %s (merge fleets, %d moves)" % [engine.state.fleet_at(_hover).name, _reach[_hover]["cost"]]
+		text = "Click: select %s.  Shift-click: merge into it (%d moves)" % [engine.state.fleet_at(_hover).name, _reach[_hover]["cost"]]
 	elif _hover != null and _hover in _attack_cells:
 		var target_fleet := engine.state.fleet_at(_hover)
 		var target_system := engine.state.planet_at(_hover)
@@ -1040,7 +1045,7 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 		text = ("Click again (or press S) to open %s" if engine.is_system_scale() else "Click again (or press S) to open the %s system") \
 				% _own_system_under_fleet().name
 	else:
-		text = "%s: blue = move, red = attack. Move onto your own fleet to merge, D to detach ships. Right-click to deselect." % fleet.name
+		text = "%s: blue = move, red = attack. Click another fleet to select it, Shift-click to merge. D detaches ships, B builds, F founds a colony." % fleet.name
 		if _own_system_under_fleet() != null:
 			text += " S: open this body." if engine.is_system_scale() else " S: open this system."
 	if _hover != null:
@@ -1149,6 +1154,8 @@ func _order_at(cell: Variant) -> Dictionary:
 
 
 func _order_hint() -> String:
+	if _send_uid.is_empty():
+		return ""
 	var ship := _order_ship()
 	if ship.is_empty():
 		return ""
@@ -1216,52 +1223,229 @@ func _fleet_name(fleet: Fleet) -> String:
 	return UiKit.color_tag(fleet.name, Palette.team_color(engine.state.faction(fleet.owner)["team"]))
 
 
-func _fleet_info(fleet: Fleet) -> String:
+func _resource_pills(yields: Dictionary) -> Array:
+	var out: Array = []
+	for k: String in yields:
+		if not data.resources.has(k) or int(yields[k]) == 0:
+			continue
+		out.append({"text": "%+d %s" % [int(yields[k]), DepositRules.resource_name(data, k).to_lower()],
+				"color": Color(data.resources[k]["color"])})
+	return out
+
+
+func _fleet_card(fleet: Fleet) -> Dictionary:
 	var faction := engine.state.faction(fleet.owner)
-	var lines := PackedStringArray()
-	lines.append("[b]%s[/b]  %s" % [_fleet_name(fleet), UiKit.color_tag(faction["name"], Palette.TEXT_DIM)])
-	if fleet.owner == player_faction:
-		lines.append("Moves %d / %d   ·   Sensors %d" % [fleet.moves_left, engine.fleet_speed(fleet), engine.fleet_sensor(fleet)])
-		if not fleet.order.is_empty() and engine.state.planets.has(fleet.order["planet"]):
-			var target: Planet = engine.state.planets[fleet.order["planet"]]
-			var what := "found a colony" if fleet.order["action"] == OrderShipCommand.FOUND \
-					else "build %s" % data.buildings.get(fleet.order.get("item", ""), {}).get("name", "a development")
-			lines.append(UiKit.color_tag("Orders: %s at %s (moves on its own; a manual move cancels)" % [what, target.name], Palette.ACTIVE))
-	lines.append("")
+	var mine := fleet.owner == player_faction
+	var card := {"title": fleet.name, "subtitle": faction["name"],
+			"subtitle_color": Palette.team_color(faction["team"]), "pills": [], "rows": [], "notes": [], "actions": []}
+	if mine:
+		card["pills"].append({"text": "Moves %d/%d" % [fleet.moves_left, engine.fleet_speed(fleet)],
+				"color": Palette.ACTIVE if fleet.moves_left > 0 else Palette.TEXT_DIM, "tooltip": "Hexes this fleet can still fly this turn."})
+		card["pills"].append({"text": "Sensors %d" % engine.fleet_sensor(fleet), "color": Palette.TEXT_DIM, "tooltip": "How far this fleet sees."})
+		var here := engine.state.planet_at(fleet.cell)
+		if here != null and here.owner == fleet.owner:
+			card["pills"].append({"text": "Repairing", "color": Palette.GOOD,
+					"tooltip": "At your own system: %d%% hull repaired per turn." % roundi(GalaxyEngine.REPAIR_RATE * 100)})
+	var commander := engine.state.commander_of(fleet)
+	if commander != null:
+		var cls: Dictionary = data.hero_classes[commander.class_id]
+		var doctrine: Dictionary = data.statuses.get(cls.get("command_status", ""), {})
+		card["pills"].append({"text": "%s · %s %d" % [commander.name, cls.get("name", ""), commander.level],
+				"color": Palette.GOOD if commander.is_ready() else Palette.BAD,
+				"tooltip": ("%s: %s" % [doctrine.get("name", ""), doctrine.get("description", "")]) if commander.is_ready()
+						else "Away (%s) until turn %d: no doctrine bonus." % [commander.status.replace("_", " "), commander.busy_until]})
+	elif mine and not fleet.is_civilian_only(data):
+		card["pills"].append({"text": "No commander", "color": Palette.TEXT_DIM, "tooltip": "Assign a hero at a system you own (Heroes, H)."})
+	card["section"] = "Ships"
 	for ship in fleet.ships:
 		var def: Dictionary = data.units[ship["unit"]]
 		var max_hull := int(def["stats"]["max_hull"])
-		var hull_color := Palette.HULL if ship["hull"] > max_hull * 0.5 else Palette.BAD
-		# The ship's class (strike / escort / capital): what it counters, see RoleRules.
-		var role := RoleRules.hint(data, def)
-		lines.append("%s  %s  %s" % [ship["name"], UiKit.color_tag(def.get("name", "") + ("" if role.is_empty() else " (%s)" % role), Palette.TEXT_DIM),
-				UiKit.color_tag("%d/%d" % [ship["hull"], max_hull], hull_color)])
+		var cls := RoleRules.class_of(def)
+		var frac := float(ship["hull"]) / maxf(max_hull, 1)
+		var row := {"text": ship["name"], "bar": frac, "bar_color": Palette.HULL if frac > 0.5 else Palette.BAD,
+				"value": "%d/%d" % [ship["hull"], max_hull],
+				"tooltip": "%s\n%s" % [def.get("name", ""), RoleRules.summary(data, def)]}
+		if not cls.is_empty():
+			row["tag"] = {"strike": "strike", "escort": "escort", "capital": "capital", "station": "station"}.get(cls, def.get("name", ""))
+			row["tag_color"] = {"strike": Color("ff9a5a"), "escort": Color("6ad0ff"), "capital": Color("d8a8ff")}.get(cls, Palette.TEXT_DIM)
+		var role := Fleet.role_of(data, ship["unit"])
+		if role in ["colony", "constructor", "transport"]:
+			row["tag"] = def.get("name", role)
+			row["tag_color"] = Palette.GOOD
+		card["rows"].append(row)
+	if mine and not fleet.order.is_empty() and engine.state.planets.has(fleet.order["planet"]):
+		var target: Planet = engine.state.planets[fleet.order["planet"]]
+		var what := "found a colony" if fleet.order["action"] == OrderShipCommand.FOUND \
+				else "build %s" % data.buildings.get(fleet.order.get("item", ""), {}).get("name", "a development")
+		card["notes"].append({"text": "Orders: %s at %s. A manual move cancels them." % [what, target.name], "color": Palette.ACTIVE})
+	if mine and _is_human_turn() and not _busy:
+		card["actions"] = _civilian_actions(fleet)
+		if _own_system_under_fleet() != null:
+			card["actions"].append({"id": "open", "label": "Open %s (S)" % _own_system_under_fleet().name})
+		if fleet.ships.size() > 1:
+			card["actions"].append({"id": "detach", "label": "Detach (D)", "tooltip": "Split ships off into a new fleet."})
+		var blockaded := engine.state.planet_at(fleet.cell)
+		if blockaded != null and blockaded.blockade == player_faction:
+			var why := engine.raid_error(player_faction, fleet.id)
+			card["actions"].push_front({"id": "raid", "label": "Raid %s" % blockaded.name, "disabled": not why.is_empty(),
+					"tooltip": why if not why.is_empty() else "Strip the system: credits and strategic resources into your stores, a development knocked offline. Ends this fleet's move; once a turn. Bring a Troop Transport to take it instead."})
+	return card
+
+
+## Card buttons for the colony ships and constructors in a fleet: found / build on the body (or the
+## bodies of the system) it stands at, and "Send to..." for a standing order elsewhere.
+func _civilian_actions(fleet: Fleet) -> Array:
+	var out: Array = []
 	var planet := engine.state.planet_at(fleet.cell)
-	if planet != null and planet.owner == fleet.owner:
-		lines.append("")
-		lines.append(UiKit.color_tag("At %s: repairing %d%% hull per turn" % [planet.name, roundi(GalaxyEngine.REPAIR_RATE * 100)], Palette.GOOD))
-	var commander := engine.state.commander_of(fleet)
-	lines.append("")
-	if commander == null:
-		lines.append(UiKit.color_tag("No commander. Assign a hero at a planet (H).", Palette.TEXT_DIM))
-	else:
-		var cls: Dictionary = data.hero_classes[commander.class_id]
-		var doctrine: Dictionary = data.statuses.get(cls.get("command_status", ""), {})
-		lines.append("Commander: [b]%s[/b] (%s %d)" % [commander.name, cls.get("name", ""), commander.level])
-		if commander.is_ready():
-			lines.append(UiKit.color_tag("%s: %s" % [doctrine.get("name", ""), doctrine.get("description", "")], Palette.GOOD))
-		else:
-			lines.append(UiKit.color_tag("Away (%s) until turn %d: no doctrine bonus" % [commander.status.replace("_", " "), commander.busy_until], Palette.BAD))
-	return "\n".join(lines)
+	for ship in fleet.ships:
+		var role := Fleet.role_of(data, ship["unit"])
+		if role not in ["colony", "constructor"]:
+			continue
+		if planet != null:
+			if role == "colony":
+				for b in SystemRules.colony_targets(engine, planet, player_faction):
+					out.append({"id": "found:%s:%s:%s" % [ship["uid"], planet.id, b["id"]], "label": "Found colony" if planet.bodies.size() == 1 else "Found colony on %s" % b["name"],
+							"tooltip": "%s settles %s: the ship becomes the colony. (F)" % [ship["name"], b["name"]]})
+			else:
+				for t: Dictionary in SystemRules.development_targets(engine, planet, player_faction):
+					var b: Dictionary = t["body"]
+					var opts: Array = t["options"]
+					if planet.bodies.size() > 1:  # a whole system: the default job per body, the rest via the system view
+						var best := SystemRules.default_job(engine, player_faction, b, planet)
+						opts = opts.filter(func(o: Dictionary) -> bool: return o["id"] == best)
+					for o: Dictionary in opts:
+						out.append({"id": "job:%s:%s:%s:%s" % [ship["uid"], planet.id, b["id"], o["id"]],
+								"label": ("Build %s" % o["name"]) + ("" if planet.bodies.size() == 1 else " on %s" % b["name"]),
+								"disabled": not o["ok"], "tooltip": "%s, %d turns%s. (B builds the first)" % [EmpireRules.cost_text(engine, o["cost"]),
+									o["turns"], "" if o["ok"] else "\n" + str(o["reason"])]})
+		out.append({"id": "send:%s" % ship["uid"], "label": "Send %s to..." % ship["name"] if fleet.ships.size() > 1 else "Send to...",
+				"tooltip": "Pick a world anywhere: the ship flies there and gets to work on its own."})
+	return out
 
 
-func _anomaly_info(a: Dictionary) -> String:
+func _on_card_action(id: String) -> void:
+	if _busy or not _is_human_turn():
+		return
+	var parts := id.split(":")
+	match parts[0]:
+		"found":
+			_submit(OrderShipCommand.new(player_faction, parts[1], parts[2], parts[3], OrderShipCommand.FOUND))
+		"job":
+			_submit(OrderShipCommand.new(player_faction, parts[1], parts[2], parts[3], OrderShipCommand.JOB, parts[4]))
+		"send":
+			_start_send(parts[1])
+		"open":
+			var under := _own_system_under_fleet()
+			if under != null:
+				_open_system(under.id)
+		"detach":
+			_start_split()
+		"raid":
+			_submit(RaidCommand.new(player_faction, selected_fleet))
+
+
+## B / F: the first build / found button of the selected fleet's card.
+func _card_hotkey(prefix: String) -> void:
+	var fleet: Fleet = engine.state.fleets.get(selected_fleet)
+	if fleet == null or fleet.owner != player_faction:
+		return
+	for a: Dictionary in _civilian_actions(fleet):
+		if str(a["id"]).begins_with(prefix) and not a.get("disabled", false):
+			_on_card_action(a["id"])
+			return
+
+
+func _anomaly_card(a: Dictionary) -> Dictionary:
 	var mission: Dictionary = data.missions[a["mission"]]
-	var needs := "A fleet with a ready commander can launch it." if mission.get("requires_hero", true) \
-			else "Any fleet can launch it."
-	return "[b]%s[/b]\n%s\n\n%s\nAway team: %d. Heroes are away for %d turns." % [a["name"],
-			UiKit.color_tag(mission.get("name", ""), Palette.ACTIVE), mission.get("description", ""), int(mission.get("squad_size", 4)),
-			int(mission.get("duration", 2))] + "\n\n" + UiKit.color_tag(needs + " End a move on it.", Palette.TEXT_DIM)
+	var needs := "A fleet with a ready commander can launch it." if mission.get("requires_hero", true) else "Any fleet can launch it."
+	return {"title": a["name"], "subtitle": mission.get("name", ""), "subtitle_color": Palette.ACTIVE,
+			"pills": [{"text": "Away team %d" % int(mission.get("squad_size", 4)), "color": Palette.TEXT},
+				{"text": "%d turns" % int(mission.get("duration", 2)), "color": Palette.TEXT_DIM, "tooltip": "Heroes are away this long."},
+				{"text": "Level %d+" % int(mission.get("recommended_level", 1)), "color": Palette.TEXT_DIM, "tooltip": "Recommended hero level."}],
+			"notes": [{"text": mission.get("description", ""), "color": Palette.TEXT}, {"text": needs + " End a move on it."}]}
+
+
+func _planet_card(planet: Planet) -> Dictionary:
+	var owner := "Unclaimed"
+	var color := Palette.NEUTRAL
+	if not planet.owner.is_empty():
+		var f := engine.state.faction(planet.owner)
+		owner = f["name"]
+		color = Palette.team_color(f["team"])
+	var star: Dictionary = data.star_types.get(planet.star, {})
+	var card := {"title": planet.name, "subtitle": "%s · %s" % [owner, star.get("name", "")], "subtitle_color": color,
+			"pills": _resource_pills(EmpireRules.planet_yields(engine, planet)) if planet.owner == player_faction else [],
+			"section": "Bodies" if planet.bodies.size() > 1 else "Body", "rows": [], "notes": [], "actions": []}
+	match engine.gate_kind(planet):
+		"relic":
+			card["pills"].append({"text": "Relic gate", "color": Color(1.0, 0.8, 0.35), "tooltip": "Fleets here can jump to any other relic gate."})
+		"jump":
+			card["pills"].append({"text": "Jump Gate", "color": Color(0.4, 0.95, 1.0), "tooltip": "Its owner's fleets jump between their Jump Gates."})
+	var defenses := EmpireRules.defense_units(engine, planet).size()
+	if defenses > 0:
+		card["pills"].append({"text": "%d gun%s" % [defenses, "" if defenses == 1 else "s"], "color": Palette.BAD,
+				"tooltip": "Attackers always have to fight the defenses."})
+	if planet.is_blockaded():
+		card["pills"].append({"text": "Blockaded", "color": Palette.BAD,
+				"tooltip": "Blockaded by %s: no production, no growth." % engine.state.faction(planet.blockade)["name"]})
+	for b in planet.bodies:
+		var bdef: Dictionary = data.body_types.get(b["type"], {})
+		var text: String = b.get("name", bdef.get("name", b["type"])) if planet.bodies.size() > 1 else bdef.get("name", b["type"])
+		var row := {"text": text, "color": Color(bdef.get("surface", {}).get("accent", "#cccccc")).lerp(Palette.TEXT, 0.5)}
+		var tips := PackedStringArray([bdef.get("name", b["type"])])
+		var main := ""
+		for x: String in b["buildings"]:
+			if main.is_empty() or x == "colony":
+				main = x
+		if not main.is_empty():
+			row["tag"] = data.buildings[main]["name"] if main != "colony" else "Colony %d/%d" % [EmpireRules.pop(b), EmpireRules.pop_cap(engine, b, planet.owner)]
+			row["tag_color"] = Palette.GOOD if planet.owner == player_faction else color
+			tips.append("Buildings: " + ", ".join(b["buildings"].map(func(x: String) -> String: return data.buildings[x]["name"])))
+		var deposits := engine.known_deposits(player_faction, planet, b)
+		var dep := PackedStringArray()
+		for k: String in deposits:
+			dep.append("%s%d" % [DepositRules.resource_name(data, k).substr(0, 1).to_upper(), int(deposits[k])])
+			tips.append("%s deposit, richness %d%s" % [DepositRules.resource_name(data, k), int(deposits[k]),
+					" (tapped)" if DepositRules.is_tapped(data, b, k) else ""])
+		var known := engine.known_traits(player_faction, planet, b)
+		for t: String in known:
+			tips.append("%s: %s" % [data.planet_traits[t]["name"], data.planet_traits[t].get("description", "")])
+		if not engine.is_surveyed(player_faction, planet):
+			row["value"] = "?"
+			tips.append("Not surveyed: fly a ship to or next to it to see deposits and traits.")
+		elif not dep.is_empty():
+			row["value"] = " ".join(dep)
+			row["value_color"] = Palette.ACTIVE
+		if EmpireRules.is_offline(engine, b):
+			row["value"] = "raided"
+			row["value_color"] = Palette.BAD
+		row["tooltip"] = "\n".join(tips)
+		card["rows"].append(row)
+	for mp_id in planet.megaprojects:
+		card["notes"].append({"text": "Wonder: %s" % data.megaprojects[mp_id]["name"], "color": Palette.ACTIVE})
+	if planet.owner == player_faction:
+		if planet.queue.is_empty():
+			card["notes"].append({"text": "Building nothing: open it to choose.", "color": Palette.BAD})
+		else:
+			card["notes"].append({"text": "Building %s (%d/%d turns)" % [SystemView._queue_name(data, planet), planet.queue["progress"], planet.queue["turns"]],
+					"color": Palette.ACTIVE})
+		card["actions"].append({"id": "open_planet", "label": "Open (S)"})
+	elif planet.owner.is_empty():
+		card["notes"].append({"text": "Unclaimed: a Colony Ship (habitable world) or a Constructor claims it."})
+	elif not engine.state.at_war(player_faction, planet.owner):
+		card["notes"].append({"text": "At peace with you: can't be captured."})
+	var mine_here := planet.civilians.filter(func(c: Dictionary) -> bool: return c["owner"] == player_faction)
+	for c: Dictionary in mine_here:
+		var job: Dictionary = c.get("job", {})
+		card["notes"].append({"text": "%s: %s" % [c["name"], "building %s (%d turns left)" % [data.buildings[job["building"]]["name"], int(job.get("turns_left", 0))]
+				if not job.is_empty() else "idle"], "color": Palette.GOOD})
+	var waiting := PackedStringArray()
+	for h in engine.state.heroes_of(player_faction):
+		if h.planet_id == planet.id and h.fleet_id.is_empty() and h.status != Hero.CAPTURED and h.status != Hero.DEAD:
+			waiting.append(h.name)
+	if not waiting.is_empty():
+		card["notes"].append({"text": "Heroes waiting here: %s (assign them with H)" % ", ".join(waiting)})
+	return card
 
 
 func _mission_briefing(fleet: Fleet, mission: Dictionary) -> String:
@@ -1345,70 +1529,6 @@ func _reward_text(r: Dictionary) -> String:
 	if r.has("damage"):
 		parts.append(UiKit.color_tag("every ship loses %d%% hull" % roundi(float(r["damage"]) * 100.0), Palette.BAD))
 	return ", ".join(parts) if not parts.is_empty() else "Nothing of use."
-
-
-func _planet_info(planet: Planet) -> String:
-	var owner := "Unclaimed"
-	var color := Palette.NEUTRAL
-	if not planet.owner.is_empty():
-		var f := engine.state.faction(planet.owner)
-		owner = f["name"]
-		color = Palette.team_color(f["team"])
-	var star: Dictionary = data.star_types.get(planet.star, {})
-	var text := "[b]%s[/b]  %s\n%s%s\n\nYields %s per turn\n" % [
-			planet.name, UiKit.color_tag(star.get("name", ""), Color(star.get("color", "#ffffff"))),
-			UiKit.color_tag(owner, color), ("\n" + planet.description) if not planet.description.is_empty() else "",
-			EmpirePanel._resource_text(engine, EmpireRules.planet_yields(engine, planet), true)]
-	for b in planet.bodies:
-		var bdef: Dictionary = data.body_types.get(b["type"], {})
-		var line := "%s %s" % [UiKit.color_tag("●", Color(bdef.get("surface", {}).get("accent", "#aaaaaa"))), bdef.get("name", b["type"])]
-		if "colony" in b["buildings"]:
-			line += " (pop %d/%d)" % [EmpireRules.pop(b), EmpireRules.pop_cap(engine, b, planet.owner)]
-		if not b["buildings"].is_empty():
-			line += ": " + ", ".join(b["buildings"].map(func(x: String) -> String: return data.buildings[x]["name"]))
-		var known := engine.known_traits(player_faction, planet, b)
-		if not known.is_empty():
-			line += "  " + UiKit.color_tag(", ".join(known.map(func(t: String) -> String: return data.planet_traits[t]["name"])), Palette.ACTIVE)
-		elif not engine.is_surveyed(player_faction, planet):
-			line += "  " + UiKit.color_tag("not surveyed: fly a ship next to it (deposits ?)", Palette.TEXT_DIM)
-		var deposits := engine.known_deposits(player_faction, planet, b)
-		for k: String in deposits:
-			line += "  " + SystemView.deposit_tag(data, k, int(deposits[k])) \
-					+ (UiKit.color_tag(" tapped", Palette.GOOD) if DepositRules.is_tapped(data, b, k) and planet.owner == player_faction else "")
-		text += "\n" + line
-	for mp_id in planet.megaprojects:
-		text += "\n" + UiKit.color_tag("Wonder: %s" % data.megaprojects[mp_id]["name"], Palette.ACTIVE)
-	text += "\n" + UiKit.color_tag("Click your %s or press S to open it." % ("body" if engine.is_system_scale() else "system"), Palette.TEXT_DIM)
-	var defenses := EmpireRules.defense_units(engine, planet).size()
-	if defenses > 0:
-		text += "\n" + UiKit.color_tag("Defended by %d gun(s): attackers always have to fight them." % defenses, Palette.BAD)
-	if planet.is_blockaded():
-		text += "\n" + UiKit.color_tag("BLOCKADED by %s: no production, no growth." % engine.state.faction(planet.blockade)["name"], Palette.BAD)
-	for b in planet.bodies:
-		if EmpireRules.is_offline(engine, b):
-			text += "\n" + UiKit.color_tag("Raided: %s is offline for %d more turn(s) (no yields)." % [b["name"], EmpireRules.offline_turns(engine, b)], Palette.BAD)
-	var mine_here := planet.civilians.filter(func(c: Dictionary) -> bool: return c["owner"] == player_faction)
-	if not mine_here.is_empty():
-		text += "\n" + UiKit.color_tag("Your ships here: %s (open the system with S)" % ", ".join(mine_here.map(func(c: Dictionary) -> String: return c["name"])), Palette.GOOD)
-	if planet.owner.is_empty():
-		text += "\n" + UiKit.color_tag("Unclaimed: a Colony Ship (on a habitable world) or a Constructor (an outpost) claims it. Flying in doesn't.", Palette.TEXT_DIM)
-	if planet.owner == player_faction:
-		if planet.queue.is_empty():
-			text += "\n" + UiKit.color_tag("Idle: open the system (S) to build.", Palette.TEXT_DIM)
-		else:
-			var q := planet.queue
-			var item := SystemView._queue_name(data, planet)
-			text += "\n" + UiKit.color_tag("Building %s (%d/%d turns)" % [item, q["progress"], q["turns"]], Palette.ACTIVE)
-	elif not planet.owner.is_empty() and not engine.state.at_war(player_faction, planet.owner):
-		text += "\n" + UiKit.color_tag("At peace with you: can't be captured.", Palette.TEXT_DIM)
-	var waiting := PackedStringArray()
-	for h in engine.state.heroes_of(player_faction):
-		if h.planet_id == planet.id and h.fleet_id.is_empty() and h.status != Hero.CAPTURED and h.status != Hero.DEAD:
-			waiting.append(h.name)
-	if not waiting.is_empty():
-		text += "\n\nHeroes here: %s\n%s" % [", ".join(waiting),
-				UiKit.color_tag("Bring a fleet here and assign them in the Heroes panel (H).", Palette.TEXT_DIM)]
-	return text
 
 
 func _battle_preview(b: Dictionary, attacker: Fleet, defender: Fleet) -> String:
@@ -1695,6 +1815,23 @@ func _describe(e: Dictionary) -> String:
 			if e["faction"] != player_faction and e["target"] != player_faction:
 				return ""
 			return "   %s sends %s a gift of %d credits" % [s.faction(e["faction"])["name"], s.faction(e["target"])["name"], e["credits"]]
+		GalaxyEvents.TRADE_SIGNED:
+			if player_faction not in e["factions"]:
+				return ""
+			var partner: String = e["factions"][1] if e["factions"][0] == player_faction else e["factions"][0]
+			return UiKit.color_tag("[b]Trade agreement with %s: +%d credits a turn[/b]" % [s.faction(partner)["name"],
+					TradeRules.pact_income(engine, player_faction, partner)], Palette.GOOD)
+		GalaxyEvents.TRADE_REFUSED:
+			return UiKit.color_tag(str(e["reason"]), Palette.TEXT_DIM) if e["faction"] == player_faction else ""
+		GalaxyEvents.TRADE_ENDED:
+			if player_faction not in e["factions"]:
+				return ""
+			return UiKit.color_tag("Trade between %s and %s has ended" % [s.faction(e["factions"][0])["name"], s.faction(e["factions"][1])["name"]], Palette.BAD)
+		GalaxyEvents.MARKET_DEAL:
+			if e["faction"] != player_faction:
+				return ""
+			return "   %s %d %s for %d credits" % ["Bought" if int(e["amount"]) > 0 else "Sold", absi(int(e["amount"])),
+					DepositRules.resource_name(data, e["resource"]).to_lower(), absi(int(e["credits"]))]
 	return ""
 
 
@@ -1764,6 +1901,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_toggle_autoplay()
 			KEY_D:
 				_start_split()
+			KEY_B:
+				_card_hotkey("job:")
+			KEY_F:
+				_card_hotkey("found:")
 			KEY_V:
 				_switch_view()
 
@@ -1781,7 +1922,7 @@ func _on_left_click() -> void:
 	var cell: Vector2i = _hover
 	var fleet: Fleet = engine.state.fleets.get(selected_fleet)
 	if not _busy and _is_human_turn():
-		var order := _order_at(cell) if not Input.is_key_pressed(KEY_SHIFT) or not _send_uid.is_empty() else {}
+		var order := _order_at(cell) if not _send_uid.is_empty() else {}
 		if not order.is_empty():
 			_send_uid = ""
 			_submit(OrderShipCommand.new(player_faction, order["ship"], order["planet"], order["body"], order["action"]))
@@ -1796,8 +1937,15 @@ func _on_left_click() -> void:
 				_submit(SplitFleetCommand.new(player_faction, fleet.id, ships, cell))
 			return
 		var own := engine.state.fleet_at(cell)
-		if own != null and own != fleet and own.owner == player_faction and _reach.has(cell):
-			_ask_merge(fleet, own)
+		if own != null and own != fleet and own.owner == player_faction:
+			if _reach.has(cell) and Input.is_key_pressed(KEY_SHIFT):
+				_submit(MoveFleetCommand.new(player_faction, fleet.id, own.cell))  # Shift-click: merge
+				return
+			# Clicking another of your fleets just selects it.
+			selected_fleet = own.id
+			selected_planet = ""
+			selected_anomaly = ""
+			_refresh()
 			return
 		if cell in _attack_cells or (_reach.has(cell) and cell != fleet.cell) or cell in _gate_cells:
 			_submit(MoveFleetCommand.new(player_faction, fleet.id, cell))
@@ -1829,25 +1977,6 @@ func _on_left_click() -> void:
 		_deselect()
 		return
 	_refresh()
-
-
-## Clicking another of your fleets that this one can reach: merge or just select?
-func _ask_merge(fleet: Fleet, other: Fleet) -> void:
-	hud.ask("Merge fleets?", "Move [b]%s[/b] (%d ships) into [b]%s[/b] (%d ships)? The merged fleet keeps the lower moves left." % [
-			fleet.name, fleet.ships.size(), other.name, other.ships.size()],
-			[{"id": "merge", "label": "Merge"}, {"id": "select", "label": "Select %s" % other.name}, {"id": "cancel", "label": "Cancel"}])
-	var token := _token
-	var choice: String = await hud.dialog_choice
-	if token != _token:
-		return
-	match choice:
-		"merge":
-			_submit(MoveFleetCommand.new(player_faction, fleet.id, other.cell))
-		"select":
-			selected_fleet = other.id
-			_refresh()
-		_:
-			_refresh()
 
 
 ## D: pick ships to detach into a new fleet next to this one.

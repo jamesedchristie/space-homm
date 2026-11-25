@@ -241,6 +241,17 @@ far side is free (or holds a fleet to merge with), not hostile and not defended 
 `"jump": true`). The AI jumps when the far gate is clearly closer to its goal (`_step_towards`) and
 builds up to four spread-out Jump Gates.
 
+**Trade and raids** (Phase 6, `TradeRules`): trade agreements between major powers at peace
+(`DiplomacyCommand` "propose_trade" / "cancel_trade"; `GalaxyState.trade_pacts`, relation key -> turn;
+war erases them in `set_relation`) add `pact_income` to `EmpireRules.trade_income`. A faction with
+`"market": true` (the Free Traders) runs the market: `MarketCommand(faction, resource, amount)` buys
+(amount > 0, at `BUY_MARKUP` times the price) or sells strategic resources for credits at the prices in
+economy.json `market`, if the trader is met and at peace. `RaidCommand(faction, fleet)`: a warfleet in a
+system it blockades runs `_plunder` with economy.json `raid` (credits, a share of strategic stocks, a
+development offline); once per system per turn (`GalaxyState.raided`), using the fleet's moves. The AI
+proposes agreements to AI powers that like it, sells strategic stock above `MARKET_SURPLUS`, buys what
+its goal lacks when rich, and raids whatever it blockades.
+
 **Act 1 -> Act 2** (`ActTransition`, pure): after a Solar Age win (`can_continue`), `act2_campaign`
 builds a campaign definition from the Random Sector template with the player's empire carried over:
 the home system named after the old one with its bodies (owned ones with buildings and pop first, up

@@ -12,11 +12,13 @@ signal menu_pressed
 signal settings_closed
 ## Emitted when the player clicks one of the dialog's buttons.
 signal dialog_choice(choice_id: String)
+## A button on the selection card was pressed.
+signal card_action(id: String)
 
 const TOP_H := 44.0
 const BOTTOM_H := 36.0
 const RIGHT_W := 300.0
-const INFO_H := 250.0
+const INFO_H := 300.0
 const MINIMAP_H := 170.0
 
 var _turn_label: Label
@@ -29,7 +31,8 @@ var _attention: VBoxContainer
 var _attention_key := "-"
 var _end_turn_button: Button
 var _next_fleet_button: Button
-var _info: RichTextLabel
+var _card: SelectionCard
+var _card_key := ""
 var _log: RichTextLabel
 var _hint: Label
 var _dialog: DialogPanel
@@ -167,9 +170,13 @@ func set_ready_fleets(count: int, enabled: bool) -> void:
 	_next_fleet_button.disabled = not enabled or count == 0
 
 
-func set_info(bbcode: String) -> void:
-	_info.clear()
-	_info.append_text(bbcode)
+## Shows a SelectionCard dictionary (rebuilt only when it changes: the screen refreshes often).
+func show_card(card: Dictionary) -> void:
+	var key := var_to_str(card)
+	if key == _card_key:
+		return
+	_card_key = key
+	_card.show_card(card)
 
 
 func set_hint(text: String) -> void:
@@ -267,9 +274,13 @@ func _build() -> void:
 	var info_panel := UiKit.panel()
 	UiKit.anchor(info_panel, 1, 0, 1, 0, -RIGHT_W, TOP_H, 0, TOP_H + INFO_H)
 	add_child(info_panel)
-	_info = UiKit.rich_text(13)
-	_info.scroll_following = false
-	info_panel.add_child(_info)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	info_panel.add_child(scroll)
+	_card = SelectionCard.new()
+	_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_card.action_pressed.connect(func(id: String) -> void: card_action.emit(id))
+	scroll.add_child(_card)
 
 	var log_panel := UiKit.panel()
 	UiKit.anchor(log_panel, 1, 0, 1, 1, -RIGHT_W, TOP_H + INFO_H, 0, -MINIMAP_H)

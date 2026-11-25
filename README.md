@@ -104,13 +104,28 @@ Three campaigns:
 - **The Drift (scenario)**: a short hand-made scenario: clear the raider dens out of the Drift. You
   start with your home colony already founded.
 
-**One-click orders.** Select a Constructor or Colony Ship (or click an "awaits orders" / "is idle" item
-in the attention list, or **Send to...** in a body's view) and hover a world: the hint says what it
-would do there ("Build Mining Base at Sol Belt A, 4 turns away"). Click, and the ship flies there on
-its own over as many turns as it takes and gets to work on arrival (a dotted course line shows where
-it's headed). Shift-click just moves; moving the ship by hand cancels its orders. On the system map
-only colonies (and enemy bases) carry full banners; mines, research stations and outposts show a
-small icon tag, with names when you hover or zoom in.
+**Trade, raids and the market.** At peace, propose a **trade agreement** to a rival empire (Contact
+in the Empire panel): both of you earn credits every turn (more the bigger your partner) until one of
+you ends it or war breaks out; they sign once they like you enough. The **Free Traders** run a
+**market**: contact them to sell strategic resources you have piled up, or buy what you're short of
+(at twice the price). At war, a warfleet that has beaten a system's defenses **blockades** it; instead
+of waiting for a Troop Transport it can **Raid** (a button on its card) once a turn: credits and
+strategic resources go into your stores and a development is knocked offline for two turns. The AI
+trades, sells its surpluses and raids too.
+
+**Civilian ships are units on the map.** Constructors and Colony Ships move like any fleet: clicking
+a world just flies them there. Nothing happens until you say so: the selected ship's card (right) has a
+button per job it can do where it stands (**Build Mining Base**, **Build Outpost**, **Found colony**;
+hotkeys **B** builds the first, **F** founds). While working, the ship sits in the system; when the job
+is done it takes off again as a unit awaiting orders, so it can't be forgotten. **Send to...** gives a
+standing order instead: click a world anywhere and the ship flies there over as many turns as it takes
+and gets to work on arrival (a dotted course line shows where it's headed; moving it by hand cancels).
+
+**Selecting and merging.** Clicking another of your fleets selects it; **Shift-click** a fleet within
+reach to merge into it. The right-hand card shows the selection at a glance: moves and sensors, the
+commander, one row per ship (class chip, hull bar) or per body (development, deposits); details are in
+the tooltips. On the system map only colonies (and enemy bases) carry full banners; mines, research
+stations and outposts show a small icon tag, with names when you hover or zoom in.
 
 ### Solar Age (Act 1 prototype)
 

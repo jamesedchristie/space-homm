@@ -161,6 +161,7 @@
     },
     {
       "id": "traders",
+      "market": true,
       "name": "Ceres Free Traders",
       "controller": "ai",
       "role": "minor",

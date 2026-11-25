@@ -200,7 +200,7 @@ func _build_diplomacy(engine: GalaxyEngine, faction_id: String, interactive: boo
 		var war := s.at_war(faction_id, other)
 		var sp: Dictionary = engine.data.species.get(f.get("species", ""), {})
 		var role_text: String = {"barbarian": "Barbarians: they raid and plunder, never negotiate and can't win. Their dens launch new raiders; clearing one pays loot.",
-				"minor": "Minor power: neutral traders who don't compete for victory."}.get(f.get("role", "major"), "Major power")
+				"minor": "Minor power: neutral traders who don't compete for victory." + (" They run the market: contact them to buy and sell strategic resources." if f.get("market", false) else "")}.get(f.get("role", "major"), "Major power")
 		box.add_child(_text("[b]%s[/b]   %s   ·   their opinion of you: %d   ·   score %d\n%s%s" % [
 				UiKit.color_tag(f["name"], color),
 				UiKit.color_tag("WAR", Palette.BAD) if war else UiKit.color_tag("PEACE", Palette.GOOD),

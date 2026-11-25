@@ -57,6 +57,8 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 			## major: plays to win; barbarian: raids, never negotiates or wins; minor: a neutral power.
 			"role": f.get("role", "major"),
 			"leader": f.get("leader", ""),
+			## A minor power that runs the market (TradeRules): buys and sells strategic resources.
+			"market": f.get("market", false),
 			## Ship designs: "raider" (barbarians' default: salvaged ships), "species" (the species' own).
 			"ship_variant": f.get("ship_variant", "raider" if f.get("role", "") == "barbarian" else ""),
 		})
@@ -298,6 +300,10 @@ func submit(cmd: GalaxyCommand) -> CommandResult:
 		_do_queue(cmd)
 	elif cmd is CivilianCommand:
 		_do_civilian(cmd)
+	elif cmd is MarketCommand:
+		_do_market(cmd)
+	elif cmd is RaidCommand:
+		_do_raid(cmd)
 	elif cmd is SplitFleetCommand:
 		_do_split(cmd)
 	elif cmd is DiplomacyCommand:
@@ -375,6 +381,10 @@ func validate(cmd: GalaxyCommand) -> String:
 				return "That ship isn't in this fleet"
 		if cmd.to not in split_targets(fleet.id):
 			return "Detached ships need a free neighbouring system they can reach this turn"
+	elif cmd is MarketCommand:
+		return TradeRules.deal_error(self, cmd.faction_id, cmd.resource, cmd.amount)
+	elif cmd is RaidCommand:
+		return raid_error(cmd.faction_id, cmd.fleet_id)
 	elif not cmd is EndFactionTurnCommand:
 		return "Unknown command"
 	return ""
@@ -1629,9 +1639,10 @@ func _do_resolve_event(cmd: ResolveEventCommand) -> void:
 ## Credits and strategic resources go into the raiders' hoard; the raided development is knocked
 ## offline for "offline_turns" turns (no yields, no extraction). Only a development raided again
 ## while still offline is wrecked. Colonies lose a pop and their build queue, no buildings.
-func _plunder(planet: Planet, fleet: Fleet) -> void:
+func _plunder(planet: Planet, fleet: Fleet, spec_override: Dictionary = {}) -> void:
 	var previous := planet.owner
-	var spec: Dictionary = state.faction(fleet.owner).get("barbarian", {}).get("plunder", {})
+	var spec: Dictionary = spec_override if not spec_override.is_empty() \
+			else state.faction(fleet.owner).get("barbarian", {}).get("plunder", {})
 	var stolen := 0
 	var taken := {}
 	if not previous.is_empty():
@@ -2107,6 +2118,49 @@ func _finish_job(planet: Planet, c: Dictionary) -> void:
 	if claimed:
 		emit({"type": GalaxyEvents.SYSTEM_CLAIMED, "planet": planet.id, "faction": faction_id, "how": "outpost"})
 	_update_explored()
+	# Its work done, the ship takes off again: back on the map as a unit awaiting orders (if there's
+	# room; otherwise it waits in the system).
+	if c in planet.civilians:
+		_launch_civilian(planet, c)
+
+
+# --- Phase 6: raids and the market ---------------------------------------------
+
+## Why this fleet can't raid where it is ("" if it can): it must be a warfleet with moves left,
+## blockading an enemy system that hasn't been raided this turn.
+func raid_error(faction_id: String, fleet_id: String) -> String:
+	var fleet: Fleet = state.fleets.get(fleet_id)
+	if fleet == null or fleet.owner != faction_id:
+		return "Not your fleet"
+	if fleet.is_civilian_only(data):
+		return "Only warships raid"
+	var planet := state.planet_at(fleet.cell)
+	if planet == null or planet.blockade != faction_id:
+		return "Raid a system your fleet is blockading (beat its defenses first)"
+	if fleet.moves_left <= 0:
+		return "No moves left this turn"
+	if int(state.raided.get(planet.id, -1)) == state.turn_number:
+		return "Already raided this turn"
+	return ""
+
+
+func _do_raid(cmd: RaidCommand) -> void:
+	var fleet: Fleet = state.fleets[cmd.fleet_id]
+	var planet := state.planet_at(fleet.cell)
+	fleet.moves_left = 0
+	state.raided[planet.id] = state.turn_number
+	_plunder(planet, fleet, data.economy.get("raid", {"credits": 50, "strategic_share": 0.25, "strategic_max": 20, "offline_turns": 2}))
+
+
+func _do_market(cmd: MarketCommand) -> void:
+	var stock: Dictionary = state.resources[cmd.faction_id]
+	var credits := TradeRules.deal_credits(self, cmd.resource, cmd.amount)
+	stock["credits"] = int(stock.get("credits", 0)) + credits
+	stock[cmd.resource] = int(stock.get(cmd.resource, 0)) + cmd.amount
+	var market := TradeRules.market_for(self, cmd.faction_id)
+	DiplomacyRules.change_opinion(state, market, cmd.faction_id, TradeRules.DEAL_OPINION)
+	emit({"type": GalaxyEvents.MARKET_DEAL, "faction": cmd.faction_id, "resource": cmd.resource,
+			"amount": cmd.amount, "credits": credits})
 
 
 func _validate_diplomacy(cmd: DiplomacyCommand) -> String:
@@ -2135,6 +2189,15 @@ func _validate_diplomacy(cmd: DiplomacyCommand) -> String:
 		"gift":
 			if int(state.resources[cmd.faction_id].get("credits", 0)) < DiplomacyRules.GIFT_CREDITS:
 				return "Not enough credits (need %d)" % DiplomacyRules.GIFT_CREDITS
+		"propose_trade":
+			var why := TradeRules.pact_refusal(self, cmd.target, cmd.faction_id)
+			if why in ["Only the great powers sign trade agreements", "Not while we are at war", "We already trade"]:
+				return why
+			if target["controller"] == "player":
+				return "%s are run by a player: they decide for themselves" % target["name"]
+		"cancel_trade":
+			if not TradeRules.has_pact(state, cmd.faction_id, cmd.target):
+				return "You have no trade agreement with them"
 		_:
 			return "Unknown diplomatic action"
 	return ""
@@ -2163,7 +2226,20 @@ func _do_diplomacy(cmd: DiplomacyCommand) -> void:
 		"refuse_peace":
 			state.peace_offers[DiplomacyRules.offer_key(cmd.target, cmd.faction_id)]["status"] = "refused"
 			emit({"type": GalaxyEvents.PEACE_OFFER_REFUSED, "faction": cmd.faction_id, "target": cmd.target})
+		"propose_trade":
+			var refusal := TradeRules.pact_refusal(self, cmd.target, cmd.faction_id)
+			if refusal.is_empty():
+				state.trade_pacts[GalaxyState.relation_key(cmd.faction_id, cmd.target)] = state.turn_number
+				emit({"type": GalaxyEvents.TRADE_SIGNED, "factions": [cmd.faction_id, cmd.target]})
+			else:
+				emit({"type": GalaxyEvents.TRADE_REFUSED, "faction": cmd.faction_id, "target": cmd.target, "reason": refusal})
+		"cancel_trade":
+			state.trade_pacts.erase(GalaxyState.relation_key(cmd.faction_id, cmd.target))
+			DiplomacyRules.change_opinion(state, cmd.target, cmd.faction_id, -5)
+			emit({"type": GalaxyEvents.TRADE_ENDED, "factions": [cmd.faction_id, cmd.target]})
 		"declare_war":
+			if TradeRules.has_pact(state, cmd.faction_id, cmd.target):
+				emit({"type": GalaxyEvents.TRADE_ENDED, "factions": [cmd.faction_id, cmd.target]})
 			state.set_relation(cmd.faction_id, cmd.target, "war")
 			DiplomacyRules.change_opinion(state, cmd.target, cmd.faction_id, DiplomacyRules.WAR_DECLARED_OPINION)
 			emit({"type": GalaxyEvents.WAR_DECLARED, "faction": cmd.faction_id, "target": cmd.target})

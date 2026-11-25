@@ -104,11 +104,8 @@ func test_starting_setup() -> void:
 		for ship in f.ships:
 			if Fleet.role_of(_data, ship["unit"]) == "colony":
 				colony_ships += 1
-	for p: Planet in s.planets.values():
-		for c in p.civilians:
-			if c["owner"] == "patrol" and Fleet.role_of(_data, c["unit"]) == "constructor":
-				constructors += 1
-				assert_true(p.owner.is_empty(), "the constructor starts beside a body it can develop")
+			elif Fleet.role_of(_data, ship["unit"]) == "constructor":
+				constructors += 1  # on the map as a unit, awaiting orders
 	assert_eq(colony_ships, 1)
 	assert_eq(constructors, 1)
 	for id in ["separatists", "scavengers"]:
