@@ -63,6 +63,9 @@ var _split_ships: Array[String] = []
 var _hover: Variant = null
 ## A campaign definition to start instead of campaign_id once (Act 2, built from Act 1).
 var campaign_override: Dictionary = {}
+## Player automation (automated ships, auto-explore, governors) and a per-turn safety cap.
+var _automation := Automation.new()
+var _auto_steps := 0
 var _reach: Dictionary = {}
 ## Gate jump destinations of the selected fleet (relic gates, own Jump Gates).
 var _gate_cells: Array[Vector2i] = []
@@ -80,6 +83,13 @@ func _ready() -> void:
 	hud.card_action.connect(func(id: String) -> void:
 		if id == "open_planet" and not selected_planet.is_empty():
 			_open_system(selected_planet)
+		elif id == "governor" and engine.state.planets.has(selected_planet):
+			var gp: Planet = engine.state.planets[selected_planet]
+			gp.auto_build = not gp.auto_build
+			if not _busy and _is_human_turn():
+				_continue(_token)
+			else:
+				_refresh()
 		else:
 			_on_card_action(id))
 	hud.next_fleet_pressed.connect(func() -> void:
@@ -254,6 +264,15 @@ func _continue(token: int) -> void:
 			await _flush_diplomacy(token)
 			if token != _token:
 				return
+			# Automated ships, explorers and governors act first (Automation).
+			var auto_cmd: GalaxyCommand = _automation.next_command(engine, player_faction) if not autoplay and _auto_steps < 60 else null
+			if auto_cmd != null:
+				_auto_steps += 1
+				var auto_result := engine.submit(auto_cmd)
+				if auto_result.ok:
+					await _play(auto_result.events, token)
+				continue
+			_auto_steps = 0
 			break
 		var result := engine.submit(ai.decide(engine))
 		if not result.ok:
@@ -970,23 +989,24 @@ func _refresh_attention(human: bool) -> void:
 			if entry["role"] == "colony" and not SystemRules.colony_targets(engine, p, f).is_empty():
 				items.append({"text": "Found %s with %s" % ["your capital" if not founded else "a colony at " + p.name, ship["name"]],
 						"color": Palette.GOOD, "action": func() -> void: _open_system(pid)})
-			elif entry["role"] == "constructor" and entry["deployed"] and not SystemRules.development_targets(engine, p, f).is_empty():
+			elif entry["role"] == "constructor" and entry["deployed"] and not Automation.is_automated_ship(ship) \
+					and not SystemRules.development_targets(engine, p, f).is_empty():
 				var idle_uid: String = ship["uid"]
 				items.append({"text": "%s is idle at %s" % [ship["name"], p.name], "color": Palette.ACTIVE,
 						"action": func() -> void: _start_send(idle_uid)})
-	# Civilian ships riding in a fleet with nothing to do (system-scale maps: send them somewhere).
-	if engine.is_system_scale():
+	# Civilian ships on the map with nothing to do (automated ones look after themselves).
+	if true:
 		for fl in engine.state.fleets_of(f):
 			if not fl.order.is_empty() or not fl.is_civilian_only(data):
 				continue
 			for s in fl.ships:
-				if Fleet.role_of(data, s["unit"]) in ["colony", "constructor"]:
+				if Fleet.role_of(data, s["unit"]) in ["colony", "constructor"] and not Automation.is_automated_ship(s):
 					var send_uid: String = s["uid"]
 					items.append({"text": "%s awaits orders" % s["name"], "color": Palette.GOOD,
 							"action": func() -> void: _start_send(send_uid)})
 	var idle: Array[Planet] = []
 	for p: Planet in engine.state.planets_of(f):
-		if not p.queue.is_empty():
+		if not p.queue.is_empty() or p.auto_build:
 			continue
 		var can_build := false
 		for o: Dictionary in EmpireRules.build_options(engine, p):
@@ -1090,7 +1110,7 @@ func _select_next_fleet() -> void:
 			start = i + 1
 	for i in own.size():
 		var f := own[(start + i) % own.size()]
-		if f.moves_left > 0 and f.order.is_empty():
+		if f.moves_left > 0 and f.order.is_empty() and not Automation.is_automated(engine, f):
 			selected_fleet = f.id
 			selected_planet = ""
 			selected_anomaly = ""
@@ -1187,7 +1207,7 @@ func _turns_to(cell: Vector2i) -> int:
 func _ready_fleet_count() -> int:
 	var n := 0
 	for f in engine.state.fleets_of(player_faction):
-		if f.moves_left > 0 and f.order.is_empty():
+		if f.moves_left > 0 and f.order.is_empty() and not Automation.is_automated(engine, f):
 			n += 1
 	return n
 
@@ -1238,6 +1258,9 @@ func _fleet_card(fleet: Fleet) -> Dictionary:
 	var mine := fleet.owner == player_faction
 	var card := {"title": fleet.name, "subtitle": faction["name"],
 			"subtitle_color": Palette.team_color(faction["team"]), "pills": [], "rows": [], "notes": [], "actions": []}
+	if mine and Automation.is_automated(engine, fleet):
+		card["pills"].append({"text": "Exploring" if fleet.auto == "explore" else "Automated", "color": Palette.SHIELDS,
+				"tooltip": "Acts on its own at the start of each turn."})
 	if mine:
 		card["pills"].append({"text": "Moves %d/%d" % [fleet.moves_left, engine.fleet_speed(fleet)],
 				"color": Palette.ACTIVE if fleet.moves_left > 0 else Palette.TEXT_DIM, "tooltip": "Hexes this fleet can still fly this turn."})
@@ -1284,6 +1307,14 @@ func _fleet_card(fleet: Fleet) -> Dictionary:
 			card["actions"].append({"id": "open", "label": "Open %s (S)" % _own_system_under_fleet().name})
 		if fleet.ships.size() > 1:
 			card["actions"].append({"id": "detach", "label": "Detach (D)", "tooltip": "Split ships off into a new fleet."})
+		var civilians := fleet.ships.filter(func(x: Dictionary) -> bool: return Fleet.role_of(data, x["unit"]) in ["colony", "constructor"])
+		if not civilians.is_empty():
+			var all_auto := civilians.all(func(x: Dictionary) -> bool: return Automation.is_automated_ship(x))
+			card["actions"].append({"id": "auto_civ", "label": "Stop automating" if all_auto else "Automate",
+					"tooltip": "Let the ship pick its jobs and fly to them on its own, every turn." if not all_auto else "Give it orders yourself again."})
+		if not fleet.is_civilian_only(data):
+			card["actions"].append({"id": "auto_explore", "label": "Stop exploring" if fleet.auto == "explore" else "Auto-explore",
+					"tooltip": "Fly to the nearest uncharted space every turn, avoiding fights it can't win." if fleet.auto != "explore" else "Give it orders yourself again."})
 		var blockaded := engine.state.planet_at(fleet.cell)
 		if blockaded != null and blockaded.blockade == player_faction:
 			var why := engine.raid_error(player_faction, fleet.id)
@@ -1342,6 +1373,19 @@ func _on_card_action(id: String) -> void:
 			_start_split()
 		"raid":
 			_submit(RaidCommand.new(player_faction, selected_fleet))
+		"auto_civ", "auto_explore":
+			var fleet: Fleet = engine.state.fleets.get(selected_fleet)
+			if fleet == null:
+				return
+			if parts[0] == "auto_explore":
+				fleet.auto = "" if fleet.auto == "explore" else "explore"
+			else:
+				var civilians := fleet.ships.filter(func(x: Dictionary) -> bool: return Fleet.role_of(data, x["unit"]) in ["colony", "constructor"])
+				var on := not civilians.all(func(x: Dictionary) -> bool: return Automation.is_automated_ship(x))
+				for x: Dictionary in civilians:
+					x["auto"] = on
+				fleet.order = {}
+			_continue(_token)  # let it act right away
 
 
 ## B / F: the first build / found button of the selected fleet's card.
@@ -1430,6 +1474,11 @@ func _planet_card(planet: Planet) -> Dictionary:
 			card["notes"].append({"text": "Building %s (%d/%d turns)" % [SystemView._queue_name(data, planet), planet.queue["progress"], planet.queue["turns"]],
 					"color": Palette.ACTIVE})
 		card["actions"].append({"id": "open_planet", "label": "Open (S)"})
+		if not planet.colonies().is_empty():
+			card["actions"].append({"id": "governor", "label": "Governor: on" if planet.auto_build else "Governor: off",
+					"tooltip": "With the governor on, the colony picks its next build itself whenever it is idle."})
+		if planet.auto_build:
+			card["pills"].append({"text": "Governor", "color": Palette.SHIELDS, "tooltip": "Picks its own builds when idle."})
 	elif planet.owner.is_empty():
 		card["notes"].append({"text": "Unclaimed: a Colony Ship (habitable world) or a Constructor claims it."})
 	elif not engine.state.at_war(player_faction, planet.owner):

@@ -121,6 +121,13 @@ is done it takes off again as a unit awaiting orders, so it can't be forgotten. 
 standing order instead: click a world anywhere and the ship flies there over as many turns as it takes
 and gets to work on arrival (a dotted course line shows where it's headed; moving it by hand cancels).
 
+**Automation.** Hand routine work to the AI from the selection card: **Automate** a Constructor or
+Colony Ship and it picks its own jobs and flies to them every turn (finishing one, it moves on to the
+next); **Auto-explore** sends a fleet to the nearest uncharted space (on the Solar Age map: the nearest
+unsurveyed body), steering clear of fights it can't win; a colony's **Governor** queues its next build
+whenever it is idle. Automated units act at the start of your turn and drop out of "Next Fleet" and the
+attention list; switch them back from the same card.
+
 **Selecting and merging.** Clicking another of your fleets selects it; **Shift-click** a fleet within
 reach to merge into it. The right-hand card shows the selection at a glance: moves and sensors, the
 commander, one row per ship (class chip, hull bar) or per body (development, deposits); details are in

@@ -16,6 +16,8 @@ var owner := ""
 var sensor := 2
 ## "relic" for an ancient relic gate (lane campaigns); jump gates are buildings ("jump_gate").
 var gate := ""
+## Governor (Automation): when idle, the colony queues what the AI would build.
+var auto_build := false
 var description := ""
 ## [{"id", "name", "type" (data/strategic/body_types.json), "traits": [ids], "buildings": [ids]}]
 ## Buildings: one installation per body (colony, mining_base, ...); a colony

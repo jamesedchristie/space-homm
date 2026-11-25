@@ -37,14 +37,14 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 	var planets := []
 	for p: Planet in s.planets.values():
 		planets.append({"id": p.id, "name": p.name, "star": p.star, "cell": p.cell, "owner": p.owner,
-				"sensor": p.sensor, "gate": p.gate, "description": p.description, "bodies": p.bodies.duplicate(true),
+				"sensor": p.sensor, "gate": p.gate, "auto_build": p.auto_build, "description": p.description, "bodies": p.bodies.duplicate(true),
 				"queue": p.queue.duplicate(true), "megaprojects": p.megaprojects.duplicate(),
 				"civilians": p.civilians.duplicate(true), "blockade": p.blockade, "capital": p.capital.duplicate(true)})
 	var fleets := []
 	for f: Fleet in s.fleets.values():
 		fleets.append({"id": f.id, "name": f.name, "owner": f.owner, "cell": f.cell,
 				"ships": f.ships.duplicate(true), "moves_left": f.moves_left, "hero_id": f.hero_id,
-				"order": f.order.duplicate(true)})
+				"order": f.order.duplicate(true), "auto": f.auto})
 	var heroes := []
 	for h: Hero in s.heroes.values():
 		heroes.append({"id": h.id, "name": h.name, "class_id": h.class_id, "owner": h.owner, "level": h.level,
@@ -134,6 +134,7 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 		p.sensor = p_d["sensor"]
 		p.description = p_d["description"]
 		p.gate = p_d.get("gate", "")
+		p.auto_build = p_d.get("auto_build", false)
 		for b: Dictionary in p_d.get("bodies", []):
 			var body := b.duplicate(true)
 			var traits: Array[String] = []
@@ -160,6 +161,7 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 		f.moves_left = f_d["moves_left"]
 		f.hero_id = f_d["hero_id"]
 		f.order = f_d.get("order", {})
+		f.auto = f_d.get("auto", "")
 		s.fleets[f.id] = f
 	for h_d: Dictionary in d["heroes"]:
 		var h := Hero.new()

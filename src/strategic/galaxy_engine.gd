@@ -1915,7 +1915,10 @@ func _launch_civilian(planet: Planet, ship: Dictionary) -> Fleet:
 	fleet.owner = ship["owner"]
 	fleet.cell = cell
 	fleet.name = ship["name"]
-	fleet.ships.append({"uid": ship["uid"], "unit": ship["unit"], "name": ship["name"], "hull": ship["hull"]})
+	var launched := {"uid": ship["uid"], "unit": ship["unit"], "name": ship["name"], "hull": ship["hull"]}
+	if ship.get("auto", false):
+		launched["auto"] = true  # an automated ship stays automated
+	fleet.ships.append(launched)
 	fleet.moves_left = fleet_speed(fleet) if cell == planet.cell else maxi(fleet_speed(fleet) - 1, 0)
 	state.fleets[fleet.id] = fleet
 	emit({"type": GalaxyEvents.FLEET_CREATED, "fleet": fleet.id, "planet": planet.id})

@@ -1153,16 +1153,28 @@ func _civilian_destination(engine: GalaxyEngine, fleet: Fleet) -> Vector2i:
 			_targets.erase(id)
 	if s.faction(fleet.owner).get("role", "major") != "major":
 		return fleet.cell
-	if _warships_near(engine, fleet.owner, fleet.cell):
-		var home := _nearest(s, fleet.cell, s.planets_of(fleet.owner))
+	var home := _nearest(s, fleet.cell, s.planets_of(fleet.owner))
+	var at_home := home != null and home.cell == fleet.cell
+	if _warships_near(engine, fleet.owner, fleet.cell) and not at_home:
 		return _step_towards(engine, fleet, home.cell) if home != null else fleet.cell
-	var role := "transport" if fleet.has_role(data, "transport") else ("colony" if fleet.has_role(data, "colony") else "constructor")
-	var target := _civilian_goal(engine, fleet.owner, role, fleet.cell, fleet.id)
+	# A mixed convoy (say a colony ship with constructors) goes wherever one of its roles has work:
+	# troops first, then settlers, then workers (else constructors would idle with a settler that has
+	# nowhere to go).
+	var target: Planet = null
+	for role: String in ["transport", "colony", "constructor"]:
+		if fleet.has_role(data, role):
+			target = _civilian_goal(engine, fleet.owner, role, fleet.cell, fleet.id)
+			if target != null:
+				break
 	if target == null:
 		_targets.erase(fleet.id)
 		return fleet.cell
 	_targets[fleet.id] = target.id
-	return _step_towards(engine, fleet, target.cell)
+	var step := _step_towards(engine, fleet, target.cell)
+	# Safe at home with raiders about: leave only if this turn's stop is clear of them.
+	if at_home and _warships_near(engine, fleet.owner, step):
+		return fleet.cell
+	return step
 
 
 ## A warfleet carrying settlers or workers (they joined it when departing a system it was

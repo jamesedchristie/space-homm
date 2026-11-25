@@ -19,6 +19,8 @@ var hero_id := ""
 ## A civilian ship's standing order (OrderShipCommand), carried by its own fleet:
 ## {"ship", "planet", "body", "action": "job"|"found", "item"}; {} for none.
 var order: Dictionary = {}
+## Automation (Automation): "explore" for a fleet that explores on its own, "" otherwise.
+var auto := ""
 
 
 ## Slowest ship sets the pace.

@@ -252,6 +252,16 @@ development offline); once per system per turn (`GalaxyState.raided`), using the
 proposes agreements to AI powers that like it, sells strategic stock above `MARKET_SURPLUS`, buys what
 its goal lacks when rich, and raids whatever it blockades.
 
+**Automation** (Phase 7, `src/strategic/ai/automation.gd`): player-delegated work run with the AI's
+own judgement. `ship["auto"]` on a civilian ship (kept through deploy, jobs and relaunch),
+`Fleet.auto == "explore"` and `Planet.auto_build` (governor) are saved. The galaxy screen calls
+`Automation.next_command()` at the start of the player's turn until it returns null (each fleet and
+planet once a turn, a cap of 60 commands): governors queue `GalaxyAI.choose_build` (or, when the AI
+would save up, the first affordable building in `BUILD_PRIORITY`), automated ships take the job or
+colony `_best_job` / `_best_colony_body` offers where they stand and otherwise fly where
+`_civilian_destination` sends them, explorers head for the nearest reachable uncharted cell (or
+unsurveyed body) no stronger enemy guards.
+
 **Act 1 -> Act 2** (`ActTransition`, pure): after a Solar Age win (`can_continue`), `act2_campaign`
 builds a campaign definition from the Random Sector template with the player's empire carried over:
 the home system named after the old one with its bodies (owned ones with buildings and pop first, up
