@@ -62,6 +62,8 @@ var _last_autosave_turn := -1
 var _split_ships: Array[String] = []
 var _hover: Variant = null
 var _reach: Dictionary = {}
+## Gate jump destinations of the selected fleet (relic gates, own Jump Gates).
+var _gate_cells: Array[Vector2i] = []
 var _attack_cells: Array[Vector2i] = []
 var _visible: Dictionary = {}
 ## Bumped on restart so coroutines from the previous campaign stop.
@@ -882,6 +884,7 @@ func _refresh() -> void:
 	var path: Array[Vector2i] = []
 	_reach = {}
 	_attack_cells = []
+	_gate_cells = []
 	var fleet: Fleet = s.fleets.get(selected_fleet)
 	var mine := fleet != null and fleet.owner == player_faction
 	if not (human and mine):
@@ -893,6 +896,10 @@ func _refresh() -> void:
 		_attack_cells = engine.attack_targets(fleet.id, _reach)
 		for c: Vector2i in _reach:
 			if c != fleet.cell and c not in _attack_cells:
+				move_cells.append(c)
+		_gate_cells = engine.gate_destinations(fleet.id)
+		for c: Vector2i in _gate_cells:
+			if c not in move_cells:
 				move_cells.append(c)
 		if _hover != null and _reach.has(_hover) and _hover != fleet.cell:
 			path = Pathfinding.path_to(_reach, _hover)
@@ -1010,6 +1017,10 @@ func _hint_text(human: bool, fleet: Fleet) -> String:
 					EmpireRules.defense_units(engine, target_system).size(), _assault_outcome_text(fleet, target_system)]
 	elif _hover != null and _reach.has(_hover) and _hover != fleet.cell:
 		text = "Move here: %d of %d moves" % [_reach[_hover]["cost"], fleet.moves_left]
+	elif _hover != null and _hover in _gate_cells:
+		var far := engine.state.planet_at(_hover)
+		text = "Jump through the %s to %s (ends this fleet's move)" % [
+				"relic gate" if engine.gate_kind(far) == "relic" else "Jump Gate", far.name]
 	elif _hover != null and _hover == fleet.cell and _own_system_under_fleet() != null:
 		text = ("Click again (or press S) to open %s" if engine.is_system_scale() else "Click again (or press S) to open the %s system") \
 				% _own_system_under_fleet().name
@@ -1773,7 +1784,7 @@ func _on_left_click() -> void:
 		if own != null and own != fleet and own.owner == player_faction and _reach.has(cell):
 			_ask_merge(fleet, own)
 			return
-		if cell in _attack_cells or (_reach.has(cell) and cell != fleet.cell):
+		if cell in _attack_cells or (_reach.has(cell) and cell != fleet.cell) or cell in _gate_cells:
 			_submit(MoveFleetCommand.new(player_faction, fleet.id, cell))
 			return
 		# Clicking the selected fleet again opens the system it's parked in.

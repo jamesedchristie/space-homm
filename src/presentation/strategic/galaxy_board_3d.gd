@@ -168,8 +168,8 @@ func _build_board() -> void:
 	var rift := BoardGeometry.buffer()
 	for c in grid.cells():
 		var terrain := grid.terrain_def(c)
-		if grid.terrain_at(c) in ["star", "jump_point"]:
-			continue  # the sun and the dormant gates are SolarSystem3D's
+		if grid.terrain_at(c) in ["star", "jump_point", "void"]:
+			continue  # the sun and the dormant gates are SolarSystem3D's; the void between lanes stays empty
 		if not terrain.get("passable", true):
 			# A rift: a dark well with a faint violet lip.
 			BoardGeometry.fill_poly(rift, _cell_poly(c, 1.0), Color(0.0, 0.0, 0.01, 0.92), -0.03)
@@ -203,7 +203,28 @@ func _build_board() -> void:
 	BoardGeometry.mesh_node(_world, BoardGeometry.tile_material(true)).mesh = glass.commit()
 	BoardGeometry.mesh_node(_world, BoardGeometry.line_material(0.025 if _hq else 0.05)).mesh = BoardGeometry.grid_lines(polys, 0.005)
 	BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material()).mesh = BoardGeometry.commit(rift)
+	if engine.has_lanes():
+		_build_lanes()
 	_territory_mesh = BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material())
+
+
+## Hyperlanes: a soft glow and a bright core between the systems they join, drawn just above the
+## cloud cover (the network is charted from the start).
+func _build_lanes() -> void:
+	var buf := BoardGeometry.buffer()
+	var y := FOG_HEIGHT + 0.03
+	for lane: Array in engine.lanes():
+		var a: Planet = engine.state.planets.get(lane[0])
+		var b: Planet = engine.state.planets.get(lane[1])
+		if a == null or b == null:
+			continue
+		var pa := world(a.cell, y)
+		var pb := world(b.cell, y)
+		var trim := (pb - pa).normalized() * 0.55  # stop short of the systems themselves
+		BoardGeometry.ribbon(buf, pa + trim, pb - trim, 0.42, Color(0.35, 0.6, 1.0, 0.07))
+		BoardGeometry.ribbon(buf, pa + trim, pb - trim, 0.16, Color(0.45, 0.75, 1.0, 0.16))
+		BoardGeometry.ribbon(buf, pa + trim, pb - trim, 0.05, Color(0.75, 0.9, 1.0, 0.55))
+	BoardGeometry.mesh_node(_world, BoardGeometry.overlay_material()).mesh = BoardGeometry.commit(buf)
 
 
 ## Civ-style borders: each owned system claims its hex and the ring around it
@@ -212,7 +233,7 @@ func _build_board() -> void:
 func _draw_territory() -> void:
 	var owners := PackedStringArray()
 	for p: Planet in engine.state.planets.values():
-		owners.append(p.id + "=" + p.owner)
+		owners.append(p.id + "=" + p.owner + ":" + engine.gate_kind(p))
 	var key := ",".join(owners)
 	if key == _territory_key or _territory_mesh == null:
 		return
@@ -247,6 +268,15 @@ func _draw_territory() -> void:
 			var ia := a + (world(c) - a) * 0.04
 			var ib := b + (world(c) - b) * 0.04
 			BoardGeometry.ribbon(buf, Vector3(ia.x, 0.008, ia.z), Vector3(ib.x, 0.008, ib.z), 0.035, Color(color.lightened(0.15), 0.75))
+	# Gates: a gold ring round a relic gate, a cyan one round a Jump Gate (above the cloud cover).
+	for p: Planet in engine.state.planets.values():
+		var kind := engine.gate_kind(p)
+		if kind.is_empty():
+			continue
+		var ring_color := Color(1.0, 0.8, 0.35, 0.85) if kind == "relic" else Color(0.4, 0.95, 1.0, 0.85)
+		var ring := BoardGeometry.disc(world(p.cell, FOG_HEIGHT + 0.04), 0.78, 24)
+		BoardGeometry.outline(buf, ring, FOG_HEIGHT + 0.04, 0.06, ring_color)
+		BoardGeometry.outline(buf, BoardGeometry.disc(world(p.cell, FOG_HEIGHT + 0.04), 0.9, 24), FOG_HEIGHT + 0.04, 0.16, Color(ring_color, 0.15))
 	_territory_mesh.mesh = BoardGeometry.commit(buf)
 
 

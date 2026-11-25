@@ -37,7 +37,7 @@ static func to_dict(engine: GalaxyEngine, campaign_id: String) -> Dictionary:
 	var planets := []
 	for p: Planet in s.planets.values():
 		planets.append({"id": p.id, "name": p.name, "star": p.star, "cell": p.cell, "owner": p.owner,
-				"sensor": p.sensor, "description": p.description, "bodies": p.bodies.duplicate(true),
+				"sensor": p.sensor, "gate": p.gate, "description": p.description, "bodies": p.bodies.duplicate(true),
 				"queue": p.queue.duplicate(true), "megaprojects": p.megaprojects.duplicate(),
 				"civilians": p.civilians.duplicate(true), "blockade": p.blockade, "capital": p.capital.duplicate(true)})
 	var fleets := []
@@ -132,6 +132,7 @@ static func from_dict(data: DataRegistry, save: Dictionary) -> Dictionary:
 		p.owner = p_d["owner"]
 		p.sensor = p_d["sensor"]
 		p.description = p_d["description"]
+		p.gate = p_d.get("gate", "")
 		for b: Dictionary in p_d.get("bodies", []):
 			var body := b.duplicate(true)
 			var traits: Array[String] = []

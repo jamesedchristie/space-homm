@@ -44,5 +44,11 @@
     "description": "dormant until Hyperdrive. Once it wakes, ships can leave the system.",
     "passable": false,
     "color": "#0f3040"
+  },
+  "void": {
+    "name": "Deep Void",
+    "description": "Empty space between the hyperlanes. Impassable: ships travel along lanes.",
+    "passable": false,
+    "color": "#020306"
   }
 }

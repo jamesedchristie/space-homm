@@ -172,9 +172,10 @@
     }
   ],
   "generate": {
-    "width": 34,
-    "height": 22,
-    "neutral_planets": 22,
+    "width": 40,
+    "height": 26,
+    "neutral_planets": 24,
+    "lanes": {"extra": 0.3, "max_length": 9, "relic_gates": 3},
     "spacing": 4,
     "terrain": {
       "nebula": [

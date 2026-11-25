@@ -281,5 +281,17 @@
     "turns": 3,
     "requires_tech": "fleet_doctrine",
     "hero_xp": 12
+  },
+  "jump_gate": {
+    "name": "Jump Gate",
+    "description": "A ring of exotic-matter conduits: your fleets here jump to any of your other Jump Gates in one move. Needs a colony.",
+    "needs": "colony",
+    "cost": {
+      "credits": 120,
+      "alloys": 160,
+      "exotic_matter": 12
+    },
+    "turns": 6,
+    "requires_tech": "gate_engineering"
   }
 }

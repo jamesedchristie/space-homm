@@ -38,7 +38,7 @@ const MUSTER_SIZE := 3
 ## Build order for economy buildings.
 const BUILD_PRIORITY := ["colony", "mining_base", "gas_refinery", "research_station", "hydroponic_farm", "trade_hub",
 		"defense_platform", "academy", "planetary_shield", "commerce_exchange", "orbital_habitat", "fleet_academy",
-		"sensor_array", "shipyard"]
+		"sensor_array", "jump_gate", "shipyard"]
 ## Buildings worth buying while saving up for a megaproject (they pay for themselves).
 const SAVING_OK := ["colony", "mining_base", "gas_refinery", "research_station", "hydroponic_farm", "trade_hub",
 		"academy", "commerce_exchange"]
@@ -399,6 +399,13 @@ func _step_towards(engine: GalaxyEngine, fleet: Fleet, target: Vector2i) -> Vect
 		if d < best_dist:
 			best_dist = d
 			best_cell = c
+	# A gate here (relic or our own Jump Gate): jump if the far side is clearly closer than
+	# where the lanes get us this turn (a jump takes the whole turn).
+	for g: Vector2i in engine.gate_destinations(fleet.id):
+		var d: int = field.get(g, 1 << 30)
+		if d + 3 < best_dist:
+			best_dist = d
+			best_cell = g
 	return best_cell
 
 
@@ -692,6 +699,17 @@ func _building_sensible(engine: GalaxyEngine, planet: Planet, option: Dictionary
 			return int(engine.state.resources[faction_id].get("credits", 0)) > 200
 		"defense_platform":
 			return engine.state.turn_number > 15
+		"jump_gate":
+			# On lane maps: a handful of gates, spread far apart, once the treasury allows.
+			if not engine.has_lanes() or int(engine.state.resources[faction_id].get("credits", 0)) < 200:
+				return false
+			var gates := 0
+			for p: Planet in engine.state.planets_of(faction_id):
+				if engine.gate_kind(p) == "jump" or p.queue.get("item", "") == "jump_gate":
+					gates += 1
+					if engine.state.grid.distance(p.cell, planet.cell) < 8:
+						return false
+			return gates < 4
 	return true
 
 

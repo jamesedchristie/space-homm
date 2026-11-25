@@ -94,6 +94,13 @@ Three campaigns:
   the Free Traders deal with whoever treats them well. Enter a seed to replay a sector. Every major
   power starts in its (still unclaimed) home system with its warfleet, a **Colony Ship** and a
   **Constructor**: found your capital first (the attention list at the top left points you there).
+  The sector is a **hyperlane network**: systems are joined by lanes and ships travel only along them
+  (the dark between them is impassable void), so chokepoints and junctions matter. Every system is
+  **charted** from the start and the lanes are drawn between them; what lies along a lane (salvage,
+  mission sites) and where the fleets are still needs scouting. Three ancient **relic gates** (gold
+  rings) link to each other: a fleet at one can jump to any other in one move (it ends the fleet's move).
+  Research **Gate Engineering** to build **Jump Gates** (cyan rings) in your colonies: your own railroad,
+  linking all your gates the same way. Hover a highlighted gate to see where a jump goes.
 - **The Drift (scenario)**: a short hand-made scenario: clear the raider dens out of the Drift. You
   start with your home colony already founded.
 

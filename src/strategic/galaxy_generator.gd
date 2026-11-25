@@ -91,6 +91,22 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 				"bodies": SystemBuilder.random_bodies(data, rng, name.to_snake_case(), name)})
 	out["planets"] = planets
 
+	# Hyperlanes (optional): systems joined by lanes; only lane hexes are open space,
+	# everything else is void. lane_cells holds the open layout cells.
+	var lane_cells := {}
+	var lane_spec: Dictionary = gen.get("lanes", {})
+	if not lane_spec.is_empty():
+		out["lanes"] = _make_lanes(grid, planets, lane_spec, rng)
+		for p: Dictionary in planets:
+			lane_cells[Vector2i(int(p["at"][0]), int(p["at"][1]))] = true
+		var by_id := {}
+		for p: Dictionary in planets:
+			by_id[p["id"]] = grid.cell_from_layout(Vector2i(int(p["at"][0]), int(p["at"][1])))
+		for lane: Array in out["lanes"]:
+			for c in grid.line(by_id[lane[0]], by_id[lane[1]]):
+				lane_cells[grid.layout_from_cell(c)] = true
+		_place_relic_gates(grid, planets, home_at.values(), int(lane_spec.get("relic_gates", 0)), rng)
+
 	# Starting fleets next to their homes.
 	var fleets: Array = []
 	var landed := {}  # faction ids whose first fleet already stands in the home system
@@ -103,7 +119,7 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 			fleet["at"] = [home.x, home.y]
 			fleets.append(fleet)
 			continue
-		var at := _free_near(grid, home, occupied, rng)
+		var at := _free_near(grid, home, occupied, rng, lane_cells)
 		occupied[at] = true
 		fleet["at"] = [at.x, at.y]
 		fleets.append(fleet)
@@ -121,7 +137,7 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 	# Mission sites in the contested middle: at least 4 from every home.
 	var anomalies: Array = []
 	for a_def: Dictionary in gen.get("anomalies", []):
-		var at := _farthest(grid, w, h, home_at.values(), occupied, rng, 6, 2)
+		var at := _farthest(grid, w, h, home_at.values(), occupied, rng, 6, 2, lane_cells)
 		if at == Vector2i(-1, -1):
 			continue
 		occupied[at] = true
@@ -140,13 +156,16 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 		var blobs := int(spec[kind][0])
 		var size := int(spec[kind][1])
 		var impassable: bool = not data.galaxy_terrain.get(kind, {}).get("passable", true)
+		if impassable and not lane_cells.is_empty():
+			continue  # lane maps: the void is the wall
 		terrain[kind] = []
 		for b in blobs:
 			var blob: Array = []
 			var at := Vector2i(rng.randi_range(0, w - 1), rng.randi_range(0, h - 1))
 			var heading := rng.randi() % 6
 			for s in size:
-				if not occupied.has(at) and not _near_any(grid, at, home_at.values(), 2) and grid.has_cell(grid.cell_from_layout(at)):
+				if not occupied.has(at) and not _near_any(grid, at, home_at.values(), 2) and grid.has_cell(grid.cell_from_layout(at)) \
+						and (lane_cells.is_empty() or lane_cells.has(at)):
 					occupied[at] = true
 					blob.append([at.x, at.y])
 				var options := grid.neighbors(grid.cell_from_layout(at))
@@ -168,6 +187,13 @@ static func generate(data: DataRegistry, template: Dictionary, seed_value: int) 
 	for kind: String in terrain.keys():
 		if terrain[kind].is_empty():
 			terrain.erase(kind)
+	if not lane_cells.is_empty():
+		var void_cells: Array = []
+		for y in h:
+			for x in w:
+				if not lane_cells.has(Vector2i(x, y)):
+					void_cells.append([x, y])
+		terrain["void"] = void_cells
 
 	var backdrops: Array = gen.get("backdrops", [])
 	if not backdrops.is_empty():
@@ -213,7 +239,7 @@ static func _start_ship_name(data: DataRegistry, unit_id: String) -> String:
 
 
 static func _farthest(grid: HexGrid, w: int, h: int, points: Array, occupied: Dictionary,
-		rng: RandomNumberGenerator, top: int, min_others: int = 0) -> Vector2i:
+		rng: RandomNumberGenerator, top: int, min_others: int = 0, allowed: Dictionary = {}) -> Vector2i:
 	# Two breadth-first distance maps instead of measuring every cell against
 	# every point (the big sector made that the slowest part of generating).
 	var to_points := _distance_map(grid, points)
@@ -222,7 +248,7 @@ static func _farthest(grid: HexGrid, w: int, h: int, points: Array, occupied: Di
 	for y in range(EDGE, h - EDGE):
 		for x in range(EDGE, w - EDGE):
 			var at := Vector2i(x, y)
-			if occupied.has(at):
+			if occupied.has(at) or (not allowed.is_empty() and not allowed.has(at)):
 				continue
 			if min_others > 0 and int(to_occupied.get(at, 1 << 20)) < min_others:
 				continue
@@ -255,11 +281,12 @@ static func _distance_map(grid: HexGrid, sources: Array) -> Dictionary:
 	return dist
 
 
-static func _free_near(grid: HexGrid, at: Vector2i, occupied: Dictionary, rng: RandomNumberGenerator) -> Vector2i:
+static func _free_near(grid: HexGrid, at: Vector2i, occupied: Dictionary, rng: RandomNumberGenerator,
+		allowed: Dictionary = {}) -> Vector2i:
 	var options: Array = []
 	for n in grid.neighbors(grid.cell_from_layout(at)):
 		var l := grid.layout_from_cell(n)
-		if not occupied.has(l):
+		if not occupied.has(l) and (allowed.is_empty() or allowed.has(l)):
 			options.append(l)
 	if options.is_empty():
 		return at
@@ -295,3 +322,79 @@ static func _shuffle(arr: Array, rng: RandomNumberGenerator) -> void:
 		var t = arr[i]
 		arr[i] = arr[j]
 		arr[j] = t
+
+
+# --- Hyperlanes ---------------------------------------------------------------
+
+## Lanes between systems ([planet id, planet id] pairs): the relative neighbourhood graph of the
+## systems (connected, no crossings, mostly short hops), plus a few extra non-crossing lanes up to
+## `max_length` hexes long (chance `extra` each) so the network has loops and alternative routes.
+static func _make_lanes(grid: HexGrid, planets: Array, spec: Dictionary, rng: RandomNumberGenerator) -> Array:
+	var n := planets.size()
+	var px: Array[Vector2] = []
+	for p: Dictionary in planets:
+		px.append(grid.to_pixel(grid.cell_from_layout(Vector2i(int(p["at"][0]), int(p["at"][1]))), 1.0))
+	var edges: Array = []
+	for i in n:
+		for j in range(i + 1, n):
+			edges.append([px[i].distance_to(px[j]), i, j])
+	edges.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	var kept: Array = []
+	var rest: Array = []
+	for e: Array in edges:
+		var i: int = e[1]
+		var j: int = e[2]
+		var ok := true
+		for k in n:
+			if k != i and k != j and maxf(px[i].distance_to(px[k]), px[j].distance_to(px[k])) < float(e[0]) - 0.001:
+				ok = false
+				break
+		if ok:
+			kept.append(e)
+		else:
+			rest.append(e)
+	var extra := float(spec.get("extra", 0.25))
+	var max_len := float(spec.get("max_length", 8)) * sqrt(3.0)  # hexes -> pixels at size 1
+	for e: Array in rest:
+		if float(e[0]) > max_len or rng.randf() >= extra:
+			continue
+		var a: Vector2 = px[e[1]]
+		var b: Vector2 = px[e[2]]
+		var clear := true
+		for k in n:
+			if k != e[1] and k != e[2] and Geometry2D.get_closest_point_to_segment(px[k], a, b).distance_to(px[k]) < 2.2:
+				clear = false  # would graze another system
+				break
+		for f: Array in kept:
+			if clear and not (f[1] in [e[1], e[2]] or f[2] in [e[1], e[2]]) \
+					and Geometry2D.segment_intersects_segment(a, b, px[f[1]], px[f[2]]) != null:
+				clear = false
+		if clear:
+			kept.append(e)
+	var out: Array = []
+	for e: Array in kept:
+		out.append([planets[e[1]]["id"], planets[e[2]]["id"]])
+	return out
+
+
+## Marks `count` neutral systems, far from the homes and from each other, as holding a relic gate.
+static func _place_relic_gates(grid: HexGrid, planets: Array, homes: Array, count: int, rng: RandomNumberGenerator) -> void:
+	var chosen: Array = homes.duplicate()
+	for g in count:
+		var best: Dictionary = {}
+		var best_d := -1.0
+		for p: Dictionary in planets:
+			if p.get("owner", "") != "" or p.has("capital") or p.get("relic_gate", false):
+				continue
+			var at := Vector2i(int(p["at"][0]), int(p["at"][1]))
+			var d := 1.0e9
+			for c: Vector2i in chosen:
+				d = minf(d, _dist(grid, at, c))
+			d += rng.randf() * 2.0
+			if d > best_d:
+				best_d = d
+				best = p
+		if best.is_empty():
+			return
+		best["relic_gate"] = true
+		chosen.append(Vector2i(int(best["at"][0]), int(best["at"][1])))

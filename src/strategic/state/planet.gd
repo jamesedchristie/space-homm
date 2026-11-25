@@ -14,6 +14,8 @@ var star := "yellow"
 ## Faction id, or "" if unclaimed.
 var owner := ""
 var sensor := 2
+## "relic" for an ancient relic gate (lane campaigns); jump gates are buildings ("jump_gate").
+var gate := ""
 var description := ""
 ## [{"id", "name", "type" (data/strategic/body_types.json), "traits": [ids], "buildings": [ids]}]
 ## Buildings: one installation per body (colony, mining_base, ...); a colony

@@ -598,5 +598,22 @@
         "add": 1
       }
     ]
+  },
+  "gate_engineering": {
+    "name": "Gate Engineering",
+    "description": "Unlocks the Jump Gate: fleets jump between your gated systems in one move.",
+    "era": 2,
+    "cost": 140,
+    "scale": "galaxy",
+    "requires": [
+      "improved_drives",
+      "exotic_physics"
+    ],
+    "effects": [
+      {
+        "type": "unlock_building",
+        "building": "jump_gate"
+      }
+    ]
   }
 }

@@ -89,6 +89,7 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 		p.star = p_def.get("star", SystemBuilder.random_star(p_data, s.rng))
 		p.bodies = SystemBuilder.bodies_from_def(p_data, p_def, p.name, s.rng)
 		p.description = p_def.get("description", "")
+		p.gate = "relic" if p_def.get("relic_gate", false) else str(p_def.get("gate", ""))
 		p.capital = p_def.get("capital", {}).duplicate(true)
 		for c_def: Dictionary in p_def.get("civilians", []):
 			var unit_def: Dictionary = p_data.units[c_def["unit"]]
@@ -151,6 +152,13 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 			if s.grid.terrain_at(c) in ["star", "corona"]:
 				for f in s.factions:
 					s.explored[f["id"]][c] = true
+	if engine.has_lanes():
+		# The lane network is charted from the start: every system is on everyone's map and the
+		# lanes are drawn between them; what lies along a lane (finds, mission sites) and what is
+		# there now (fleets) still needs scouting.
+		for p: Planet in s.planets.values():
+			for f in s.factions:
+				s.explored[f["id"]][p.cell] = true
 	s.permadeath = def.get("permadeath", false)
 	for r: Dictionary in def.get("relations", []):
 		var pair: Array = r["factions"]
@@ -325,7 +333,7 @@ func validate(cmd: GalaxyCommand) -> String:
 			return "Not your fleet"
 		if cmd.to == fleet.cell:
 			return "Already there"
-		if not reachable_for(fleet.id).has(cmd.to):
+		if not reachable_for(fleet.id).has(cmd.to) and not gate_destinations(fleet.id).has(cmd.to):
 			return "Cannot reach that system this turn"
 	elif cmd is AssignHeroCommand or cmd is UnassignHeroCommand or cmd is EquipItemCommand:
 		return _validate_hero_command(cmd)
@@ -518,6 +526,70 @@ func split_targets(fleet_id: String) -> Array[Vector2i]:
 			if planet == null or planet.owner.is_empty() or planet.owner == fleet.owner:
 				out.append(c)
 	return out
+
+
+# --- Hyperlanes and gates ----------------------------------------------------
+
+## Whether this campaign's systems are joined by hyperlanes (the generator's "lanes").
+func has_lanes() -> bool:
+	return campaign.has("lanes")
+
+
+## [[planet id, planet id], ...]: the hyperlanes (empty on open maps).
+func lanes() -> Array:
+	return campaign.get("lanes", [])
+
+
+## The kind of gate in a system: "relic" (an ancient gate, open to everyone), "jump" (a Jump Gate
+## its owner built) or "".
+func gate_kind(planet: Planet) -> String:
+	if planet == null:
+		return ""
+	if planet.gate == "relic":
+		return "relic"
+	return "jump" if "jump_gate" in planet.buildings else ""
+
+
+## Systems a fleet can jump to from the gate it is at: any other relic gate from a relic gate, any
+## other jump gate of the same owner from one of theirs. A jump takes the fleet's remaining moves (it
+## needs at least one); the far gate must be free (or hold a fleet of ours to join) and not hostile.
+func gate_destinations(fleet_id: String) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var fleet: Fleet = state.fleets.get(fleet_id)
+	if fleet == null or fleet.moves_left <= 0:
+		return out
+	var here := state.planet_at(fleet.cell)
+	var kind := gate_kind(here)
+	if kind.is_empty() or (kind == "jump" and here.owner != fleet.owner):
+		return out
+	for p: Planet in state.planets.values():
+		if p == here or gate_kind(p) != kind or (kind == "jump" and p.owner != fleet.owner):
+			continue
+		if not p.owner.is_empty() and p.owner != fleet.owner and state.at_war(fleet.owner, p.owner):
+			continue
+		if is_defended_against(p, fleet.owner):
+			continue
+		var other := state.fleet_at(p.cell)
+		if other != null and not (other.owner == fleet.owner and can_merge(fleet, other)):
+			continue
+		out.append(p.cell)
+	return out
+
+
+func _do_jump(fleet: Fleet, to: Vector2i) -> void:
+	var from := fleet.cell
+	var occupant := state.fleet_at(to)
+	fleet.moves_left = 0
+	emit({"type": GalaxyEvents.FLEET_MOVED, "fleet": fleet.id, "path": [from, to] as Array[Vector2i],
+			"moves_left": 0, "jump": true})
+	if occupant != null and occupant != fleet:
+		_merge(fleet, occupant)
+		return
+	fleet.cell = to
+	_reveal_around(fleet)
+	_detect_contacts()
+	_update_blockades()
+	_try_invade(state.planet_at(to), fleet)
 
 
 func reachable_for(fleet_id: String) -> Dictionary:
@@ -1011,6 +1083,9 @@ func emit(event: Dictionary) -> void:
 func _do_move(cmd: MoveFleetCommand) -> void:
 	var fleet: Fleet = state.fleets[cmd.fleet_id]
 	var reach := reachable_for(fleet.id)
+	if not reach.has(cmd.to) and gate_destinations(fleet.id).has(cmd.to):
+		_do_jump(fleet, cmd.to)
+		return
 	var planned := Pathfinding.path_to(reach, cmd.to)
 	var walked: Array[Vector2i] = [fleet.cell]
 	var enemy: Fleet = null

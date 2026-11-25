@@ -224,6 +224,23 @@ planet, fleet or mission site off from the player's home), starting fleets besid
 and mission sites in the contested middle. Saves of generated campaigns store the generated
 definition (`campaign_def`). Content validation runs the generator for two seeds.
 
+**Hyperlanes.** A `"lanes": {"extra", "max_length", "relic_gates"}` entry in the generate block
+makes the sector a lane network (`GalaxyGenerator._make_lanes`): the relative neighbourhood graph of
+the systems (connected, planar, mostly short hops) plus extra non-crossing lanes up to `max_length`
+hexes (chance `extra` each) for loops. The hexes on each lane's line stay open; every other cell
+becomes `void` terrain (impassable, not drawn), so movement, pathfinding, fog, battles and the AI
+need no lane-specific code. Fleets and mission sites are placed on lane cells; terrain blobs only
+land on lanes (slow lanes) and rifts are skipped. The output's `"lanes"` (`[[planet id, planet id]]`)
+is for the presentation (`GalaxyEngine.has_lanes()` / `lanes()`). Every system cell starts explored
+for everyone (charted). **Gates:** `Planet.gate == "relic"` (`relic_gate` on the generated planet,
+`_place_relic_gates` spreads them far from homes) or a `jump_gate` building (tech
+`gate_engineering`, scale `galaxy`); `GalaxyEngine.gate_kind()` / `gate_destinations(fleet)`: from a
+relic gate to every other relic gate, from a Jump Gate to every other gate of the same owner, if the
+far side is free (or holds a fleet to merge with), not hostile and not defended against the fleet.
+`MoveFleetCommand` to such a cell jumps (`_do_jump`: all remaining moves, `FLEET_MOVED` with
+`"jump": true`). The AI jumps when the far gate is clearly closer to its goal (`_step_towards`) and
+builds up to four spread-out Jump Gates.
+
 Missions get their own randomness: `"caches": {"count", "loot": [...]}` places that many
 supply lockers (one-cell reward triggers, marker `"loot"`) on random free cells away from the
 squad, rolled from the battle seed in `BattleEngine._place_caches`; `"loot": [...]` is a
