@@ -241,6 +241,14 @@ far side is free (or holds a fleet to merge with), not hostile and not defended 
 `"jump": true`). The AI jumps when the far gate is clearly closer to its goal (`_step_towards`) and
 builds up to four spread-out Jump Gates.
 
+**Act 1 -> Act 2** (`ActTransition`, pure): after a Solar Age win (`can_continue`), `act2_campaign`
+builds a campaign definition from the Random Sector template with the player's empire carried over:
+the home system named after the old one with its bodies (owned ones with buildings and pop first, up
+to `MAX_BODIES`), deployed civilians, warfleets, heroes (level, xp, gear), items, galaxy-scale techs and
+the treasury capped by `CARRY_CAP`. Every major power is `"founded"` (starts with its capital instead of a
+colony ship) and knows the same techs. The galaxy screen offers "Continue to Act 2" in the game-over
+dialog and starts the definition through `campaign_override`.
+
 Missions get their own randomness: `"caches": {"count", "loot": [...]}` places that many
 supply lockers (one-cell reward triggers, marker `"loot"`) on random free cells away from the
 squad, rolled from the battle seed in `BattleEngine._place_caches`; `"loot": [...]` is a

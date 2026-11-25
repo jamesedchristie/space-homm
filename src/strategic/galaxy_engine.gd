@@ -122,7 +122,7 @@ static func from_campaign(p_data: DataRegistry, campaign_ref: Variant, p_seed: i
 		h.class_id = h_def["class"]
 		h.owner = h_def["owner"]
 		h.level = int(h_def.get("level", 1))
-		h.xp = maxi(HeroProgression.xp_for_level(p_data, h.level), 0)
+		h.xp = maxi(HeroProgression.xp_for_level(p_data, h.level), int(h_def.get("xp", 0)))
 		for t: String in h_def.get("traits", []):
 			h.traits.append(t)
 		h.gear = h_def.get("gear", {}).duplicate()

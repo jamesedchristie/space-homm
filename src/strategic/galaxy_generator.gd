@@ -225,7 +225,7 @@ static func _home_bodies(data: DataRegistry, rng: RandomNumberGenerator, p: Dict
 
 ## Whether this faction starts without a colony, arriving by colony ship (major powers only).
 static func _starts_unfounded(template: Dictionary, faction_id: String) -> bool:
-	if template.get("start", "owned") != "colony_ship":
+	if template.get("start", "owned") != "colony_ship" or faction_id in template.get("founded", []):
 		return false
 	for f: Dictionary in template.get("factions", []):
 		if f["id"] == faction_id:
@@ -289,6 +289,21 @@ static func _free_near(grid: HexGrid, at: Vector2i, occupied: Dictionary, rng: R
 		if not occupied.has(l) and (allowed.is_empty() or allowed.has(l)):
 			options.append(l)
 	if options.is_empty():
+		# Crowded: the nearest free (allowed) cell further out.
+		var seen := {at: true}
+		var frontier: Array[Vector2i] = [at]
+		var i := 0
+		while i < frontier.size() and i < 400:
+			var l := frontier[i]
+			i += 1
+			for n in grid.neighbors(grid.cell_from_layout(l)):
+				var nl := grid.layout_from_cell(n)
+				if seen.has(nl) or not (allowed.is_empty() or allowed.has(nl)):
+					continue
+				seen[nl] = true
+				if not occupied.has(nl):
+					return nl
+				frontier.append(nl)
 		return at
 	return options[rng.randi() % options.size()]
 

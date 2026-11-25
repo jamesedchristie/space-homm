@@ -61,6 +61,8 @@ var _last_autosave_turn := -1
 ## Ships picked for detaching (D); while non-empty, clicks place the new fleet.
 var _split_ships: Array[String] = []
 var _hover: Variant = null
+## A campaign definition to start instead of campaign_id once (Act 2, built from Act 1).
+var campaign_override: Dictionary = {}
 var _reach: Dictionary = {}
 ## Gate jump destinations of the selected fleet (relic gates, own Jump Gates).
 var _gate_cells: Array[Vector2i] = []
@@ -134,6 +136,10 @@ func start_campaign() -> void:
 
 
 func _campaign_with_species() -> Variant:
+	if not campaign_override.is_empty():
+		var def := campaign_override
+		campaign_override = {}
+		return def
 	if player_species.is_empty():
 		return campaign_id
 	return SpeciesNaming.with_player_species(data.campaigns[campaign_id], player_species, data)
@@ -837,7 +843,7 @@ func _game_over() -> void:
 		return f.get("role", "major") == "major" and not s.is_eliminated(f["id"])).size()
 	var endings := {"science": "by ascension: the Ascension Gate was completed", "score": "by score at the turn limit",
 			"objective": "the objective was met", "peace": "by treaty", "max_turns": "at the turn limit",
-			"act1": "Act 1 complete: Hyperdrive wakes the jump points, and the galaxy beyond awaits (in a later update)",
+			"act1": "Act 1 complete: Hyperdrive wakes the jump points, and the galaxy beyond awaits",
 			"tech": "by technology"}
 	var how: String = "your empire has fallen" if player_out else endings.get(s.victory_reason,
 			"by conquest" if majors_left <= 1 else "by treaty")
@@ -850,12 +856,21 @@ func _game_over() -> void:
 		title = ending.get("title", title)
 		lines.insert(0, ending.get("text", ""))
 		lines.insert(1, "")
-	hud.ask(title, "\n".join(lines), [{"id": "new", "label": "New campaign"}, {"id": "menu", "label": "Main menu"}])
+	var options: Array = [{"id": "new", "label": "New campaign"}, {"id": "menu", "label": "Main menu"}]
+	var act2 := not autoplay and ActTransition.can_continue(engine, player_faction)
+	if act2:
+		options.push_front({"id": "act2", "label": "Continue to Act 2"})
+	hud.ask(title, "\n".join(lines), options)
 	var token := _token
 	var choice: String = await hud.dialog_choice
 	if token != _token:
 		return
-	if choice == "menu" and not main_menu_requested.get_connections().is_empty():
+	if choice == "act2" and act2:
+		campaign_override = ActTransition.act2_campaign(data, engine, player_faction)
+		campaign_id = ActTransition.TEMPLATE
+		rng_seed = engine.state.turn_number * 7 + 11
+		start_campaign()
+	elif choice == "menu" and not main_menu_requested.get_connections().is_empty():
 		main_menu_requested.emit()
 	else:
 		start_campaign()

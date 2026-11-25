@@ -144,7 +144,10 @@ map is one star system, generated from the seed.
 - **Goal.** Research **Hyperdrive** (the final era of the tech tree: era gates still apply; it needs Exotic
   Physics) to wake the dormant **jump points** at the edge of the map. It completes only with its exotic matter
   and volatiles in store (until then the research waits at 100%, and the research chip says what's missing).
-  That ends Act 1 with a win; losing everything is a defeat. 150 turns. The Empire panel's Victory tab shows
+  That ends Act 1 with a win; **Continue to Act 2** then takes your empire through the jump points into a
+  hyperlane galaxy (the Random Sector generator): your home system as it stands (colonies, developments,
+  deposits), your techs, part of your treasury, your fleets, civilian ships, commanders and items come along,
+  and the rival empires arrive just as far along. Losing everything is a defeat. 150 turns. The Empire panel's Victory tab shows
   your road to Hyperdrive and the stock it needs.
 - **Battles happen where the ships are.** The battle map is the local area round the fight, blown up:
   the worlds there become planet discs (impassable, they block line of sight), the sun's side is a wall of
